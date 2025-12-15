@@ -29,8 +29,8 @@ impl Exe {
                     let lang = chosen_lang.unwrap_or(TargetLanguage::Python3);
                     return crate::frame_c::v3::compile_module(&content, lang);
                 }
-                // Fallback to single-body demo compiler (expects body starting with '{')
-                CompilerV3::compile_single_file(input_path.to_str(), &content, target_language, false)
+                // All Frame files must now have @target pragma - demo mode removed
+                Err(RunError::new(exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
             }
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
@@ -50,7 +50,8 @@ impl Exe {
                     // In module path, debug trailers are controlled by env (set by CLI --emit-debug)
                     return crate::frame_c::v3::compile_module(&content, lang);
                 }
-                CompilerV3::compile_single_file(input_path.to_str(), &content, target_language, true)
+                // All Frame files must now have @target pragma - demo mode removed
+                Err(RunError::new(exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
             }
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
@@ -69,7 +70,14 @@ impl Exe {
         let mut buffer = String::new();
         let mut stdin = io::stdin();
         match stdin.read_to_string(&mut buffer) {
-            Ok(_size) => CompilerV3::compile_single_file(None, &buffer, target_language, false),
+            Ok(_size) => {
+                if buffer.contains("@target ") {
+                    let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                    crate::frame_c::v3::compile_module(&buffer, lang)
+                } else {
+                    Err(RunError::new(exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
+                }
+            },
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read stdin: {}", err))),
         }
     }

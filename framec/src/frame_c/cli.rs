@@ -1003,18 +1003,8 @@ pub fn run_with(args: Cli) {
                                         Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
                                     }
                                 } else {
-                                    let bytes = content.as_bytes(); if bytes.first().copied() != Some(b'{') { continue; }
-                                    match super::v3::validate_single_body(&content, Some(lang)) {
-                                        Ok(res) => {
-                                            let mut had_any = false;
-                                            for issue in &res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); had_any = true; }
-                                            if had_any { had_errors = true; }
-                                            errors_count += res.issues.len();
-                                            validated_count += 1;
-                                            if args.validate_only && !res.ok { /* defer exit to post-loop */ }
-                                        }
-                                        Err(e) => { eprintln!("{}: validation error: {}", f.display(), e.error); if args.validate_only { std::process::exit(e.code); } }
-                                    }
+                                    // Skip non-@target files - demo mode removed
+                                    eprintln!("{}: warning: Frame files must specify @target language", f.display());
                                 }
                             }
                         }
@@ -1026,14 +1016,7 @@ pub fn run_with(args: Cli) {
                     if validated_count == 0 || had_errors { std::process::exit(exitcode::DATAERR); } else { std::process::exit(0); }
                 }
             }
-            match crate::frame_c::v3::multifile_demo::compile_directory_demo(&dir, lang, recursive) {
-                Ok(outputs) => {
-                    for (path, code) in outputs {
-                        println!("=== file: {} ===\n{}", path.display(), code);
-                    }
-                }
-                Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
-            }
+            eprintln!("Demo mode compilation has been removed. All Frame files must use @target pragma.");
             return;
         }
         */
@@ -1110,16 +1093,8 @@ pub fn run_with(args: Cli) {
                     }
                 }
             } else {
-                match super::v3::validate_single_body(&content, target_language) {
-                    Ok(res) => {
-                        for issue in res.issues { eprintln!("validation: {}", issue.message); }
-                        if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
-                    }
-                    Err(e) => {
-                        eprintln!("validation error: {}", e.error);
-                        if args.validate_only { std::process::exit(e.code); }
-                    }
-                }
+                eprintln!("validation error: Frame files must specify @target language. Demo mode has been removed.");
+                if args.validate_only { std::process::exit(exitcode::DATAERR); }
             }
         }
     }

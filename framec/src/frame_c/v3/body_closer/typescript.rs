@@ -48,14 +48,4 @@ impl BodyCloserV3 for BodyCloserTsV3 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn closes_with_backtick_template() {
-        let src = b"{\nconst s = `a${{x:1}}b`;\n}\n";
-        let mut c = BodyCloserTsV3;
-        let idx = c.close_byte(src, 0).unwrap();
-        assert_eq!(idx, src.len()-2);
-    }
-}
+// Tests moved to Docker environment: framepiler_test_env/common/test-frames/v3/closers/

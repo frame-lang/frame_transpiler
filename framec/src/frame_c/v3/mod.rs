@@ -3,7 +3,7 @@ use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v3::native_region_scanner as nscan;
 use crate::frame_c::v3::native_region_scanner::NativeRegionScannerV3;
 use crate::frame_c::v3::mir_assembler::MirAssemblerV3;
-use crate::frame_c::v3::expander::{FrameStatementExpanderV3, PyExpanderV3, TsExpanderV3, CExpanderV3, CppExpanderV3, JavaExpanderV3, RustExpanderV3};
+use crate::frame_c::v3::expander::{FrameStatementExpanderV3};
 use crate::frame_c::v3::splice::SplicerV3;
 use crate::frame_c::v3::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3, BodyKindV3};
 use crate::frame_c::v3::system_parser::SystemParserV3;
@@ -19,7 +19,7 @@ pub mod mir_assembler;
 pub mod expander;
 pub mod splice;
 pub mod validator;
-pub mod multifile_demo;
+// multifile_demo module removed - demo mode no longer supported
 pub mod module_partitioner;
 pub mod prolog_scanner;
 pub mod import_scanner;
@@ -176,202 +176,7 @@ fn collect_ts_field_candidates(
 pub struct CompilerV3;
 
 impl CompilerV3 {
-pub fn compile_single_file(
-        _input_path: Option<&str>,
-        _content: &str,
-        _target_language: Option<TargetLanguage>,
-        _debug_output: bool,
-    ) -> Result<String, RunError> {
-        // MVP demo: treat whole content as a single native body starting with '{'
-        let content = _content.as_bytes();
-        if content.first().copied() != Some(b'{') {
-            return Err(RunError::new(
-                frame_exitcode::PARSE_ERR,
-                "V3 demo expects body starting at '{' (single-body debug mode)",
-            ));
-        }
-        let lang = _target_language.unwrap_or(TargetLanguage::Python3);
-        // Select scanner
-        let scan_res = match lang {
-            TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(content, 0),
-            TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(content, 0),
-            TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(content, 0),
-            TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(content, 0),
-            TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(content, 0),
-            TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(content, 0),
-            TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(content, 0),
-            _ => {
-                return Err(RunError::new(
-                    frame_exitcode::PARSE_ERR,
-                    "V3 demo only supports python_3, typescript, csharp, c, cpp, java, rust",
-                ))
-            }
-        };
-        let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
-        // Assemble MIR
-        let asm = MirAssemblerV3;
-        let mir = asm.assemble(content, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
-        // Build expansions aligned with region indents
-        let exps: Vec<String> = {
-            let mut v = Vec::new();
-            let mut mi = 0usize;
-            for r in &scan.regions {
-                if let crate::frame_c::v3::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
-                    let m = &mir[mi];
-                    mi += 1;
-                        let s = match lang {
-                            TargetLanguage::Python3 => PyExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::TypeScript => TsExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::CSharp => CExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::C => CExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Cpp => CppExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Java => JavaExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Rust => RustExpanderV3.expand(m, *indent, None),
-                            _ => String::new(),
-                        };
-                    v.push(s);
-                }
-            }
-            v
-        };
-        let spliced = SplicerV3.splice(content, &scan.regions, &exps);
-        let mut out_text = spliced.text.clone();
-
-        // If debug_output is requested, emit a structured JSON envelope instead of plain code.
-        if _debug_output {
-            // Minimal structural validation (collect issues) for inclusion in JSON
-            let issues = ValidatorV3
-                .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
-
-            // Build a compact JSON envelope: { targetLanguage, code, <langAlias>, sourceMap, errors, schemaVersion }
-            fn json_escape(s: &str) -> String {
-                let mut out = String::with_capacity(s.len() + 16);
-                for ch in s.chars() {
-                    match ch {
-                        '\\' => out.push_str("\\\\"),
-                        '"' => out.push_str("\\\""),
-                        '\n' => out.push_str("\\n"),
-                        '\r' => out.push_str("\\r"),
-                        '\t' => out.push_str("\\t"),
-                        c if c.is_control() => {
-                            use std::fmt::Write as _;
-                            let _ = write!(&mut out, "\\u{:04x}", c as u32);
-                        }
-                        c => out.push(c),
-                    }
-                }
-                out
-            }
-
-            let lang = _target_language.unwrap_or(TargetLanguage::Python3);
-            let code_escaped = json_escape(&spliced.text);
-            let map_json = spliced.build_trailer_json();
-            let errors_json = build_errors_json(&issues);
-            let lang_alias_key = match lang {
-                TargetLanguage::Python3 => "python",
-                TargetLanguage::TypeScript => "typescript",
-                TargetLanguage::CSharp => "csharp",
-                TargetLanguage::C => "c",
-                TargetLanguage::Cpp => "cpp",
-                TargetLanguage::Java => "java",
-                TargetLanguage::Rust => "rust",
-                _ => "target",
-            };
-            let lang_value = match lang {
-                TargetLanguage::Python3 => "python_3",
-                TargetLanguage::TypeScript => "typescript",
-                TargetLanguage::CSharp => "csharp",
-                TargetLanguage::C => "c",
-                TargetLanguage::Cpp => "cpp",
-                TargetLanguage::Java => "java",
-                TargetLanguage::Rust => "rust",
-                _ => "unknown",
-            };
-            let mut json = String::new();
-            json.push_str("{\"targetLanguage\":\"");
-            json.push_str(lang_value);
-            json.push_str("\",\"code\":\"");
-            json.push_str(&code_escaped);
-            json.push_str("\",");
-            // language-specific alias for code (backward-compat)
-            json.push('"'); json.push_str(lang_alias_key); json.push_str("\":\"");
-            json.push_str(&code_escaped);
-            json.push_str("\",");
-            // sourceMap (already a JSON object)
-            json.push_str("\"sourceMap\":");
-            json.push_str(&map_json);
-            json.push_str(",");
-            // errors (already a JSON object: { errors: [...], schemaVersion: 1 })
-            // normalize to an array field for top-level by extracting the inner structure
-            // We keep the object shape as-is under key "errorsEnvelope" and also expose an array under "errors" for convenience.
-            json.push_str("\"errorsEnvelope\":");
-            json.push_str(&errors_json);
-            // Build a flat errors array by simple extraction (cheap parsing avoided): leave as alias to envelope.errors for now
-            json.push_str(",\"errors\":");
-            json.push_str(&{
-                // naive slice: find errors array
-                if let Some(start) = errors_json.find("[") {
-                    if let Some(end) = errors_json.rfind("]") {
-                        errors_json[start..=end].to_string()
-                    } else { "[]".to_string() }
-                } else { "[]".to_string() }
-            });
-            json.push_str(",\"schemaVersion\":1}");
-            return Ok(json);
-        }
-
-        // Structured error JSON trailer for tools (always emitted in the V3
-        // single‑body demo path). Kept unconditional so test infrastructure
-        // can assert shape deterministically.
-        let issues = ValidatorV3
-            .validate_terminal_last_native(content, &scan.regions, &mir, _target_language.unwrap_or(TargetLanguage::Python3));
-        let json = build_errors_json(&issues);
-        if let TargetLanguage::Python3 = lang {
-            out_text.push_str("\n'''/*#errors-json#\n");
-            out_text.push_str(&json);
-            out_text.push_str("\n#errors-json#*/'''\n");
-        } else {
-            out_text.push_str("\n/*#errors-json#\n");
-            out_text.push_str(&json);
-            out_text.push_str("\n#errors-json#*/\n");
-        }
-        if std::env::var("FRAME_MAP_TRAILER").ok().as_deref() == Some("1") {
-            // rebuild splice to include map
-            let exps: Vec<String> = match lang {
-                TargetLanguage::Python3 => mir.iter().map(|m| PyExpanderV3.expand(m, 0, None)).collect(),
-                TargetLanguage::TypeScript => mir.iter().map(|m| TsExpanderV3.expand(m, 0, None)).collect(),
-                TargetLanguage::CSharp => mir.iter().map(|m| CExpanderV3.expand(m, 0, None)).collect(),
-                TargetLanguage::C => mir.iter().map(|m| CExpanderV3.expand(m, 0, None)).collect(),
-                TargetLanguage::Cpp => mir.iter().map(|m| CppExpanderV3.expand(m, 0, None)).collect(),
-                TargetLanguage::Java => mir.iter().map(|m| JavaExpanderV3.expand(m, 0, None)).collect(),
-                TargetLanguage::Rust => mir.iter().map(|m| RustExpanderV3.expand(m, 0, None)).collect(),
-                _ => vec![],
-            };
-            let sp = SplicerV3.splice(content, &scan.regions, &exps);
-            let trailer = sp.build_trailer_json();
-            if let TargetLanguage::Python3 = lang {
-                out_text.push_str("\n'''/*#frame-map#\n");
-                out_text.push_str(&trailer);
-                out_text.push_str("\n#frame-map#*/'''\n");
-            } else {
-                out_text.push_str("\n/*#frame-map#\n");
-                out_text.push_str(&trailer);
-                out_text.push_str("\n#frame-map#*/\n");
-            }
-            // Add visitor-style line map trailer (targetLine/sourceLine) for convenience
-            let lmap = sp.build_line_map_json(content);
-            if let TargetLanguage::Python3 = lang {
-                out_text.push_str("\n'''/*#visitor-map#\n");
-                out_text.push_str(&lmap);
-                out_text.push_str("\n#visitor-map#*/'''\n");
-            } else {
-                out_text.push_str("\n/*#visitor-map#\n");
-                out_text.push_str(&lmap);
-                out_text.push_str("\n#visitor-map#*/\n");
-            }
-        }
-        Ok(out_text)
-    }
+// Demo mode functions removed - all fixtures converted to proper Frame modules
 
     pub fn compile_multifile_unsupported() -> Result<String, RunError> {
         Err(RunError::new(
@@ -408,47 +213,7 @@ fn build_errors_json(issues: &[crate::frame_c::v3::validator::ValidationIssueV3]
 
 // keep single import set at top of file
 
-pub fn validate_single_body(content_str: &str, target_language: Option<TargetLanguage>) -> Result<ValidationResultV3, RunError> {
-    let content = content_str.as_bytes();
-    if content.first().copied() != Some(b'{') { return Err(RunError::new(frame_exitcode::PARSE_ERR, "V3 demo expects body starting at '{'")); }
-    let lang = target_language.unwrap_or(TargetLanguage::Python3);
-    let scan_res = match lang {
-        TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(content, 0),
-        TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(content, 0),
-        TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(content, 0),
-        TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(content, 0),
-        TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(content, 0),
-        TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(content, 0),
-        TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(content, 0),
-        _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported in V3 demo")),
-    };
-    let scan = match scan_res {
-        Ok(s) => s,
-        Err(e) => {
-            // Map protected-region close errors to structured validation issues for single-body demo
-            let mut issues: Vec<crate::frame_c::v3::validator::ValidationIssueV3> = Vec::new();
-            let msg = e.message.to_lowercase();
-            if msg.contains("unterminated comment") {
-                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E106: unterminated comment".into() });
-            } else if (msg.contains("unterminated") && msg.contains("string")) || msg.contains("unterminated raw") || msg.contains("unterminated verbatim") || msg.contains("unterminated interp") {
-                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E100: unterminated string".into() });
-            } else if msg.contains("body not closed") {
-                issues.push(crate::frame_c::v3::validator::ValidationIssueV3{ message: "E103: unterminated body".into() });
-            }
-            if !issues.is_empty() {
-                return Ok(crate::frame_c::v3::validator::ValidationResultV3 { ok: false, issues });
-            }
-            return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e)));
-        }
-    };
-    let asm = MirAssemblerV3; let mir = asm.assemble(content, &scan.regions).map_err(|e| RunError::new(frame_exitcode::PARSE_ERR, &format!("Parse error: {:?}", e)))?;
-    let mut res = ValidatorV3.validate_regions_mir(&scan.regions, &mir);
-    // Also enforce no native text after terminal MIR
-    let extra = ValidatorV3.validate_terminal_last_native(content, &scan.regions, &mir, target_language.unwrap_or(TargetLanguage::Python3));
-    res.issues.extend(extra);
-    res.ok = res.issues.is_empty();
-    Ok(res)
-}
+// validate_single_body removed - demo mode no longer supported
 
 #[derive(Debug, Clone)]
 pub(crate) struct SystemParamGroups {

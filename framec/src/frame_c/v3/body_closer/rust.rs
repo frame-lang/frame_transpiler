@@ -47,5 +47,4 @@ impl BodyCloserV3 for BodyCloserRustV3 {
     }
 }
 
-#[cfg(test)]
-mod tests { use super::*; #[test] fn closes_raw_rust() { let src=b"{\nlet s = r#\" } \"#; /* nested { */ /* */ \n}\n"; let mut c=BodyCloserRustV3; let idx=c.close_byte(src,0).unwrap(); assert_eq!(idx, src.len()-2); } }
+// Tests moved to Docker environment: framepiler_test_env/common/test-frames/v3/closers/

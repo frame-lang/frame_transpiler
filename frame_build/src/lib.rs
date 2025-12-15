@@ -276,7 +276,11 @@ impl FrameBuild {
                     let content_clone = file_content.clone();
                     let path_clone = input_path_str.clone();
                     let framec_result = std::panic::catch_unwind(move || {
-                        CompilerV3::compile_single_file(path_clone.as_deref(), &content_clone, Some(target), false)
+                        if content_clone.contains("@target ") {
+                            crate::v3::compile_module(&content_clone, target)
+                        } else {
+                            Err(crate::RunError::new(crate::frame_exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
+                        }
                     });
 
                     match framec_result {

@@ -63,14 +63,4 @@ impl BodyCloserV3 for BodyCloserPyV3 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn closes_with_string_brace() {
-        let src = b"{\nprint(\"}\")\n}\n";
-        let mut c = BodyCloserPyV3;
-        let idx = c.close_byte(src, 0).unwrap();
-        assert_eq!(idx, src.len()-2);
-    }
-}
+// Tests moved to Docker environment: framepiler_test_env/common/test-frames/v3/closers/
