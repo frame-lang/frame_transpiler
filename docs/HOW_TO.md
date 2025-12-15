@@ -1049,3 +1049,68 @@ export namespace AsyncCapabilities {
 **Status**: Shared test environment operational · TypeScript transpilation 87.5% success · Python-style imports properly handled across languages
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.
+# Critical Issue: V3 Python Transpiler Not Transpiling Function Bodies
+
+## Problem
+The V3 Python transpiler is not actually transpiling module-level function bodies. It's copying the raw Frame syntax directly into the Python output, resulting in invalid Python code.
+
+## Example
+Input Frame code:
+```frame
+@target python_3
+module TestModule {
+    fn main() {
+        var x = 10
+        if x == 10 {
+            print("SUCCESS")
+        }
+    }
+}
+```
+
+Current output (INVALID Python):
+```python
+def main():
+    var x = 10
+    if x == 10 {
+        print("SUCCESS")
+    }
+```
+
+Expected output (VALID Python):
+```python
+def main():
+    x = 10
+    if x == 10:
+        print("SUCCESS")
+```
+
+## Root Cause
+In `framec/src/frame_c/v3/mod.rs` lines 1205-1231, function bodies are being copied verbatim with only indentation adjustments. There's no actual transpilation happening.
+
+## Impact
+- 52.1% Python test pass rate (should be much higher)
+- Most failures in scoping (25.8%), imports (34.5%), data_types (39.4%), interfaces (40%), and core (49.2%)
+- Module-level functions are completely broken for Python
+
+## Solution Required
+Need to implement a proper Frame-to-Python transpiler for expression and statement bodies, similar to what exists for handler bodies. This would include:
+1. Converting `var x = value` to `x = value`
+2. Converting `if condition { }` to `if condition:`
+3. Converting `} else {` to `else:`
+4. Converting Frame operators to Python operators
+5. Handling Frame-specific constructs like transitions, state variables, etc.
+
+## Workaround
+For now, users must write native Python code in function bodies using native blocks:
+```frame
+fn main() {
+    #{
+    x = 10
+    if x == 10:
+        print("SUCCESS")
+    #}
+}
+```
+---
+
