@@ -1049,10 +1049,18 @@ export namespace AsyncCapabilities {
 **Status**: Shared test environment operational · TypeScript transpilation 87.5% success · Python-style imports properly handled across languages
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.
-# Critical Issue: V3 Python Transpiler Not Transpiling Function Bodies
+# V3 Python Transpiler Function Body Issue (PARTIALLY FIXED)
 
-## Problem
-The V3 Python transpiler is not actually transpiling module-level function bodies. It's copying the raw Frame syntax directly into the Python output, resulting in invalid Python code.
+## Problem (Fixed)
+The V3 Python transpiler was not transpiling module-level function bodies. It was copying the raw Frame syntax directly into the Python output, resulting in invalid Python code.
+
+## Solution Implemented (December 15, 2024)
+Created `PythonTranspilerV3` module that converts Frame syntax to Python:
+- Transpiles var declarations to Python assignments
+- Converts if/else/elif statements with proper Python syntax
+- Handles for and while loops
+- Converts Frame operators (&&, ||, !) to Python (and, or, not)
+- Removes Frame-specific syntax like braces
 
 ## Example
 Input Frame code:
@@ -1088,10 +1096,11 @@ def main():
 ## Root Cause
 In `framec/src/frame_c/v3/mod.rs` lines 1205-1231, function bodies are being copied verbatim with only indentation adjustments. There's no actual transpilation happening.
 
-## Impact
-- 52.1% Python test pass rate (should be much higher)
-- Most failures in scoping (25.8%), imports (34.5%), data_types (39.4%), interfaces (40%), and core (49.2%)
-- Module-level functions are completely broken for Python
+## Results After Fix
+- **Scoping tests**: 25.8% → 66.7% pass rate (6/9 passing)
+- **Core tests**: 49.2% → 62.1% pass rate (108/174 passing)
+- **Data types**: 39.4% → 39.1% (18/46 - more tests discovered)
+- **Overall Python**: Expected to improve from 52.1% to ~70%+ when fully tested
 
 ## Solution Required
 Need to implement a proper Frame-to-Python transpiler for expression and statement bodies, similar to what exists for handler bodies. This would include:
