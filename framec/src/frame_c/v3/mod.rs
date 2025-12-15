@@ -32,6 +32,7 @@ pub mod interface_parser;
 pub mod system_parser;
 pub mod machine_parser;
 pub mod native_symbol_snapshot;
+pub mod python_transpiler;
 pub mod system_param_semantics;
 pub mod rust_domain_scanner;
 pub mod machines;
@@ -1194,42 +1195,29 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                 };
                                 let mut fun = String::new();
                                 fun.push_str(&sig);
-                                let mut min_indent: Option<usize> = None;
-                                for ln in spliced.lines() {
-                                    if ln.trim().is_empty() { continue; }
-                                    let indent = ln.as_bytes().iter().take_while(|b| **b == b' ' || **b == b'\t').count();
-                                    min_indent = Some(min_indent.map_or(indent, |m| m.min(indent)));
-                                }
-                                let base = min_indent.unwrap_or(0);
+                                
+                                // Use the Python transpiler to convert Frame syntax to Python
+                                use crate::frame_c::v3::python_transpiler::PythonTranspilerV3;
+                                let transpiler = PythonTranspilerV3;
+                                let transpiled_body = transpiler.transpile_function_body(spliced);
+                                
+                                // Add proper indentation for function body (already indented by transpiler)
                                 let mut emitted = false;
-                                for ln in spliced.lines() {
-                                    let raw = ln.trim_end();
-                                    if raw.trim().is_empty() {
-                                        fun.push_str("    \n");
-                                        continue;
-                                    }
-                                    if raw.trim_start().starts_with('#') {
-                                        fun.push_str("    ");
-                                        fun.push_str(raw.trim_start());
+                                for line in transpiled_body.lines() {
+                                    if !line.trim().is_empty() {
+                                        // Add base indent of 4 spaces for function body
+                                        if !line.starts_with("    ") && !line.is_empty() {
+                                            fun.push_str("    ");
+                                        }
+                                        fun.push_str(line);
                                         fun.push('\n');
-                                        continue;
+                                        emitted = true;
+                                    } else if emitted {
+                                        // Keep blank lines within the body
+                                        fun.push_str("\n");
                                     }
-                                    let bytes_ln = raw.as_bytes();
-                                    let indent = bytes_ln.iter().take_while(|b| **b == b' ' || **b == b'\t').count();
-                                    let offset = if indent >= base { base } else { indent };
-                                    let content = &raw[offset..];
-                                    let extra = if indent > base {
-                                        let extra_bytes = &bytes_ln[base..indent];
-                                        std::str::from_utf8(extra_bytes).unwrap_or("")
-                                    } else {
-                                        ""
-                                    };
-                                    emitted = true;
-                                    fun.push_str("    ");
-                                    fun.push_str(extra);
-                                    fun.push_str(content);
-                                    fun.push('\n');
                                 }
+                                
                                 if !emitted {
                                     fun.push_str("    pass\n");
                                 }
