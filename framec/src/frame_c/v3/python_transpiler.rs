@@ -1,23 +1,172 @@
 // Frame-to-Python syntax transpiler for V3
 // Converts Frame expressions and statements to valid Python code
 
-use std::collections::HashSet;
-
 pub struct PythonTranspilerV3;
 
 impl PythonTranspilerV3 {
-    /// Transpile a Frame function body to Python
-    pub fn transpile_function_body(&self, frame_body: &str) -> String {
+    /// Transpile a Frame function body to Python without indentation validation
+    /// Used when we know the content might have indentation issues from Frame expansion
+    pub fn transpile_function_body_unchecked(&self, frame_body: &str) -> String {
         let mut result = String::new();
         let lines: Vec<&str> = frame_body.lines().collect();
         
+        // Track whether we're in a dictionary literal
+        let mut in_dict = false;
+        
         for line in lines {
-            let transpiled = self.transpile_line(line);
+            // Check if line starts a dictionary literal
+            if line.contains("return {") || line.contains("= {") {
+                in_dict = true;
+            }
+            
+            let transpiled = self.transpile_line_with_context(line, in_dict);
             result.push_str(&transpiled);
             result.push('\n');
+            
+            // Check if this line closes the dictionary
+            if in_dict && line.trim() == "}" {
+                in_dict = false;
+            }
         }
         
         result
+    }
+    
+    /// Transpile a Frame function body to Python with strict indentation validation
+    pub fn transpile_function_body(&self, frame_body: &str) -> Result<String, String> {
+        let mut result = String::new();
+        let lines: Vec<&str> = frame_body.lines().collect();
+        
+        // Debug: print what we're validating
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("[PythonTranspilerV3] Validating indentation for {} lines:", lines.len());
+            for (i, line) in lines.iter().enumerate() {
+                eprintln!("  Line {}: {:?}", i + 1, line);
+            }
+        }
+        
+        // Validate indentation consistency
+        self.validate_indentation(&lines)?;
+        
+        // Track whether we're in a dictionary literal
+        let mut in_dict = false;
+        
+        for line in lines {
+            // Check if line starts a dictionary literal
+            if line.contains("return {") || line.contains("= {") {
+                in_dict = true;
+            }
+            
+            let transpiled = self.transpile_line_with_context(line, in_dict);
+            result.push_str(&transpiled);
+            result.push('\n');
+            
+            // Check if this line closes the dictionary
+            if in_dict && line.trim() == "}" {
+                in_dict = false;
+            }
+        }
+        
+        Ok(result)
+    }
+    
+    /// Validate that indentation is consistent and correct for Python
+    fn validate_indentation(&self, lines: &[&str]) -> Result<(), String> {
+        let mut indent_stack: Vec<usize> = vec![0];
+        let mut prev_indent = 0;
+        let mut prev_was_colon = false;
+        let mut first_non_empty = true;
+        
+        for (line_num, line) in lines.iter().enumerate() {
+            // Skip empty lines
+            let trimmed = line.trim_start();
+            if trimmed.is_empty() {
+                continue;
+            }
+            
+            // Calculate indentation (spaces only for Python)
+            let indent = line.len() - trimmed.len();
+            
+            // Debug output
+            if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                eprintln!("  Checking line {}: indent={}, content={:?}", line_num + 1, indent, trimmed);
+            }
+            
+            // Check for tabs (Python 3 doesn't mix tabs and spaces)
+            if line[0..indent].contains('\t') {
+                return Err(format!(
+                    "Line {}: Mixed tabs and spaces in indentation (Python requires consistent spacing)",
+                    line_num + 1
+                ));
+            }
+            
+            // Check indentation is multiple of 4 (Python convention)
+            if indent % 4 != 0 {
+                return Err(format!(
+                    "Line {}: Indentation must be a multiple of 4 spaces, found {} spaces",
+                    line_num + 1,
+                    indent
+                ));
+            }
+            
+            // Check for inconsistent indentation changes
+            if indent > prev_indent {
+                // Indentation increased - should only increase after a colon (except for first line)
+                if !prev_was_colon && !first_non_empty {
+                    return Err(format!(
+                        "Line {}: Unexpected indentation increase (no colon on previous line)",
+                        line_num + 1
+                    ));
+                }
+                // Should only increase by 4
+                if indent - prev_indent != 4 {
+                    return Err(format!(
+                        "Line {}: Indentation increased by {} spaces (expected 4)",
+                        line_num + 1,
+                        indent - prev_indent
+                    ));
+                }
+                indent_stack.push(indent);
+            } else if indent < prev_indent {
+                // Indentation decreased - must match a previous level
+                while !indent_stack.is_empty() && indent_stack[indent_stack.len() - 1] > indent {
+                    indent_stack.pop();
+                }
+                if indent_stack.is_empty() || indent_stack[indent_stack.len() - 1] != indent {
+                    return Err(format!(
+                        "Line {}: Indentation does not match any previous indentation level",
+                        line_num + 1
+                    ));
+                }
+            }
+            
+            // Check if this line ends with a colon (for next iteration)
+            prev_was_colon = trimmed.ends_with(':') || trimmed.ends_with('{');
+            prev_indent = indent;
+            first_non_empty = false;
+        }
+        
+        Ok(())
+    }
+    
+    /// Transpile a single line with context about dictionary literals
+    fn transpile_line_with_context(&self, line: &str, in_dict: bool) -> String {
+        let trimmed = line.trim_start();
+        let indent = &line[0..line.len() - trimmed.len()];
+        
+        // For closing braces, check if we're in a dictionary
+        if trimmed == "}" {
+            if in_dict {
+                // Keep dictionary closing braces
+                return line.to_string();
+            } else {
+                // Remove block closing braces
+                return String::new();
+            }
+        }
+        
+        // For all other lines, use the regular transpile_line
+        self.transpile_line(line)
     }
     
     /// Transpile a single line of Frame code to Python
@@ -43,7 +192,8 @@ impl PythonTranspilerV3 {
         } else if trimmed.starts_with("if ") {
             return self.transpile_if_statement(indent, trimmed);
         } else if trimmed == "}" {
-            return String::new(); // Remove closing braces
+            // Handled by transpile_line_with_context now
+            return String::new();
         } else if trimmed == "} else {" || trimmed == "}else{" {
             return format!("{}else:", indent);
         } else if trimmed.starts_with("} else if ") || trimmed.starts_with("}else if ") {
@@ -62,7 +212,9 @@ impl PythonTranspilerV3 {
             return line.to_string();
         } else {
             // For other statements, apply basic transformations
-            return self.transpile_expression(indent, trimmed);
+            // But preserve the trimmed content without the indent 
+            let transpiled_expr = self.transpile_expression("", trimmed);
+            return format!("{}{}", indent, transpiled_expr);
         }
     }
     
@@ -191,6 +343,16 @@ impl PythonTranspilerV3 {
         // This is a simple heuristic - more sophisticated analysis would be needed
         // TODO: Integrate with proper symbol resolution
         
+        // Convert boolean literals from JavaScript style to Python style
+        // Use word boundaries to avoid replacing parts of identifiers
+        result = result
+            .replace(" true", " True")
+            .replace(": true", ": True")
+            .replace("(true", "(True")
+            .replace(" false", " False")
+            .replace(": false", ": False")
+            .replace("(false", "(False");
+        
         // Convert logical operators
         result = result
             .replace(" && ", " and ")
@@ -215,6 +377,23 @@ mod tests {
         let transpiler = PythonTranspilerV3;
         assert_eq!(transpiler.transpile_line("    var x = 10"), "    x = 10");
         assert_eq!(transpiler.transpile_line("var result = add(5, 3)"), "result = add(5, 3)");
+    }
+    
+    #[test]
+    fn test_indentation_validation() {
+        let transpiler = PythonTranspilerV3;
+        
+        // Valid indentation
+        let valid = "var x = 10\nif x > 5 {\n    print(\"big\")\n}";
+        assert!(transpiler.transpile_function_body(valid).is_ok());
+        
+        // Invalid indentation - not multiple of 4
+        let invalid = "var x = 10\n  print(\"bad indent\")";
+        assert!(transpiler.transpile_function_body(invalid).is_err());
+        
+        // Mixed tabs and spaces
+        let mixed = "var x = 10\n\tprint(\"tab\")";
+        assert!(transpiler.transpile_function_body(mixed).is_err());
     }
     
     #[test]

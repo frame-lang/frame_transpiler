@@ -87,7 +87,7 @@
 
 use anyhow::{Error, Result};
 use framec::frame_c::compiler::detect_header_target_annotation;
-use framec::frame_c::v3::CompilerV3;
+use framec::frame_c::utils::RunError;
 use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
@@ -277,9 +277,9 @@ impl FrameBuild {
                     let path_clone = input_path_str.clone();
                     let framec_result = std::panic::catch_unwind(move || {
                         if content_clone.contains("@target ") {
-                            crate::v3::compile_module(&content_clone, target)
+                            framec::frame_c::v3::compile_module(&content_clone, target)
                         } else {
-                            Err(crate::RunError::new(crate::frame_exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
+                            Err(RunError::new(70, "Frame files must specify @target language. Demo mode has been removed."))
                         }
                     });
 

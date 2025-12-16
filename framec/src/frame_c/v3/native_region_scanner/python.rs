@@ -19,7 +19,9 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                 if b == b' ' || b == b'\t' { indent += 1; i+=1; continue; }
                 // Transition: -> $
                 if b == b'-' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
-                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    // When at SOL, exclude the indentation from the NativeText region
+                    let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                    if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
                     // consume to end-of-statement on this physical line (before ';' or '#')
                     let mut j=i; j = find_frame_line_end_py(bytes, j, end);
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Transition, indent });
@@ -27,7 +29,9 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                 }
                 // Forward: => $^ (accept partial head to surface parser error)
                 if b == b'=' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
-                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    // When at SOL, exclude the indentation from the NativeText region
+                    let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                    if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
                     let mut j=i; j = find_frame_line_end_py(bytes, j, end);
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Forward, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
@@ -44,7 +48,9 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                             }
                             while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
                             if k < end && bytes[k] == b'$' {
-                                if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                                // When at SOL, exclude the indentation from the NativeText region
+                                let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                                if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
                                 let mut j = i; j = find_frame_line_end_py(bytes, j, end);
                                 regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Transition, indent });
                                 i = j; seg_start = i; at_sol = true; indent = 0; continue;
@@ -54,7 +60,9 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                 }
                 // Stack: $$[+/-] (accept partial "$$[" to surface parser error)
                 if b == b'$' && i+2<end && bytes[i+1]==b'$' && bytes[i+2]==b'[' {
-                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    // When at SOL, exclude the indentation from the NativeText region
+                    let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                    if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
                     let mut j=i; j = find_frame_line_end_py(bytes, j, end);
                     let kind = if i+3<end && bytes[i+3]==b'+' { FrameSegmentKindV3::StackPush } else { FrameSegmentKindV3::StackPop };
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind, indent });
