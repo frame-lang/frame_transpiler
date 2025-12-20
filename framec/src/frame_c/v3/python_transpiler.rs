@@ -10,22 +10,50 @@ impl PythonTranspilerV3 {
         let mut result = String::new();
         let lines: Vec<&str> = frame_body.lines().collect();
         
-        // Track whether we're in a dictionary literal
-        let mut in_dict = false;
+        // Track brace context - stack of what opened each brace
+        let mut brace_stack: Vec<&str> = Vec::new();
         
         for line in lines {
-            // Check if line starts a dictionary literal
-            if line.contains("return {") || line.contains("= {") {
-                in_dict = true;
+            let trimmed = line.trim();
+            
+            // Check what opens a brace
+            if trimmed.ends_with("{") {
+                if trimmed.contains("return") || trimmed.contains("=") || 
+                   trimmed.starts_with("{") || trimmed.contains(": {") {
+                    // This is a dictionary/object literal
+                    brace_stack.push("dict");
+                } else if trimmed.starts_with("if ") || trimmed.starts_with("else") || 
+                          trimmed.starts_with("for ") || trimmed.starts_with("while ") ||
+                          trimmed.starts_with("def ") || trimmed.starts_with("async def ") ||
+                          trimmed.starts_with("try") || trimmed.starts_with("except") {
+                    // This is a control flow block
+                    brace_stack.push("block");
+                } else {
+                    // Default to block for unknown cases
+                    brace_stack.push("block");
+                }
             }
             
-            let transpiled = self.transpile_line_with_context(line, in_dict);
-            result.push_str(&transpiled);
-            result.push('\n');
+            // Determine if we should keep closing brace
+            let keep_brace = if trimmed == "}" {
+                match brace_stack.pop() {
+                    Some("dict") => true,
+                    Some("block") => false,
+                    _ => false, // No matching opening brace
+                }
+            } else {
+                true // Not a closing brace, process normally
+            };
             
-            // Check if this line closes the dictionary
-            if in_dict && line.trim() == "}" {
-                in_dict = false;
+            let transpiled = if trimmed == "}" && !keep_brace {
+                String::new() // Remove block closing braces
+            } else {
+                self.transpile_line(line)
+            };
+            
+            result.push_str(&transpiled);
+            if !transpiled.is_empty() || line.trim().is_empty() {
+                result.push('\n');
             }
         }
         
@@ -48,22 +76,50 @@ impl PythonTranspilerV3 {
         // Validate indentation consistency
         self.validate_indentation(&lines)?;
         
-        // Track whether we're in a dictionary literal
-        let mut in_dict = false;
+        // Track brace context - stack of what opened each brace
+        let mut brace_stack: Vec<&str> = Vec::new();
         
         for line in lines {
-            // Check if line starts a dictionary literal
-            if line.contains("return {") || line.contains("= {") {
-                in_dict = true;
+            let trimmed = line.trim();
+            
+            // Check what opens a brace
+            if trimmed.ends_with("{") {
+                if trimmed.contains("return") || trimmed.contains("=") || 
+                   trimmed.starts_with("{") || trimmed.contains(": {") {
+                    // This is a dictionary/object literal
+                    brace_stack.push("dict");
+                } else if trimmed.starts_with("if ") || trimmed.starts_with("else") || 
+                          trimmed.starts_with("for ") || trimmed.starts_with("while ") ||
+                          trimmed.starts_with("def ") || trimmed.starts_with("async def ") ||
+                          trimmed.starts_with("try") || trimmed.starts_with("except") {
+                    // This is a control flow block
+                    brace_stack.push("block");
+                } else {
+                    // Default to block for unknown cases
+                    brace_stack.push("block");
+                }
             }
             
-            let transpiled = self.transpile_line_with_context(line, in_dict);
-            result.push_str(&transpiled);
-            result.push('\n');
+            // Determine if we should keep closing brace
+            let keep_brace = if trimmed == "}" {
+                match brace_stack.pop() {
+                    Some("dict") => true,
+                    Some("block") => false,
+                    _ => false, // No matching opening brace
+                }
+            } else {
+                true // Not a closing brace, process normally
+            };
             
-            // Check if this line closes the dictionary
-            if in_dict && line.trim() == "}" {
-                in_dict = false;
+            let transpiled = if trimmed == "}" && !keep_brace {
+                String::new() // Remove block closing braces
+            } else {
+                self.transpile_line(line)
+            };
+            
+            result.push_str(&transpiled);
+            if !transpiled.is_empty() || line.trim().is_empty() {
+                result.push('\n');
             }
         }
         
@@ -149,26 +205,6 @@ impl PythonTranspilerV3 {
         Ok(())
     }
     
-    /// Transpile a single line with context about dictionary literals
-    fn transpile_line_with_context(&self, line: &str, in_dict: bool) -> String {
-        let trimmed = line.trim_start();
-        let indent = &line[0..line.len() - trimmed.len()];
-        
-        // For closing braces, check if we're in a dictionary
-        if trimmed == "}" {
-            if in_dict {
-                // Keep dictionary closing braces
-                return line.to_string();
-            } else {
-                // Remove block closing braces
-                return String::new();
-            }
-        }
-        
-        // For all other lines, use the regular transpile_line
-        self.transpile_line(line)
-    }
-    
     /// Transpile a single line of Frame code to Python
     fn transpile_line(&self, line: &str) -> String {
         let trimmed = line.trim_start();
@@ -192,8 +228,8 @@ impl PythonTranspilerV3 {
         } else if trimmed.starts_with("if ") {
             return self.transpile_if_statement(indent, trimmed);
         } else if trimmed == "}" {
-            // Handled by transpile_line_with_context now
-            return String::new();
+            // Keep the closing brace as-is, will be handled by caller
+            return line.to_string();
         } else if trimmed == "} else {" || trimmed == "}else{" {
             return format!("{}else:", indent);
         } else if trimmed.starts_with("} else if ") || trimmed.starts_with("}else if ") {
@@ -343,15 +379,8 @@ impl PythonTranspilerV3 {
         // This is a simple heuristic - more sophisticated analysis would be needed
         // TODO: Integrate with proper symbol resolution
         
-        // Convert boolean literals from JavaScript style to Python style
-        // Use word boundaries to avoid replacing parts of identifiers
-        result = result
-            .replace(" true", " True")
-            .replace(": true", ": True")
-            .replace("(true", "(True")
-            .replace(" false", " False")
-            .replace(": false", ": False")
-            .replace("(false", "(False");
+        // Note: Boolean literals should already be in the correct form for the target language
+        // Frame V3 uses native code, so Python code should use True/False, not true/false
         
         // Convert logical operators
         result = result

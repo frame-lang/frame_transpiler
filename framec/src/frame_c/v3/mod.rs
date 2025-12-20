@@ -431,6 +431,15 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
     };
     // Stage 10: Prefer Arcanum-derived system name for expansion context
     let arc_for_ctx = crate::frame_c::v3::arcanum::build_arcanum_from_outline_bytes(bytes, 0);
+    
+    // Check if this is a module (not a system)
+    let module_name = find_module_name(bytes, 0);
+    let is_module = module_name.is_some();
+    
+    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+        eprintln!("[compile_module] module_name = {:?}, is_module = {}", module_name, is_module);
+    }
+    
     let system_name = {
         // pick the first declared system if present; otherwise fallback to textual scan
         if let Some((name, _)) = arc_for_ctx.systems.iter().next() { Some(name.clone()) } else { find_system_name(bytes, 0) }
@@ -879,7 +888,14 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
         // Build runnable module code for Python/TypeScript/Rust unless explicitly disabled
         let compile_runtimable = std::env::var("FRAME_COMPILE_RUNTIMABLE").ok().map(|v| v != "0").unwrap_or(true);
-        if compile_runtimable {
+        
+        if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+            eprintln!("[compile_module] At runtime generation: compile_runtimable = {}, is_module = {}", compile_runtimable, is_module);
+            eprintln!("[compile_module] out.len() before system check = {}", out.len());
+        }
+        
+        if compile_runtimable && !is_module {
+            // Only generate system machinery if this is a system, not a module
             match lang {
                 TargetLanguage::Python3 => {
                     use std::collections::BTreeMap;
@@ -3810,6 +3826,45 @@ pub fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
             }
             // Continue scanning the rest of the line so we can catch `system`
             // after leading annotations (e.g., `@persist system Foo {`).
+            i = j;
+            continue;
+        }
+        // Non-identifier character: advance one byte and keep scanning
+        i += 1;
+    }
+    None
+}
+
+// SOL-anchored scan for `module <Ident> {` ignoring common comments
+pub fn find_module_name(bytes: &[u8], start: usize) -> Option<String> {
+    let n = bytes.len();
+    let mut i = start;
+    while i < n {
+        // skip whitespace
+        while i < n && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\r' || bytes[i] == b'\n') { i += 1; }
+        if i >= n { break; }
+        // skip line comments
+        if bytes[i] == b'/' && i+1 < n && bytes[i+1] == b'/' { while i < n && bytes[i] != b'\n' { i += 1; } continue; }
+        if bytes[i] == b'#' { while i < n && bytes[i] != b'\n' { i += 1; } continue; }
+        // skip block comments
+        if bytes[i] == b'/' && i+1 < n && bytes[i+1] == b'*' {
+            i += 2; while i+1 < n && !(bytes[i] == b'*' && bytes[i+1] == b'/') { i += 1; } if i+1 < n { i += 2; } continue;
+        }
+        // read ident
+        let mut j = i;
+        while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+        if j > i {
+            let kw = String::from_utf8_lossy(&bytes[i..j]).to_ascii_lowercase();
+            if kw == "module" {
+                while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
+                let name_start = j;
+                while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
+                if j > name_start {
+                    return Some(String::from_utf8_lossy(&bytes[name_start..j]).to_string());
+                }
+            }
+            // Continue scanning the rest of the line so we can catch `module`
+            // after leading annotations.
             i = j;
             continue;
         }
