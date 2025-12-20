@@ -82,28 +82,28 @@ Systems opt into persistence support using the `@@persist` annotation, which can
     
     machine:
         $Red {
-            tick() {
+            tick() -> None {
                 -> $Green()
             }
-            getColor() {
+            getColor() -> *str* {
                 *return "red"*
             }
         }
         
         $Green {
-            tick() {
+            tick() -> None {
                 -> $Yellow()
             }
-            getColor() {
+            getColor() -> *str* {
                 *return "green"*
             }
         }
         
         $Yellow {
-            tick() {
+            tick() -> None {
                 -> $Red()
             }
-            getColor() {
+            getColor() -> *str* {
                 *return "yellow"*
             }
         }
@@ -299,7 +299,7 @@ For complex domain objects, custom serialization can be provided:
 @@target python
 @@persist system ComplexSystem {
     operations:
-        encodeDomain() {
+        encodeDomain() -> dict {
             # Custom encoding logic
             *return {
                 "config": self.config.to_dict(),
@@ -308,7 +308,7 @@ For complex domain objects, custom serialization can be provided:
             }*
         }
         
-        decodeDomain(*snapshot: dict*) {
+        decodeDomain(*snapshot: dict*) -> None {
             # Custom decoding logic
             *self.config = Config.from_dict(snapshot["config"])*
             *self.cache = {k: None for k in snapshot["cache"]}*  # Rebuild cache
@@ -335,7 +335,7 @@ For complex domain objects, custom serialization can be provided:
     
     machine:
         $Processing {
-            checkpoint() {
+            checkpoint() -> *str* {
                 # Save current progress
                 *snapshot = self.__class__.save_to_json(self)*
                 *save_to_file(f"checkpoint_{self.taskId}.json", snapshot)*
@@ -344,7 +344,7 @@ For complex domain objects, custom serialization can be provided:
         }
     
     actions:
-        resumeFromCheckpoint(*checkpoint: str*) {
+        resumeFromCheckpoint(*checkpoint: str*) -> None {
             # Restore from checkpoint
             *restored = self.__class__.restore_from_json(checkpoint)*
             *self.__dict__.update(restored.__dict__)*
@@ -358,7 +358,7 @@ For complex domain objects, custom serialization can be provided:
 @@target python
 @@persist system VersionedSystem {
     operations:
-        migrateSnapshot(*snapshot: dict*) {
+        migrateSnapshot(*snapshot: dict*) -> dict {
             # Handle schema version differences
             *version = snapshot.get("schemaVersion", 1)*
             
@@ -381,7 +381,7 @@ For complex domain objects, custom serialization can be provided:
         transferToWorker(*workerId: str*)
     
     actions:
-        transferToWorker(*workerId: str*) {
+        transferToWorker(*workerId: str*) -> None {
             # Serialize current state
             *snapshot = self.__class__.save_to_json(self)*
             
@@ -506,20 +506,20 @@ system UserSession {
     
     machine:
         $Active {
-            timeout() {
+            timeout() -> None {
                 -> $Expired()
             }
         }
         
         $Expired {
-            reactivate() {
+            reactivate() -> None {
                 -> $Active()
             }
         }
     
     actions:
         # Option 1: JSON serialization (human-readable)
-        save() {
+        save() -> str {
             state_dict = {
                 'state': self._state,
                 'domain': {
@@ -531,7 +531,7 @@ system UserSession {
             return json.dumps(state_dict)
         }
         
-        restore(data: str) {
+        restore(data: str) -> None {
             state_dict = json.loads(data)
             self._state = state_dict['state']
             self.username = state_dict['domain']['username']
@@ -541,12 +541,12 @@ system UserSession {
         }
         
         # Option 2: Pickle (binary, Python-only)
-        saveToFile(filename: str) {
+        saveToFile(filename: str) -> None {
             with open(filename, 'wb') as f:
                 pickle.dump(self, f)
         }
         
-        loadFromFile(filename: str) {
+        loadFromFile(filename: str) -> None {
             with open(filename, 'rb') as f:
                 restored = pickle.load(f)
                 self.__dict__.update(restored.__dict__)
@@ -574,13 +574,13 @@ system UserSystem {
     
     machine:
         $Pending {
-            approve() {
+            approve(): void {
                 -> $Active()
             }
         }
         
         $Active {
-            suspend() {
+            suspend(): void {
                 -> $Suspended()
             }
         }
@@ -641,13 +641,13 @@ system SessionManager {
     
     machine:
         $Active {
-            expire() {
+            expire() -> () {
                 -> $Expired()
             }
         }
         
         $Expired {
-            reactivate() {
+            reactivate() -> () {
                 -> $Active()
             }
         }
@@ -693,17 +693,17 @@ system WorkflowSystem {
     
     machine:
         $Draft {
-            submit() {
+            void submit() {
                 -> $UnderReview()
             }
         }
         
         $UnderReview {
-            approve() {
+            void approve() {
                 -> $Approved()
             }
             
-            reject() {
+            void reject() {
                 -> $Draft()
             }
         }
@@ -757,13 +757,13 @@ system ProcessSystem {
     
     machine:
         $Running {
-            Pause() {
+            void Pause() {
                 -> $Paused()
             }
         }
         
         $Paused {
-            Resume() {
+            void Resume() {
                 -> $Running()
             }
         }
@@ -809,7 +809,7 @@ system TaskSystem {
     
     machine:
         $Pending {
-            Start() {
+            Start() error {
                 -> $Running()
             }
         }
@@ -852,7 +852,7 @@ system StateMachine {
     
     machine:
         $Idle {
-            start() {
+            void start() {
                 -> $Running()
             }
         }
@@ -1041,7 +1041,7 @@ system Bad { }
 @@persist
 system Good {
     operations:
-        get_domain(self):
+        get_domain(self) -> DomainData:
             @dataclass  # OK - separate class
             class DomainData:
                 field1: str
