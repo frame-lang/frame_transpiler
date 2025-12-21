@@ -76,17 +76,17 @@ Systems opt into persistence support using the `@@persist` annotation, which can
 @@persist system TrafficLight {
     interface:
         tick()
-        getColor(): *str*
-        save(): *str*      # Returns JSON snapshot
-        restore(*json: str*)  # Restores from JSON
+        getColor(): str
+        save(): str      # Returns JSON snapshot
+        restore(json: str)  # Restores from JSON
     
     machine:
         $Red {
             tick() -> None {
                 -> $Green()
             }
-            getColor() -> *str* {
-                *return "red"*
+            getColor() -> str {
+                return "red"
             }
         }
         
@@ -94,8 +94,8 @@ Systems opt into persistence support using the `@@persist` annotation, which can
             tick() -> None {
                 -> $Yellow()
             }
-            getColor() -> *str* {
-                *return "green"*
+            getColor() -> str {
+                return "green"
             }
         }
         
@@ -103,14 +103,14 @@ Systems opt into persistence support using the `@@persist` annotation, which can
             tick() -> None {
                 -> $Red()
             }
-            getColor() -> *str* {
-                *return "yellow"*
+            getColor() -> str {
+                return "yellow"
             }
         }
     
     domain:
-        *tickCount = 0*
-        *startTime = now()*
+        tickCount = 0
+        startTime = now()
 }
 ```
 
@@ -154,9 +154,9 @@ When `@@persist` is present, Frame generates language-appropriate persistence me
 }
 
 # Generated class methods
-*system = DataManager()*
-*json_snapshot = DataManager.save_to_json(system)*
-*restored_system = DataManager.restore_from_json(json_snapshot)*
+system = DataManager()
+json_snapshot = DataManager.save_to_json(system)
+restored_system = DataManager.restore_from_json(json_snapshot)
 ```
 
 ### TypeScript
@@ -166,9 +166,9 @@ When `@@persist` is present, Frame generates language-appropriate persistence me
 }
 
 // Generated static methods
-*const system = new DataManager()*
-*const jsonSnapshot = DataManager.saveToJson(system)*
-*const restoredSystem = DataManager.restoreFromJson(jsonSnapshot)*
+const system = new DataManager()
+const jsonSnapshot = DataManager.saveToJson(system)
+const restoredSystem = DataManager.restoreFromJson(jsonSnapshot)
 ```
 
 ### Rust
@@ -178,9 +178,9 @@ When `@@persist` is present, Frame generates language-appropriate persistence me
 }
 
 // Implements SnapshotableSystem trait
-*let system = DataManager::new()*
-*let json_snapshot = system.save_to_json()?*
-*let restored_system = DataManager::restore_from_json(&json_snapshot)?*
+let system = DataManager::new()
+let json_snapshot = system.save_to_json()?
+let restored_system = DataManager::restore_from_json(&json_snapshot)?
 ```
 
 ## State Stack Persistence
@@ -232,15 +232,15 @@ State parameters passed during transitions are preserved:
 @@persist system Processor {
     machine:
         $Idle {
-            startProcessing(*data: dict, priority: int*) {
-                -> $Processing(*data, priority*)
+            startProcessing(data: dict, priority: int) {
+                -> $Processing(data, priority)
             }
         }
         
         $Processing {
-            $>(*data: dict, priority: int*) {
-                *self.currentData = data*
-                *self.priority = priority*
+            $>(data: dict, priority: int) {
+                self.currentData = data
+                self.priority = priority
             }
         }
 }
@@ -272,10 +272,10 @@ Not all domain variables need to be persisted. Frame provides control over what 
 @@target python
 @@persist(domain=[tickCount, mode]) system Controller {
     domain:
-        *tickCount = 0*        # Persisted
-        *mode = "normal"*      # Persisted
-        *tempBuffer = []*      # Not persisted
-        *debugFlag = False*    # Not persisted
+        tickCount = 0        # Persisted
+        mode = "normal"      # Persisted
+        tempBuffer = []      # Not persisted
+        debugFlag = False    # Not persisted
 }
 ```
 
@@ -284,10 +284,10 @@ Alternatively, exclude specific fields:
 ```python
 @@persist(exclude=[tempBuffer, debugFlag]) system Controller {
     domain:
-        *tickCount = 0*        # Persisted
-        *mode = "normal"*      # Persisted
-        *tempBuffer = []*      # Not persisted
-        *debugFlag = False*    # Not persisted
+        tickCount = 0        # Persisted
+        mode = "normal"      # Persisted
+        tempBuffer = []      # Not persisted
+        debugFlag = False    # Not persisted
 }
 ```
 
@@ -301,24 +301,24 @@ For complex domain objects, custom serialization can be provided:
     operations:
         encodeDomain() -> dict {
             # Custom encoding logic
-            *return {
+            return {
                 "config": self.config.to_dict(),
                 "cache": list(self.cache.keys()),  # Only save keys
                 "timestamp": self.timestamp.isoformat()
-            }*
+            }
         }
         
-        decodeDomain(*snapshot: dict*) -> None {
+        decodeDomain(snapshot: dict) -> None {
             # Custom decoding logic
-            *self.config = Config.from_dict(snapshot["config"])*
-            *self.cache = {k: None for k in snapshot["cache"]}*  # Rebuild cache
-            *self.timestamp = parse_datetime(snapshot["timestamp"])*
+            self.config = Config.from_dict(snapshot["config"])
+            self.cache = {k: None for k in snapshot["cache"]}  # Rebuild cache
+            self.timestamp = parse_datetime(snapshot["timestamp"])
         }
     
     domain:
-        *config: Config*
-        *cache: dict*
-        *timestamp: datetime*
+        config: Config
+        cache: dict
+        timestamp: datetime
 }
 ```
 
@@ -330,24 +330,24 @@ For complex domain objects, custom serialization can be provided:
 @@target python
 @@persist system LongRunningTask {
     interface:
-        checkpoint(): *str*
-        resumeFromCheckpoint(*checkpoint: str*)
+        checkpoint(): str
+        resumeFromCheckpoint(checkpoint: str)
     
     machine:
         $Processing {
-            checkpoint() -> *str* {
+            checkpoint() -> str {
                 # Save current progress
-                *snapshot = self.__class__.save_to_json(self)*
-                *save_to_file(f"checkpoint_{self.taskId}.json", snapshot)*
-                *return snapshot*
+                snapshot = self.__class__.save_to_json(self)
+                save_to_file(f"checkpoint_{self.taskId}.json", snapshot)
+                return snapshot
             }
         }
     
     actions:
-        resumeFromCheckpoint(*checkpoint: str*) -> None {
+        resumeFromCheckpoint(checkpoint: str) -> None {
             # Restore from checkpoint
-            *restored = self.__class__.restore_from_json(checkpoint)*
-            *self.__dict__.update(restored.__dict__)*
+            restored = self.__class__.restore_from_json(checkpoint)
+            self.__dict__.update(restored.__dict__)
         }
 }
 ```
@@ -358,16 +358,16 @@ For complex domain objects, custom serialization can be provided:
 @@target python
 @@persist system VersionedSystem {
     operations:
-        migrateSnapshot(*snapshot: dict*) -> dict {
+        migrateSnapshot(snapshot: dict) -> dict {
             # Handle schema version differences
-            *version = snapshot.get("schemaVersion", 1)*
+            version = snapshot.get("schemaVersion", 1)
             
-            *if version == 1:*
+            if version == 1:
                 # Migrate from v1 to v2
-                *snapshot["newField"] = "default"*
-                *snapshot["schemaVersion"] = 2*
+                snapshot["newField"] = "default"
+                snapshot["schemaVersion"] = 2
             
-            *return snapshot*
+            return snapshot
         }
 }
 ```
@@ -378,15 +378,15 @@ For complex domain objects, custom serialization can be provided:
 @@target python
 @@persist system DistributedWorker {
     interface:
-        transferToWorker(*workerId: str*)
+        transferToWorker(workerId: str)
     
     actions:
-        transferToWorker(*workerId: str*) -> None {
+        transferToWorker(workerId: str) -> None {
             # Serialize current state
-            *snapshot = self.__class__.save_to_json(self)*
+            snapshot = self.__class__.save_to_json(self)
             
             # Send to another process/worker
-            *send_to_worker(workerId, snapshot)*
+            send_to_worker(workerId, snapshot)
             
             # This instance can now shut down
             -> $Transferred()
@@ -419,17 +419,17 @@ After restoring from a snapshot, resources must be re-established:
 @@persist system NetworkService {
     machine:
         $Connected {
-            $>(*host: str, port: int*) {
+            $>(host: str, port: int) {
                 # Re-establish connection after restore
-                *if not self.socket:*
-                    *self.socket = connect(host, port)*
+                if not self.socket:
+                    self.socket = connect(host, port)
             }
             
             $<() {
                 # Clean up before snapshot
-                *if self.socket:*
-                    *self.socket.close()*
-                    *self.socket = None*
+                if self.socket:
+                    self.socket.close()
+                    self.socket = None
             }
         }
 }
@@ -450,31 +450,31 @@ After restoring from a snapshot, resources must be re-established:
 
 ### 3. Test Persistence Thoroughly
 ```python
-*# Test snapshot/restore cycle*
-*original = MySystem()*
-*original.process(data)*
+# Test snapshot/restore cycle
+original = MySystem()
+original.process(data)
 
-*snapshot = MySystem.save_to_json(original)*
-*restored = MySystem.restore_from_json(snapshot)*
+snapshot = MySystem.save_to_json(original)
+restored = MySystem.restore_from_json(snapshot)
 
-*# Verify state is preserved*
-*assert original.getState() == restored.getState()*
-*assert original.getData() == restored.getData()*
+# Verify state is preserved
+assert original.getState() == restored.getState()
+assert original.getData() == restored.getData()
 
-*# Verify behavior continues correctly*
-*original.nextStep()*
-*restored.nextStep()*
-*assert original.getResult() == restored.getResult()*
+# Verify behavior continues correctly
+original.nextStep()
+restored.nextStep()
+assert original.getResult() == restored.getResult()
 ```
 
 ### 4. Handle Restoration Failures
 ```python
-*try:*
-    *system = MySystem.restore_from_json(snapshot)*
-*catch error:*
-    *# Fall back to fresh instance*
-    *log_error("Failed to restore:", error)*
-    *system = MySystem()*
+try:
+    system = MySystem.restore_from_json(snapshot)
+catch error:
+    # Fall back to fresh instance
+    log_error("Failed to restore:", error)
+    system = MySystem()
 ```
 
 ### 5. Document Persistence Behavior
@@ -1063,35 +1063,35 @@ Frame provides runtime libraries for each target language:
 
 ### Python: `frame_persistence_py`
 ```python
-*from frame_persistence_py import snapshot_system, restore_system*
+from frame_persistence_py import snapshot_system, restore_system
 
-*# Low-level API*
-*snapshot = snapshot_system(system)*
-*json_text = json.dumps(snapshot)*
-*snapshot_data = json.loads(json_text)*
-*restored = restore_system(snapshot_data, MySystem)*
+# Low-level API
+snapshot = snapshot_system(system)
+json_text = json.dumps(snapshot)
+snapshot_data = json.loads(json_text)
+restored = restore_system(snapshot_data, MySystem)
 ```
 
 ### TypeScript: `frame_persistence_ts`
 ```typescript
-*import { snapshotSystem, restoreSystem } from 'frame_persistence_ts'*
+import { snapshotSystem, restoreSystem } from 'frame_persistence_ts'
 
-*// Low-level API*
-*const snapshot = snapshotSystem(system)*
-*const jsonText = JSON.stringify(snapshot)*
-*const snapshotData = JSON.parse(jsonText)*
-*const restored = restoreSystem(snapshotData, MySystem)*
+// Low-level API
+const snapshot = snapshotSystem(system)
+const jsonText = JSON.stringify(snapshot)
+const snapshotData = JSON.parse(jsonText)
+const restored = restoreSystem(snapshotData, MySystem)
 ```
 
 ### Rust: `frame_persistence_rs`
 ```rust
-*use frame_persistence_rs::{SnapshotableSystem, SystemSnapshot};*
+use frame_persistence_rs::{SnapshotableSystem, SystemSnapshot};
 
-*// Trait implementation*
-*let snapshot = system.snapshot_system();*
-*let json = serde_json::to_string(&snapshot)?;*
-*let snapshot_data: SystemSnapshot = serde_json::from_str(&json)?;*
-*let restored = MySystem::restore_system(snapshot_data);*
+// Trait implementation
+let snapshot = system.snapshot_system();
+let json = serde_json::to_string(&snapshot)?;
+let snapshot_data: SystemSnapshot = serde_json::from_str(&json)?;
+let restored = MySystem::restore_system(snapshot_data);
 ```
 
 ## Design Decision: Native Annotations
