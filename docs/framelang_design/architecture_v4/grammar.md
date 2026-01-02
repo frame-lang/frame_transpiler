@@ -14,19 +14,27 @@ system          = "system" identifier "{" system_body "}"
 ```
 
 ### File Extensions
-The `@@target` pragma determines the target language, not the file extension. Extensions are purely conventional:
-- `.frm` - Universal extension (works with any `@@target`)
-- `.fpy` - Convention for Python files
-- `.frts` - Convention for TypeScript files
-- `.frs` - Convention for Rust files
-- `.fc` - Convention for C files
-- `.fcpp` - Convention for C++ files
-- `.fjava` - Convention for Java files
-- `.frcs` - Convention for C# files
+Frame v4 uses language-specific file extensions. The `@@target` pragma is still required for explicit compilation intent:
+- `.fpy` - Python Frame files
+- `.frts` - TypeScript Frame files
+- `.frs` - Rust Frame files
+- `.fc` - C Frame files
+- `.fcpp` - C++ Frame files
+- `.fjava` - Java Frame files
+- `.frcs` - C# Frame files
+- `.fgo` - Go Frame files
 
 ## System Structure
 
 ```
+system          = "system" identifier system_params? "{" system_body "}"
+system_params   = "(" system_param_list ")"
+system_param_list = system_param ("," system_param)*
+system_param    = start_state_param | enter_event_param | domain_param
+start_state_param = "$(" parameter_list ")"
+enter_event_param = "$>(" parameter_list ")"
+domain_param    = identifier
+
 system_body     = operations? interface? machine? actions? domain?
 operations      = "operations:" operation_method+
 interface       = "interface:" interface_method+
@@ -48,11 +56,40 @@ Each block is optional, but when present must respect this order.
 ## State Machine Constructs
 
 ```
-state           = "$" identifier "{" handler* "}"
+state           = "$" identifier state_params? "{" handler* "}"
+state_params    = "(" parameter_list ")"
 handler         = event_handler | enter_handler | exit_handler
 event_handler   = identifier "(" params? ")" "{" native_code_block "}"
 enter_handler   = "$>(" params? ")" "{" native_code_block "}"
 exit_handler    = "$<(" params? ")" "{" native_code_block "}"
+```
+
+### System Parameters
+
+System parameters flow to specific destinations:
+- `$(x, y)` → Initial state constructor parameters
+- `$>(a, b)` → Initial state enter handler parameters  
+- Plain parameters → Domain variables by name
+
+**Compilation Rules:**
+1. Start state parameters MUST be received by initial state if declared
+2. Enter parameters MUST be received by initial state's enter handler if declared
+3. Domain parameters MUST have matching domain variables
+4. Parameter order: `$(...)`, then `$>(...)`, then plain parameters
+
+Example:
+```frame
+system Robot ($(x, y), $>(battery), name) {
+    domain:
+        name = ""  // Required for domain param
+    
+    machine:
+        $Idle(x, y) {          // MUST match $(x, y)
+            $>(battery) {      // MUST match $>(battery)
+                print(f"Robot {name} at ({x},{y}) with {battery}% charge")
+            }
+        }
+}
 ```
 
 ## Native Code Blocks

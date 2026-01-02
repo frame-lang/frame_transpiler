@@ -54,12 +54,9 @@ System blocks must appear in this canonical order when present:
 
 ## File Extensions
 
-**Important**: The `@@target` pragma is the authoritative indicator of a file's target language. File extensions are purely advisory conventions for tooling and human readability.
+**Important**: Frame v4 uses language-specific file extensions that clearly indicate the target language. Each extension maps to a specific target language, making the intent obvious for developers and tooling.
 
-### Universal Extension
-- `.frm` - Works with any target language (requires `@@target` annotation)
-
-### Target-Specific Extensions (Optional Conventions)
+### Target-Specific Extensions
 - `.fpy` - Python Frame files (typically with `@@target python` or `@@target python_3`)
 - `.frts` - TypeScript Frame files (typically with `@@target typescript`)
 - `.frs` - Rust Frame files (typically with `@@target rust`)
@@ -68,7 +65,7 @@ System blocks must appear in this canonical order when present:
 - `.fjava` - Java Frame files (typically with `@@target java`)
 - `.frcs` - C# Frame files (typically with `@@target csharp`)
 
-The compiler treats all extensions identically and always uses the `@@target` pragma to determine the actual target language. These conventions simply make the intended target obvious for developers and help with file globbing.
+Each language-specific extension clearly indicates the intended target language. The `@@target` pragma remains required to maintain explicit declaration of compilation intent.
 
 ## Language Integration
 
