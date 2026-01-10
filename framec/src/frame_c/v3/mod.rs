@@ -967,7 +967,8 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     module.push_str("            prev = self._stack.pop()\n");
                     module.push_str("            self._frame_transition(prev)\n");
                     // Group handlers by event name (owner_id) and collect actions/operations/functions.
-                    let mut handler_groups: BTreeMap<String, Vec<(Option<String>, String, bool)>> = BTreeMap::new();
+                    // Structure: handler_name -> [(state_id, body, is_async, param_names)]
+                    let mut handler_groups: BTreeMap<String, Vec<(Option<String>, String, bool, Vec<String>)>> = BTreeMap::new();
                     let mut function_defs: Vec<String> = Vec::new();
                     for (idx, b) in parts.bodies.iter().enumerate() {
                         let spliced_full = frameful_chunks.get(idx).map(|(_, s)| s.as_str()).unwrap_or("");
@@ -981,14 +982,36 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         match b.kind {
                             crate::frame_c::v3::validator::BodyKindV3::Handler => {
                                 let hname = b.owner_id.as_deref().unwrap_or("handler").to_string();
-                                // Detect async handlers from header text (best-effort).
-                                let is_async = if let Some(hs) = b.header_span {
+                                // Extract async flag and parameters from header
+                                let (is_async, param_names) = if let Some(hs) = b.header_span {
                                     let hdr = std::str::from_utf8(&bytes[hs.start..hs.end]).unwrap_or("");
-                                    hdr.trim_start().starts_with("async ")
+                                    let async_flag = hdr.trim_start().starts_with("async ");
+                                    
+                                    // Extract parameter names
+                                    let params = if let Some(lp) = hdr.find('(') {
+                                        if let Some(rp_rel) = hdr[lp+1..].find(')') {
+                                            let params_str = &hdr[lp+1..lp+1+rp_rel];
+                                            params_str.split(',')
+                                                .map(|p| {
+                                                    let trimmed = p.trim();
+                                                    // Extract just the parameter name (before : or =)
+                                                    let end_idx = trimmed.find(':').or(trimmed.find('=')).unwrap_or(trimmed.len());
+                                                    trimmed[..end_idx].trim().to_string()
+                                                })
+                                                .filter(|s| !s.is_empty())
+                                                .collect::<Vec<_>>()
+                                        } else {
+                                            Vec::new()
+                                        }
+                                    } else {
+                                        Vec::new()
+                                    };
+                                    
+                                    (async_flag, params)
                                 } else {
-                                    false
+                                    (false, Vec::new())
                                 };
-                                handler_groups.entry(hname).or_default().push((b.state_id.clone(), spliced.to_string(), is_async));
+                                handler_groups.entry(hname).or_default().push((b.state_id.clone(), spliced.to_string(), is_async, param_names));
                             }
                             crate::frame_c::v3::validator::BodyKindV3::Action => {
                                 let aname = b.owner_id.as_deref().unwrap_or("action");
@@ -1288,7 +1311,19 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // Helper: emit a Python handler body by constructing the
                     // IndentNormalizer domain (lines + flags) and delegating to
                     // `normalize_py_handler_lines`.
-                    fn emit_py_handler_body(module: &mut String, body: &str, pad: &str) {
+                    fn emit_py_handler_body(module: &mut String, body: &str, pad: &str, param_names: &[String]) {
+                        // First inject parameter extraction code if there are parameters
+                        if !param_names.is_empty() {
+                            module.push_str(pad);
+                            module.push_str("# Extract parameters from event\n");
+                            for (i, param) in param_names.iter().enumerate() {
+                                module.push_str(pad);
+                                module.push_str(&format!(
+                                    "{} = __e._params[{}] if __e._params and len(__e._params) > {} else None\n",
+                                    param, i, i
+                                ));
+                            }
+                        }
                         let mut lines: Vec<String> = Vec::new();
                         let mut flags_is_expansion: Vec<bool> = Vec::new();
                         let mut flags_is_comment: Vec<bool> = Vec::new();
@@ -1327,7 +1362,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     // without colliding with the router entrypoints.
                     for (hname, entries) in handler_groups.iter() {
                         let hname_py = hname.replace('$', "_");
-                        let any_async = entries.iter().any(|(_, _, is_async)| *is_async);
+                        let any_async = entries.iter().any(|(_, _, is_async, _)| *is_async);
                         if any_async {
                             module.push_str(&format!("    async def _event_{}(self, __e: FrameEvent, compartment: FrameCompartment):\n", hname_py));
                         } else {
@@ -1338,12 +1373,13 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                             // Single, state-less handler: emit directly under the router without
                             // an explicit state guard.
                             let body = &entries[0].1;
-                            emit_py_handler_body(&mut module, body, "        ");
+                            let params = &entries[0].3;
+                            emit_py_handler_body(&mut module, body, "        ", params);
                         } else if entries.len() == 1 {
                             // Single state-qualified handler: emit a single guarded block and
                             // normalize indentation inside that block while preserving relative
                             // nesting (e.g., nested defs / blocks).
-                            let (state_id_opt, body, _) = &entries[0];
+                            let (state_id_opt, body, _, params) = &entries[0];
                             if let Some(state_name) = state_id_opt.as_deref() {
                                 let compiled_id = if let Some(sys) = system_name.as_deref() {
                                     format!("__{}_state_{}", sys, state_name)
@@ -1354,16 +1390,17 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                     "        if c.state == \"{}\":\n",
                                     compiled_id
                                 ));
-                                emit_py_handler_body(&mut module, body, "            ");
+                                emit_py_handler_body(&mut module, body, "            ", params);
                             } else {
                                 // Defensive fallback: treat as state-less handler if the outline
                                 // did not record a state id.
                                 let body = &entries[0].1;
-                                emit_py_handler_body(&mut module, body, "        ");
+                                let params = &entries[0].3;
+                                emit_py_handler_body(&mut module, body, "        ", params);
                             }
                         } else {
                             let mut first_case = true;
-                            for (state_id_opt, body, _) in entries {
+                            for (state_id_opt, body, _, params) in entries {
                                 if let Some(state_name) = state_id_opt.as_deref() {
                                     let compiled_id = if let Some(sys) = system_name.as_deref() {
                                         format!("__{}_state_{}", sys, state_name)
@@ -1387,7 +1424,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                 // Normalize the body under the state guard while
                                 // preserving relative nesting and aligning Frame
                                 // expansion lines to the logical block.
-                                emit_py_handler_body(&mut module, body, "            ");
+                                emit_py_handler_body(&mut module, body, "            ", params);
                             }
                         }
                     }

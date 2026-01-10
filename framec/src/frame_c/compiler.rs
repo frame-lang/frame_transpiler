@@ -20,17 +20,21 @@ impl Exe {
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
-                // If this looks like a V3 module (has @target header), route to module compiler.
-                // Prefer explicit CLI language, otherwise derive from header annotation.
-                let header_lang = crate::frame_c::compiler::detect_header_target_annotation(&content);
-                let chosen_lang = target_language.or(header_lang);
-                if content.contains("@target ") {
-                    // Require a target language to be known at this point
-                    let lang = chosen_lang.unwrap_or(TargetLanguage::Python3);
-                    return crate::frame_c::v3::compile_module(&content, lang);
+                // Use v4 compiler for all Frame files
+                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                
+                match compiler.compile(&content, input_path.to_str().unwrap_or("<unknown>")) {
+                    crate::frame_c::v4::FrameV4Result::Ok(output) => Ok(output.code),
+                    crate::frame_c::v4::FrameV4Result::Err(err) => {
+                        let mut error_msg = String::from("Frame v4 compilation errors:\n");
+                        for error in err.errors() {
+                            error_msg.push_str(&format!("  {}\n", error));
+                        }
+                        Err(RunError::new(exitcode::DATAERR, &error_msg))
+                    }
                 }
-                // All Frame files must now have @target pragma - demo mode removed
-                Err(RunError::new(exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
             }
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
@@ -43,15 +47,21 @@ impl Exe {
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
-                let header_lang = crate::frame_c::compiler::detect_header_target_annotation(&content);
-                let chosen_lang = target_language.or(header_lang);
-                if content.contains("@target ") {
-                    let lang = chosen_lang.unwrap_or(TargetLanguage::Python3);
-                    // In module path, debug trailers are controlled by env (set by CLI --emit-debug)
-                    return crate::frame_c::v3::compile_module(&content, lang);
+                // Use v4 compiler for debug output
+                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                
+                match compiler.compile(&content, input_path.to_str().unwrap_or("<unknown>")) {
+                    crate::frame_c::v4::FrameV4Result::Ok(output) => Ok(output.code),
+                    crate::frame_c::v4::FrameV4Result::Err(err) => {
+                        let mut error_msg = String::from("Frame v4 compilation errors:\n");
+                        for error in err.errors() {
+                            error_msg.push_str(&format!("  {}\n", error));
+                        }
+                        Err(RunError::new(exitcode::DATAERR, &error_msg))
+                    }
                 }
-                // All Frame files must now have @target pragma - demo mode removed
-                Err(RunError::new(exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
             }
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
@@ -71,11 +81,20 @@ impl Exe {
         let mut stdin = io::stdin();
         match stdin.read_to_string(&mut buffer) {
             Ok(_size) => {
-                if buffer.contains("@target ") {
-                    let lang = target_language.unwrap_or(TargetLanguage::Python3);
-                    crate::frame_c::v3::compile_module(&buffer, lang)
-                } else {
-                    Err(RunError::new(exitcode::DATAERR, "Frame files must specify @target language. Demo mode has been removed."))
+                // Use v4 compiler for stdin
+                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                
+                match compiler.compile(&buffer, "<stdin>") {
+                    crate::frame_c::v4::FrameV4Result::Ok(output) => Ok(output.code),
+                    crate::frame_c::v4::FrameV4Result::Err(err) => {
+                        let mut error_msg = String::from("Frame v4 compilation errors:\n");
+                        for error in err.errors() {
+                            error_msg.push_str(&format!("  {}\n", error));
+                        }
+                        Err(RunError::new(exitcode::DATAERR, &error_msg))
+                    }
                 }
             },
             Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read stdin: {}", err))),

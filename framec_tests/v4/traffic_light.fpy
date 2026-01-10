@@ -1,0 +1,44 @@
+@@target python
+
+system TrafficLight {
+    interface:
+        timer()
+        get_color(): str
+    
+    machine:
+        $Red {
+            timer() {
+                print("Red light timing out")
+                self._transition_to_Green()
+            }
+            
+            get_color() {
+                self._system_return = "red"
+                return
+            }
+        }
+        
+        $Green {
+            timer() {
+                print("Green light timing out")  
+                self._transition_to_Yellow()
+            }
+            
+            get_color() {
+                self._system_return = "green"
+                return
+            }
+        }
+        
+        $Yellow {
+            timer() {
+                print("Yellow light timing out")
+                self._transition_to_Red()
+            }
+            
+            get_color() {
+                self._system_return = "yellow"
+                return
+            }
+        }
+}

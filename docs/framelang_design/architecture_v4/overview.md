@@ -213,8 +213,11 @@ const color = light.getColor();  // Valid - in interface
 
 Frame v4 is fully documented with comprehensive guides:
 
-### Core Concepts
+### Architecture and Implementation
+- **[Pipeline Architecture](PIPELINE_ARCHITECTURE.md)** - Complete compilation pipeline documentation
 - **[Quick Reference](quick_reference.md)** - Complete syntax cheat sheet
+
+### Core Concepts
 - [Native Features](native_features.md) - Abstract documentation of native language features
 - [System Initialization](system_initialization.md) - System parameters and default initialization
 - [Persistence](persistence.md) - System snapshots and state restoration

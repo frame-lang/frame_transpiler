@@ -877,20 +877,17 @@ pub fn run_with(args: Cli) {
                         std::env::set_var("FRAME_MAP_TRAILER", "1");
                         std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
                     }
-                    // Optional validation
-                    if args.validate || args.validate_only {
-                        match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
-                            Ok(res) => {
-                                for issue in res.issues { eprintln!("validation: {}", issue.message); }
-                                if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
-                                if args.validate_native && !res.ok { std::process::exit(exitcode::DATAERR); }
-                                if args.validate && !res.ok { std::process::exit(exitcode::DATAERR); }
-                            }
-                            Err(e) => { eprintln!("validation error: {}", e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
-                        }
-                    }
-                    match crate::frame_c::v3::compile_module(&content, lang) {
-                        Ok(code) => {
+                    // Skip v3 validation for v4 - v4 has its own validation
+                    // if args.validate || args.validate_only {
+                    //     v4 will validate during compilation
+                    // }
+                    // Use v4 compiler exclusively
+                    let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                    let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                    
+                    match compiler.compile(&content, file.to_str().unwrap_or("<unknown>")) {
+                        crate::frame_c::v4::FrameV4Result::Ok(output) => {
+                            let code = output.code;
                             if let Some(dir) = args.output_dir.as_ref() {
                                 if let Err(e) = std::fs::create_dir_all(dir) { eprintln!("cannot create output dir: {}", e); std::process::exit(exitcode::IOERR); }
                                 let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
@@ -942,7 +939,14 @@ pub fn run_with(args: Cli) {
                                 println!("{}", code);
                             }
                         }
-                        Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
+                        crate::frame_c::v4::FrameV4Result::Err(err) => {
+                            // v4 errors
+                            eprintln!("Frame v4 compilation error");
+                            for error in err.errors() {
+                                eprintln!("{}", error);
+                            }
+                            std::process::exit(exitcode::DATAERR);
+                        }
                     }
                 }
                 Err(e) => { eprintln!("Failed to read {}: {}", file.display(), e); std::process::exit(exitcode::NOINPUT); }
