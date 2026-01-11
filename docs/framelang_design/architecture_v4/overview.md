@@ -35,17 +35,18 @@ Frame v4 represents an evolution where native language code is used within Frame
 
 ### 2. Frame Annotations (all use @@ prefix)
 - `@@target language` - Specifies target language for transpilation
-- `@@system varname = SystemName(args)` - Declares and instantiates a Frame system
+- `@@system Name { ... }` - Defines a Frame system with state machine
+- `@@system varname = SystemName(args)` - Instantiates a Frame system
   - Enables semantic validation of all calls to `varname`
   - Enforces interface access control
   - Provides type safety for system interactions
+  - Can be used at top-level or inside system blocks for composition
 - `@@persist` - Enables persistence support for a system
   - Generates save/restore methods
   - Supports system snapshots and restoration
 
 ### 3. Structural Keywords and Ordering
 System blocks must appear in this canonical order when present:
-- `system` - Defines a Frame system with state machine
 - `operations:` - Internal helper methods (1st when present)
 - `interface:` - Public methods (2nd when present)
 - `machine:` - State definitions (3rd when present)
@@ -77,7 +78,7 @@ Each language-specific extension clearly indicates the intended target language.
 import json
 from datetime import datetime
 
-system TrafficLight {
+@@system TrafficLight {
     operations:
         calculateDelay() {
             # Native Python code
@@ -140,7 +141,7 @@ color = light.getColor()  # Valid - in interface
 // Native TypeScript imports
 import { Logger } from './logger';
 
-system TrafficLight {
+@@system TrafficLight {
     operations:
         calculateDelay(): number {
             // Native TypeScript code

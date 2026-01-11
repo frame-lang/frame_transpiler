@@ -10,7 +10,7 @@ Frame v4 uses a native-first approach: native language syntax within code blocks
 file            = prolog imports? system+
 prolog          = "@@target" language_identifier
 imports         = native_import+
-system          = "system" identifier "{" system_body "}"
+system          = "@@system" identifier "{" system_body "}"
 ```
 
 ### File Extensions
@@ -27,7 +27,7 @@ Frame v4 uses language-specific file extensions. The `@@target` pragma is still 
 ## System Structure
 
 ```
-system          = "system" identifier system_params? "{" system_body "}"
+system          = "@@system" identifier system_params? "{" system_body "}"
 system_params   = "(" system_param_list ")"
 system_param_list = system_param ("," system_param)*
 system_param    = start_state_param | enter_event_param | domain_param

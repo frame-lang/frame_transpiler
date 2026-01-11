@@ -1,7 +1,7 @@
 # Frame v4 Quick Reference
 
 ## Typography Convention
-- **Frame syntax** in regular font: `system Name { }`, `-> $State()`, `$StateName { }`
+- **Frame syntax** in regular font: `@@system Name { }`, `-> $State()`, `$StateName { }`
 - *Native code* in italic: *`variable = value`*, *`if condition`*, *`array[index]`*
 
 ## File Structure
@@ -10,7 +10,7 @@
 @@target language           # Required pragma
 *imports...*                # Native language imports
 
-system Name(*param: type*) {  # System definition with optional parameters
+@@system Name(*param: type*) {  # System definition with optional parameters
     operations:            # Optional - must come first if present
     interface:             # Optional - public API
     machine:               # Optional - state machine
@@ -24,9 +24,10 @@ system Name(*param: type*) {  # System definition with optional parameters
 | Annotation | Purpose | Example |
 |------------|---------|---------|
 | `@@target` | Specify target language | `@@target python` |
-| `@@system` | Declare system instance | `@@system *light = TrafficLight("config.json", True)*` |
-| `@@persist` | Enable persistence | `@@persist system SaveableSystem { }` |
-| `@@persist(...)` | Selective persistence | `@@persist(domain=[x, y]) system Partial { }` |
+| `@@system Name { }` | Define a system | `@@system TrafficLight { ... }` |
+| `@@system var = Name()` | Instantiate a system | `@@system light = TrafficLight("config.json", True)` |
+| `@@persist` | Enable persistence | `@@persist @@system SaveableSystem { }` |
+| `@@persist(...)` | Selective persistence | `@@persist(domain=[x, y]) @@system Partial { }` |
 
 ## State Machine Syntax
 
