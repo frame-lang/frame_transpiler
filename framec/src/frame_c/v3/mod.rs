@@ -1336,10 +1336,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                                 ));
                             }
                         }
+                        
+                        // Use Python transpiler to convert Frame syntax to Python
+                        use crate::frame_c::v3::python_transpiler::PythonTranspilerV3;
+                        let transpiler = PythonTranspilerV3;
+                        let transpiled_body = transpiler.transpile_function_body_unchecked(body);
+                        
                         let mut lines: Vec<String> = Vec::new();
                         let mut flags_is_expansion: Vec<bool> = Vec::new();
                         let mut flags_is_comment: Vec<bool> = Vec::new();
-                        for ln in body.lines() {
+                        for ln in transpiled_body.lines() {
                             let mut raw = ln.to_string();
                             // Replace system.return with stack access to avoid Python keyword conflict
                             if raw.contains("system.return") {

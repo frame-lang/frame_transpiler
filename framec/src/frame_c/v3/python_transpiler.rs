@@ -268,7 +268,13 @@ impl PythonTranspilerV3 {
     /// Transpile if statement: "if condition {" -> "if condition:"
     fn transpile_if_statement(&self, indent: &str, line: &str) -> String {
         if let Some(rest) = line.strip_prefix("if ") {
-            // Remove trailing { if present
+            // Check if already in Python syntax (ends with :)
+            if rest.trim().ends_with(":") {
+                // Already has colon, just return as-is with proper indentation
+                return format!("{}{}", indent, line.trim());
+            }
+            
+            // Remove trailing { if present (Frame syntax)
             let condition = if let Some(pos) = rest.rfind(" {") {
                 &rest[..pos]
             } else if rest.ends_with("{") {

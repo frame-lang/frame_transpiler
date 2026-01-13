@@ -1,8 +1,14 @@
 # Frame v4 Architecture Overview
 
-## Core Philosophy: Native Code with Frame Structure
+## Core Philosophy: Going Native - Frame Systems Embedded in Native Code
 
-Frame v4 represents an evolution where native language code is used within Frame's structural framework. Frame provides the state machine structure and transitions, while the implementation uses native language syntax.
+Frame v4 represents a fundamental shift: **Frame systems are now embedded within native code files**, not standalone Frame modules. This "going native" approach means:
+
+- **Native code is the primary context** - Python/TypeScript/Rust files contain Frame systems
+- **Frame systems are islands** - `@@system` blocks define state machines within native code
+- **No Frame modules** - No more `.frm` files that compile to complete modules
+- **Native imports only** - Use Python's `import`, TypeScript's `import`, etc.
+- **Native test code** - Tests are written in native code that instantiates Frame systems
 
 ## Key Principles
 
@@ -14,17 +20,19 @@ Frame v4 represents an evolution where native language code is used within Frame
 
 ## What Frame v4 IS
 
-- A state machine structural framework for any target language
-- An architectural enforcement tool with semantic validation  
-- A native-code system with Frame state machine constructs
-- A foundation for universal state machine debugging
+- **Embedded state machines** - Frame systems embedded in native code files
+- **Native-first development** - Write Python/TypeScript/Rust with Frame systems inside
+- **Structural framework** - Frame provides state machine structure within native code
+- **Semantic validation** - Compile-time enforcement of Frame patterns in native context
+- **Universal debugging** - Frame-aware debugging across all languages
 
 ## What Frame v4 IS NOT
 
-- A full general-purpose programming language
-- A universal syntax language (uses native code in blocks)
-- A complete type system (uses native types)
-- A replacement for native language features
+- **NOT standalone modules** - No more `.frm` files compiling to complete programs
+- **NOT a programming language** - Frame is embedded structure, not a language
+- **NOT Frame syntax everywhere** - Native code is native, only Frame constructs use Frame syntax
+- **NOT replacing native features** - Use native imports, types, and language features
+- **NOT processing module-level code** - Code outside `@@system` blocks is pure native
 
 ## Core Constructs
 
@@ -125,14 +133,31 @@ from datetime import datetime
         }
 }
 
-# Create a Frame-tracked system instance
-@@system light = TrafficLight()
+# More native Python code after the Frame system
+def test_traffic_light():
+    """Native Python test function - NOT processed by Frame compiler"""
+    # Create instance using generated class (no @@system needed for testing)
+    light = TrafficLight()
+    
+    # Native Python testing
+    assert light.getColor() == "red"
+    light.timer()
+    assert light.getColor() == "green"
+    light.timer()
+    assert light.getColor() == "yellow"
+    
+    print("Traffic light test passed!")
 
-# Frame validates these calls
-light.timer()        # Valid - in interface
-color = light.getColor()  # Valid - in interface
-# light.calculateDelay()  # ERROR - operations are private
+if __name__ == "__main__":
+    test_traffic_light()
 ```
+
+**Key Points:**
+- The file extension would be `.py`, not `.frm`
+- Native Python code exists before and after the Frame system
+- Only the `@@system` block is processed by Frame compiler
+- Test code is pure native Python
+- No Frame syntax (`var`, etc.) outside of Frame blocks
 
 ### TypeScript Example
 ```typescript
