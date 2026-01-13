@@ -15,8 +15,12 @@ impl V3DirectCompiler {
     }
     
     pub fn compile(&self, source: &str, _file_name: &str) -> FrameV4Result {
-        // Convert @@target to @target for v3 compatibility
-        let v3_source = source.replace("@@target ", "@target ");
+        // Convert v4 syntax to v3 syntax
+        let mut v3_source = source.replace("@@target ", "@target ");
+        
+        // Convert @@system to system for v3 compatibility
+        // This handles both definition (@@system Name {) and instantiation (@@system var = Name())
+        v3_source = v3_source.replace("@@system ", "system ");
         
         // Convert v4 target to v3 target
         let v3_target = match self.target {

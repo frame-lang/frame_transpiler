@@ -942,6 +942,18 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     for name in domain_params.iter() {
                         module.push_str(&format!("        if \"{name}\" in param_map: self.{name} = param_map.get(\"{name}\")\n"));
                     }
+                    // Initialize domain fields from the domain: block
+                    let domain_fields = scan_py_domain_fields(bytes, &sys_name);
+                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                        eprintln!("[Python] Domain fields for {}: {:?}", sys_name, domain_fields);
+                    }
+                    for (name, _ty_opt, init_opt) in domain_fields.iter() {
+                        if let Some(init) = init_opt {
+                            module.push_str(&format!("        self.{} = {}\n", name, init.trim()));
+                        } else {
+                            module.push_str(&format!("        self.{} = None\n", name));
+                        }
+                    }
                     module.push_str(&format!("        self._compartment = FrameCompartment(\"__{}_state_{}\", enter_args=enter_args, state_args=state_args)\n", sys_name, start_state));
                     module.push_str("        self._stack = []\n");
                     module.push_str("        self._system_return_stack = []\n");
@@ -3909,6 +3921,14 @@ pub fn find_module_name(bytes: &[u8], start: usize) -> Option<String> {
         i += 1;
     }
     None
+}
+
+// Minimal domain: scanner for Python runnable modules.
+// Scans for a top-level `domain:` block and extracts Frame-style domain
+// variables into (name, type, initializer) triples.
+fn scan_py_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Option<String>, Option<String>)> {
+    // Reuse the TypeScript scanner since the Frame syntax is the same
+    scan_ts_domain_fields(bytes, target_system)
 }
 
 // Minimal domain: scanner for TypeScript runnable modules.
