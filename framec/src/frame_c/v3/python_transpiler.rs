@@ -315,7 +315,13 @@ impl PythonTranspilerV3 {
     /// Transpile for loop: "for item in items {" -> "for item in items:"
     fn transpile_for_loop(&self, indent: &str, line: &str) -> String {
         if let Some(rest) = line.strip_prefix("for ") {
-            // Remove trailing { if present
+            // Check if already in Python syntax (ends with :)
+            if rest.trim().ends_with(":") {
+                // Already has colon, just return as-is with proper indentation
+                return format!("{}{}", indent, line.trim());
+            }
+            
+            // Remove trailing { if present (Frame syntax)
             let loop_expr = if let Some(pos) = rest.rfind(" {") {
                 &rest[..pos]
             } else if rest.ends_with("{") {
@@ -333,7 +339,13 @@ impl PythonTranspilerV3 {
     /// Transpile while loop: "while condition {" -> "while condition:"
     fn transpile_while_loop(&self, indent: &str, line: &str) -> String {
         if let Some(rest) = line.strip_prefix("while ") {
-            // Remove trailing { if present
+            // Check if already in Python syntax (ends with :)
+            if rest.trim().ends_with(":") {
+                // Already has colon, just return as-is with proper indentation
+                return format!("{}{}", indent, line.trim());
+            }
+            
+            // Remove trailing { if present (Frame syntax)
             let condition = if let Some(pos) = rest.rfind(" {") {
                 &rest[..pos]
             } else if rest.ends_with("{") {
