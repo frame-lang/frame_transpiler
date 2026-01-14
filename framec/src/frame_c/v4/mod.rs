@@ -78,7 +78,10 @@ impl FrameV4Compiler {
     /// Compile Frame source to native code
     pub fn compile(&self, source: &str, file_path: &str) -> FrameV4Result {
         // Check which implementation to use
-        if std::env::var("USE_V3_DIRECT").is_ok() {
+        if std::env::var("USE_V4_PURE").is_ok() {
+            // Use pure v4 implementation (experimental, ~10% functional)
+            self.compile_v4_pure(source, file_path)
+        } else if std::env::var("USE_V3_DIRECT").is_ok() {
             // Use v3's complete compile_module directly - gives full v3 functionality
             let compiler = v3_direct_compiler::V3DirectCompiler::new(self.target);
             compiler.compile(source, file_path)

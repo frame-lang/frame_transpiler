@@ -22,6 +22,10 @@ impl V3DirectCompiler {
         // This handles both definition (@@system Name {) and instantiation (@@system var = Name())
         v3_source = v3_source.replace("@@system ", "system ");
         
+        // Handle @@persist annotation - remove for now since v3 doesn't support it
+        // TODO: Implement persistence in v3 backend or handle in v4 post-processing
+        v3_source = v3_source.replace("@@persist ", "");
+        
         // Convert v4 target to v3 target
         let v3_target = match self.target {
             TargetLanguage::Python => V3TargetLanguage::Python3,
