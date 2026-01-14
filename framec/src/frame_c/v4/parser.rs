@@ -45,8 +45,12 @@ impl Parser {
         // Parse annotations
         let annotations = self.parse_annotations();
         
-        // Parse system
-        self.expect_keyword("system")?;
+        // Parse system (accept either System token from @@system or keyword "system")
+        if !self.check(TokenType::System) {
+            self.error(&format!("Expected system declaration, got {:?}", self.peek()));
+            return Err(self.errors.clone());
+        }
+        self.advance();
         let name = self.expect_identifier()?;
         
         // Parse system parameters
@@ -99,6 +103,21 @@ impl Parser {
         
         self.expect(TokenType::RightBrace)?;
         
+        // Parse any trailing native code (like test code after system)
+        let trailing_native_code = if !self.is_at_end() && self.peek() != Some(TokenType::Eof) {
+            let mut code = String::new();
+            while !self.is_at_end() && self.peek() != Some(TokenType::Eof) {
+                if let Some(token) = self.current_token() {
+                    code.push_str(&token.lexeme);
+                    code.push(' ');
+                }
+                self.advance();
+            }
+            Some(code)
+        } else {
+            None
+        };
+        
         let source_location = if let Some(first) = self.tokens.first() {
             first.location.clone()
         } else {
@@ -145,8 +164,8 @@ impl Parser {
     fn parse_imports(&mut self) -> Vec<String> {
         let mut imports = Vec::new();
         
-        // Collect all native code that appears before 'system' keyword
-        while !self.check_keyword("system") && !self.is_at_end() {
+        // Collect all native code that appears before system declaration
+        while !self.check(TokenType::System) && !self.is_at_end() {
             if self.check(TokenType::NativeCode) {
                 let token = self.advance();
                 imports.push(token.lexeme.trim().to_string());
@@ -324,11 +343,44 @@ impl Parser {
 
     fn parse_interface_method(&mut self) -> Result<InterfaceMethod, ErrorsAcc> {
         let location = self.current_location();
-        let name = self.expect_identifier()?;
         
-        self.expect(TokenType::LeftParen)?;
-        let params = self.parse_parameter_list()?;
-        self.expect(TokenType::RightParen)?;
+        // The scanner may have tokenized the method name and parentheses separately
+        // We need to handle both cases:
+        // 1. name ( params )
+        // 2. name() directly as identifier
+        let name = if self.check(TokenType::Identifier) {
+            self.expect_identifier()?
+        } else {
+            // Try to extract name from whatever token we have
+            let token = self.current_token();
+            if let Some(t) = token {
+                let lexeme = t.lexeme.clone();
+                // Extract method name if it's something like "save()"
+                if let Some(paren_pos) = lexeme.find('(') {
+                    self.advance();
+                    lexeme[..paren_pos].to_string()
+                } else {
+                    return Err(self.error_at_current("Expected method name"));
+                }
+            } else {
+                return Err(self.error_at_current("Expected method name"));
+            }
+        };
+        
+        // Handle parameters - might already be past the opening paren
+        if self.check(TokenType::LeftParen) {
+            self.expect(TokenType::LeftParen)?;
+        }
+        
+        let params = if !self.check(TokenType::RightParen) {
+            self.parse_parameter_list()?
+        } else {
+            Vec::new()
+        };
+        
+        if self.check(TokenType::RightParen) {
+            self.expect(TokenType::RightParen)?;
+        }
         
         let return_type = if self.check(TokenType::Colon) {
             self.advance();
@@ -454,6 +506,18 @@ impl Parser {
             // Only break on actual structural tokens (not state references in transitions)
             if token.token_type == TokenType::RightBrace {
                 break;
+            }
+            
+            // Special handling for System token - in handler bodies, it's likely "system.return"
+            // not a system declaration, so treat it as native code
+            if token.token_type == TokenType::System {
+                if need_space {
+                    native_code.push(' ');
+                }
+                native_code.push_str("system");
+                self.advance();
+                need_space = true;
+                continue;
             }
             
             // Add appropriate spacing between tokens
@@ -696,6 +760,14 @@ impl Parser {
     fn previous(&self) -> Token {
         self.tokens[self.current - 1].clone()
     }
+    
+    fn current_token(&self) -> Option<&Token> {
+        if self.current < self.tokens.len() {
+            Some(&self.tokens[self.current])
+        } else {
+            None
+        }
+    }
 
     fn is_at_end(&self) -> bool {
         self.peek() == Some(TokenType::Eof) || self.current >= self.tokens.len()
@@ -743,5 +815,10 @@ impl Parser {
         let location = self.current_location();
         let error_msg = format!("{} at {}:{}", message, location.line, location.column);
         self.errors.push_error(error_msg);
+    }
+    
+    fn error_at_current(&mut self, message: &str) -> ErrorsAcc {
+        self.error(message);
+        self.errors.clone()
     }
 }

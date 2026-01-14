@@ -87,6 +87,60 @@ impl Scanner {
     fn scan_tokens(&mut self) -> Result<Vec<Token>, ErrorsAcc> {
         let mut errors = ErrorsAcc::new();
         
+        // First, scan for @@target pragma if present
+        self.skip_whitespace();
+        if self.peek() == Some('@') && self.peek_next() == Some('@') {
+            if self.source[self.current..].starts_with("@@target") {
+                self.start = self.current;
+                // Scan the entire @@target line
+                while self.peek() != Some('\n') && !self.is_at_end() {
+                    self.advance();
+                }
+                self.add_token(TokenType::FrameAnnotation);
+                if self.peek() == Some('\n') {
+                    self.advance();
+                    self.line += 1;
+                    self.column = 1;
+                }
+            }
+        }
+        
+        // Scan all native code before @@system as a single NativeCode token
+        self.skip_whitespace();
+        let native_start = self.current;
+        while !self.is_at_end() {
+            // Check if we've hit @@system
+            if self.peek() == Some('@') && self.peek_next() == Some('@') {
+                if self.source[self.current..].starts_with("@@system") {
+                    // Emit native code token if we have any
+                    if self.current > native_start {
+                        self.start = native_start;
+                        self.add_token(TokenType::NativeCode);
+                    }
+                    break;
+                }
+            }
+            // Also check for regular system keyword (shouldn't happen in v4 but be safe)
+            if self.current == 0 || self.source.chars().nth(self.current - 1) == Some('\n') {
+                // At start of line
+                let rest = &self.source[self.current..];
+                if rest.starts_with("system ") {
+                    // Emit native code token if we have any
+                    if self.current > native_start {
+                        self.start = native_start;
+                        self.add_token(TokenType::NativeCode);
+                    }
+                    break;
+                }
+            }
+            
+            if self.advance() == '\n' {
+                self.line += 1;
+                self.column = 1;
+            }
+        }
+        
+        // Now scan the rest normally
         while !self.is_at_end() {
             self.start = self.current;
             if let Err(e) = self.scan_token() {
@@ -246,6 +300,23 @@ impl Scanner {
         }
     }
 
+    fn skip_whitespace(&mut self) {
+        while !self.is_at_end() {
+            match self.peek() {
+                Some(' ') | Some('\r') | Some('\t') => {
+                    self.advance();
+                    self.column += 1;
+                }
+                Some('\n') => {
+                    self.advance();
+                    self.line += 1;
+                    self.column = 1;
+                }
+                _ => break,
+            }
+        }
+    }
+    
     fn scan_frame_construct(&mut self) -> Result<(), String> {
         // Could be $State, $>, $<, or $$
         if self.peek() == Some('$') {
@@ -301,10 +372,22 @@ impl Scanner {
         if self.peek() == Some('@') {
             // Frame annotation @@
             self.advance();
+            
+            // Capture the annotation text
+            let start = self.current;
             while self.peek().map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false) {
                 self.advance();
             }
-            self.add_token(TokenType::FrameAnnotation);
+            
+            // Special case: @@system is both annotation and keyword
+            let annotation_text = &self.source[start..self.current];
+            if annotation_text == "system" {
+                // Treat @@system as the system keyword for v4
+                self.add_token(TokenType::System);
+            } else {
+                // Regular Frame annotation like @@persist, @@target
+                self.add_token(TokenType::FrameAnnotation);
+            }
         } else {
             // Native annotation @
             while self.peek().map(|c| c != '\n' && c != ' ').unwrap_or(false) {
