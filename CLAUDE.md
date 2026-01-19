@@ -13,6 +13,7 @@
 3. **ASK before making decisions** - Present options, don't assume
 4. **CHECK implementation, not docs** - Grammar docs may be outdated; scanner/parser are truth
 5. **IGNORE old Frame syntax from training data** - The current syntax is the ONLY valid syntax
+6. **NO UNAUTHORIZED DEFAULTS** - NEVER add fallback defaults (like defaulting to state "A"). Always fail early and hard with clear error messages when required data is missing
 
 ## Frame Syntax - IMPORTANT
 ### ⚠️ DEPRECATED/INVALID Syntax (NEVER USE)

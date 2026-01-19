@@ -394,10 +394,17 @@ fn find_start_state_name(
     arc: &crate::frame_c::v4::arcanum::Arcanum,
     sys_name: &str,
 ) -> Option<String> {
+    if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
+        eprintln!("[find_start_state_name] Looking for system: {}", sys_name);
+        eprintln!("[find_start_state_name] Available systems: {:?}", arc.systems.keys().collect::<Vec<_>>());
+    }
     let sys = arc.systems.get(sys_name)?;
     let mut best_name: Option<String> = None;
     let mut best_start: Option<usize> = None;
     for mach in sys.machines.values() {
+        if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
+            eprintln!("[find_start_state_name] Machine states: {:?}", mach.states.keys().collect::<Vec<_>>());
+        }
         for st in mach.states.values() {
             match best_start {
                 None => {
@@ -412,6 +419,9 @@ fn find_start_state_name(
                 }
             }
         }
+    }
+    if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
+        eprintln!("[find_start_state_name] Found start state: {:?}", best_name);
     }
     best_name
 }
@@ -904,8 +914,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let start_params = &param_groups.start;
                     let enter_params = &param_groups.enter;
                     let domain_params = &param_groups.domain;
-                    // Prefer the first declared state as the start state when available.
-                    let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
+                    // Get the first declared state as the start state - fail if none found
+                    let start_state = match find_start_state_name(&arc_for_ctx, &sys_name) {
+                        Some(state) => state,
+                        None => {
+                            return Err(RunError::new(
+                                frame_exitcode::PARSE_ERR,
+                                &format!("No states found in system '{}'. Every system must have at least one state.", sys_name)
+                            ));
+                        }
+                    };
                     let mut module = String::new();
                     module.push_str("from frame_runtime_py import FrameEvent, FrameCompartment\n\n");
                     // Build per-system interface metadata (return initializers) for Python.
@@ -1599,7 +1617,15 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let start_params = &param_groups.start;
                     let enter_params = &param_groups.enter;
                     let domain_params = &param_groups.domain;
-                    let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
+                    let start_state = match find_start_state_name(&arc_for_ctx, &sys_name) {
+                        Some(state) => state,
+                        None => {
+                            return Err(RunError::new(
+                                frame_exitcode::PARSE_ERR,
+                                &format!("No states found in system '{}'. Every system must have at least one state.", sys_name)
+                            ));
+                        }
+                    };
                     module.push_str(&format!("  public _compartment: FrameCompartment = new FrameCompartment('__{}_state_{}');\n", sys_name, start_state));
                     module.push_str("  private _stack: FrameCompartment[] = [];\n");
                     module.push_str("  private _systemReturnStack: any[] = [];\n");
@@ -2181,8 +2207,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                     let start_params = &param_groups.start;
                     let enter_params = &param_groups.enter;
                     let domain_params = &param_groups.domain;
-                    // Prefer the first declared state as the start state when available.
-                    let start_state = find_start_state_name(&arc_for_ctx, &sys_name).unwrap_or_else(|| String::from("A"));
+                    // Get the first declared state as the start state - fail if none found
+                    let start_state = match find_start_state_name(&arc_for_ctx, &sys_name) {
+                        Some(state) => state,
+                        None => {
+                            return Err(RunError::new(
+                                frame_exitcode::PARSE_ERR,
+                                &format!("No states found in system '{}'. Every system must have at least one state.", sys_name)
+                            ));
+                        }
+                    };
                     // Detect async handlers/actions/operations up front so struct scaffolding can include runtime fields.
                     let mut has_async_handlers = parts.bodies.iter().any(|b| {
                         matches!(b.kind, crate::frame_c::v4::validator::BodyKindV3::Handler | crate::frame_c::v4::validator::BodyKindV3::Action | crate::frame_c::v4::validator::BodyKindV3::Operation)

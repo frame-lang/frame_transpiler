@@ -139,11 +139,23 @@ fn collect_states_in_machine(bytes: &[u8], span: &Span) -> Vec<StateDecl> {
 
 pub fn build_arcanum_from_module_ast(bytes: &[u8], module: &ModuleAst) -> Arcanum {
     let mut arc = Arcanum::new();
+    if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
+        eprintln!("[build_arcanum] Module has {} systems", module.systems.len());
+        for sys_ast in &module.systems {
+            eprintln!("[build_arcanum] System: {}", sys_ast.name);
+        }
+    }
     for sys_ast in &module.systems {
         let mut sys_entry = SystemEntry::default();
         if let Some(machine_span) = sys_ast.sections.machine {
             let mut machine_entry = MachineEntry::default();
             let states = collect_states_in_machine(bytes, &machine_span);
+            if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
+                eprintln!("[build_arcanum] System {} has {} states", sys_ast.name, states.len());
+                for s in &states {
+                    eprintln!("[build_arcanum]   State: {}", s.name);
+                }
+            }
             for s in states {
                 machine_entry.states.insert(s.name.clone(), s);
             }
