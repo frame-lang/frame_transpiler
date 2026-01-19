@@ -1,17 +1,15 @@
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v3::ast::{ModuleAst, SystemAst, SystemParamsAst, SystemSectionsAst, Span, SystemSectionKind};
-// For now, use v3's body closer until we adapt it for v4
-use crate::frame_c::v3::body_closer::{self as closer, BodyCloserV3};
+use crate::frame_c::v4::ast::{ModuleAst, SystemAst, SystemParamsAst, SystemSectionsAst, Span, SystemSectionKind};
+use crate::frame_c::v4::body_closer::{self as closer, BodyCloserV3};
 
-/// Parser for outer V4 system headers and section layout.
+/// Parser for outer V3 system headers and section layout.
 ///
-/// This is a Frame-only parser adapted from V3: it understands `@@system` headers, 
-/// optional system parameters `($(start), $>(enter), domain)`, and the locations of
+/// This is a Frame-only parser: it understands `system` headers, optional
+/// system parameters `($(start), $>(enter), domain)`, and the locations of
 /// `operations:`, `interface:`, `machine:`, `actions:`, and `domain:` blocks.
-/// Modified to handle v4 syntax including @@persist and @@system annotations.
-pub struct SystemParserV4;
+pub struct SystemParserV3;
 
-impl SystemParserV4 {
+impl SystemParserV3 {
     pub fn parse_module(bytes: &[u8], lang: TargetLanguage) -> ModuleAst {
         let n = bytes.len();
         let mut i = 0usize;
@@ -97,17 +95,15 @@ impl SystemParserV4 {
             // Optional per-system attribute at SOL, e.g. `@persist system Foo {`.
             // For now we only recognize `@persist` without parameters and treat it
             // as an opt-in for persistence helpers during codegen.
-            let mut persist_attr: Option<crate::frame_c::v3::ast::PersistAttrAst> = None;
+            let mut persist_attr: Option<crate::frame_c::v4::ast::PersistAttrAst> = None;
 
-            // Look for optional `@@persist` followed by `@@system` keyword at SOL (v4 syntax).
+            // Look for optional `@persist` followed by `system` keyword at SOL.
             let mut j = i;
             while j < n && is_space(bytes[j]) {
                 j += 1;
             }
-            
-            // Check for @@ prefix (v4 annotations)
-            if j + 1 < n && bytes[j] == b'@' && bytes[j + 1] == b'@' {
-                j += 2; // Skip @@
+            if j < n && bytes[j] == b'@' {
+                j += 1;
                 let attr_start = j;
                 while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
                     j += 1;
@@ -121,51 +117,37 @@ impl SystemParserV4 {
                 }
                 let attr =
                     String::from_utf8_lossy(&bytes[attr_start..j]).to_ascii_lowercase();
-                
-                if attr.as_str() == "persist" {
-                    // Found @@persist annotation
-                    persist_attr = Some(crate::frame_c::v3::ast::PersistAttrAst {
-                        save_name: None,
-                        restore_name: None,
-                    });
-                    // Skip any whitespace between the attribute and `@@system`.
-                    while j < n && is_space(bytes[j]) {
-                        j += 1;
-                    }
-                    // Now look for @@system
-                    if j + 1 < n && bytes[j] == b'@' && bytes[j + 1] == b'@' {
-                        j += 2;
-                        let kw_start = j;
-                        while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
-                            j += 1;
-                        }
-                        let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
-                        if kw.as_str() != "system" {
-                            // Not @@system, skip line
-                            while i < n && bytes[i] != b'\n' {
-                                i += 1;
-                            }
-                            continue;
-                        }
-                    } else {
-                        // Expected @@system after @@persist
-                        while i < n && bytes[i] != b'\n' {
-                            i += 1;
-                        }
-                        continue;
-                    }
-                } else if attr.as_str() == "system" {
-                    // Found @@system directly (no @@persist)
-                    // This is valid, continue to parse system
-                } else {
-                    // Unknown @@annotation at SOL; skip this line for now.
+                if attr.as_str() != "persist" {
+                    // Unknown attribute at SOL; skip this line for now.
                     while i < n && bytes[i] != b'\n' {
                         i += 1;
                     }
                     continue;
                 }
-            } else {
-                // No @@ prefix found, skip line (v4 requires @@system)
+                // For now we do not parse parameters on @persist; language-specific
+                // defaults are used for helper names.
+                persist_attr = Some(crate::frame_c::v4::ast::PersistAttrAst {
+                    save_name: None,
+                    restore_name: None,
+                });
+                // Skip any whitespace between the attribute and `system`.
+                while j < n && is_space(bytes[j]) {
+                    j += 1;
+                }
+            }
+
+            let kw_start = j;
+            while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+                j += 1;
+            }
+            if kw_start == j {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            let kw = String::from_utf8_lossy(&bytes[kw_start..j]).to_ascii_lowercase();
+            if kw.as_str() != "system" {
                 while i < n && bytes[i] != b'\n' {
                     i += 1;
                 }

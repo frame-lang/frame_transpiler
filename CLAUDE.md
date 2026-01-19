@@ -3,6 +3,7 @@
 🚨 **MANDATORY FIRST STEPS** 🚨
 1. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide
 2. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
+3. **FOR V4 WORK**: **READ** [`CLAUDE_V4.md`](CLAUDE_V4.md) - V4 implementation approach
 
 📖 **ALWAYS CHECK CLI HELP**: Run `./target/release/framec --help` to see all available command-line options and parameters.
 
@@ -104,5 +105,18 @@ if test_passes {
 This ensures tests exit with proper failure codes for automated testing systems.
 
 ## Architecture
+
+### V3 Pipeline (PROVEN - USE FOR V4!):
+- Module Partitioner → Native Region Scanner → MIR Assembler → Expander → Splicer
+- Uses state machine-based scanning (NO string manipulation)
+- "Oceans model": Native code (ocean) with Frame statements (islands)
+
+### V4 Strategy:
+- **BUILD ON V3** - Don't replace it!
+- Extend v3 components for @@system, @@persist, @@target
+- See [`CLAUDE_V4.md`](CLAUDE_V4.md) for implementation approach
+- See [`docs/framepiler_design/architecture_v4/PLAN_v4.md`](docs/framepiler_design/architecture_v4/PLAN_v4.md) for plan
+
+### Old V2 Architecture (deprecated):
 - Scanner → Parser (2-pass) → AST → Visitor → Target Code
 - Key files: `scanner.rs`, `parser.rs`, `ast.rs`, `python_visitor_v2.rs`

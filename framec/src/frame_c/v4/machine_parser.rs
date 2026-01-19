@@ -1,6 +1,6 @@
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v3::ast::Span;
-use crate::frame_c::v3::system_param_semantics::header_param_names;
+use crate::frame_c::v4::ast::Span;
+use crate::frame_c::v4::system_param_semantics::header_param_names;
 
 /// Parser utilities for `machine:` sections. For now this is focused on entry
 /// handlers `$>()` so that system-parameter semantics (E417) can be driven

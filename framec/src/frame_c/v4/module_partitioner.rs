@@ -1,17 +1,17 @@
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v3::validator::BodyKindV3;
-use crate::frame_c::v3::native_region_scanner::RegionSpan;
-use crate::frame_c::v3::prolog_scanner::PrologScannerV3;
-use crate::frame_c::v3::outline_scanner::OutlineScannerV3;
-use crate::frame_c::v3::outline_scanner::OutlineItemV3;
-use crate::frame_c::v3::import_scanner::{ImportScannerV3, ImportScanResultV3};
-use crate::frame_c::v3::import_scanner::python::ImportScannerPyV3;
-use crate::frame_c::v3::import_scanner::typescript::ImportScannerTsV3;
-use crate::frame_c::v3::import_scanner::csharp::ImportScannerCsV3;
-use crate::frame_c::v3::import_scanner::c::ImportScannerCV3;
-use crate::frame_c::v3::import_scanner::cpp::ImportScannerCppV3;
-use crate::frame_c::v3::import_scanner::java::ImportScannerJavaV3;
-use crate::frame_c::v3::import_scanner::rust::ImportScannerRustV3;
+use super::validator::BodyKindV3;
+use super::native_region_scanner::RegionSpan;
+use super::prolog_scanner::PrologScannerV3;
+use super::outline_scanner::OutlineScannerV3;
+use super::outline_scanner::OutlineItemV3;
+use super::import_scanner::{ImportScannerV3, ImportScanResultV3};
+use super::import_scanner::python::ImportScannerPyV3;
+use super::import_scanner::typescript::ImportScannerTsV3;
+use super::import_scanner::csharp::ImportScannerCsV3;
+use super::import_scanner::c::ImportScannerCV3;
+use super::import_scanner::cpp::ImportScannerCppV3;
+use super::import_scanner::java::ImportScannerJavaV3;
+use super::import_scanner::rust::ImportScannerRustV3;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BodyPartitionV3 {
@@ -27,7 +27,7 @@ pub struct BodyPartitionV3 {
 pub struct ModulePartitionsV3 {
     pub prolog: Option<RegionSpan>,
     pub imports: Vec<RegionSpan>,
-    pub import_issues: Vec<crate::frame_c::v3::validator::ValidationIssueV3>,
+    pub import_issues: Vec<super::validator::ValidationIssueV3>,
     pub bodies: Vec<BodyPartitionV3>,
 }
 
