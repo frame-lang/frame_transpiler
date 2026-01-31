@@ -10,25 +10,30 @@ This plan describes the step-by-step implementation of the Frame v4 hybrid compi
 - ✅ Enhanced Arcanum with interface/action/operation tracking (Stage 1 complete)
 - ✅ Basic Frame statement detection and parsing
 - ✅ MIR (text-based intermediate representation)
-- ✅ Validation infrastructure (but non-blocking)
+- ✅ Validation infrastructure (blocking as of 2026-01-31)
+- ✅ **Phase 0 Complete**: Validation now blocks code generation
 - ⚠️ Text-based processing without proper AST
 - ❌ No unified representation of Frame + native code
-- ❌ Validation doesn't block code generation
 
-### Critical Issues to Fix
-1. **Validation bypass**: `compile_module` never calls validation
-2. **No unified AST**: Frame and native code aren't represented together
-3. **Text manipulation**: Code generation via string replacement instead of AST visitor
+### Critical Issues Fixed
+1. ✅ **Validation blocking**: `compile_module` now calls validation and blocks on errors
+2. ✅ **E402 validation**: Unknown state transitions properly detected
+3. ✅ **Error reporting**: Clear error messages with available states listed
+
+### Outstanding Issues
+1. **No unified AST**: Frame and native code aren't represented together
+2. **Text manipulation**: Code generation via string replacement instead of AST visitor
+3. **Partial validation**: E403 (parent forward) and E405 (state params) not yet implemented
 
 ## Execution Phases
 
-### Phase 0: Fix Critical Validation Bug [1 day]
+### Phase 0: Fix Critical Validation Bug [COMPLETED 2026-01-31]
 **Goal**: Make validation blocking in the current pipeline
 
-**Tasks**:
-1. Modify `compile_module` to call `validate_module_with_arcanum` before code generation
-2. Check validation result and return error if `ok == false`
-3. Add integration test to verify compilation fails on validation errors
+**Completed Tasks**:
+1. ✅ Modified `compile_module` to call `validate_module_with_arcanum` before code generation
+2. ✅ Check validation result and return error if `ok == false`
+3. ✅ Added integration tests to verify compilation fails on validation errors
 
 **Files to Modify**:
 - `framec/src/frame_c/v4/mod.rs` - Add validation call in `compile_module`

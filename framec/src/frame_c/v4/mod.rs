@@ -47,6 +47,8 @@ mod test_harness_stub;
 // Unit tests for v4 components
 #[cfg(test)]
 mod arcanum_tests;
+#[cfg(test)]
+mod compile_tests;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
@@ -438,6 +440,26 @@ fn find_start_state_name(
 /// single-body “demo-frame” path is implemented separately by
 /// `CompilerV3::compile_single_file` / `validate_single_body`.
 pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
+    // Phase 0 Fix: Validate BEFORE code generation
+    // First, run validation to check for Frame semantic errors
+    let validation_arc = crate::frame_c::v4::arcanum::build_arcanum_from_outline_bytes(content_str.as_bytes(), 0);
+    let validation_result = validate_module_with_arcanum(content_str, lang, &validation_arc, false)?;
+    
+    if !validation_result.ok {
+        // Validation failed - collect error messages and return
+        let error_messages: Vec<String> = validation_result.issues
+            .iter()
+            .map(|issue| issue.message.clone())
+            .collect();
+        let combined_errors = if error_messages.is_empty() {
+            "Validation failed with unknown errors".to_string()
+        } else {
+            format!("Validation failed:\n{}", error_messages.join("\n"))
+        };
+        return Err(RunError::new(frame_exitcode::CONFIG_ERR, &combined_errors));
+    }
+    
+    // Validation passed - proceed with compilation
     // Partition file into bodies and rewrite each body via the V3 pipeline.
     let bytes = content_str.as_bytes();
     let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
