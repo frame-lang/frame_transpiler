@@ -38,6 +38,10 @@ pub mod rust_domain_scanner;
 pub mod machines;
 pub mod ts_harness_machine;
 pub mod system_transformer;
+// Phase 1: Frame AST modules
+pub mod frame_ast;
+pub mod frame_parser;
+pub mod parser_debug;
 // Test infrastructure moved to shared environment - using stub for backward compatibility
 pub mod test_harness_rs {
     pub use super::test_harness_stub::*;
@@ -49,6 +53,8 @@ mod test_harness_stub;
 mod arcanum_tests;
 #[cfg(test)]
 mod compile_tests;
+#[cfg(test)]
+mod frame_parser_tests;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
