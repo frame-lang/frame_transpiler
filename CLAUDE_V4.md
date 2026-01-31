@@ -41,6 +41,21 @@ if trimmed.starts_with("-> $"):
    - Use state machines for scanning, not string manipulation
    - Preserve the MixedBody/MIR architecture (it works!)
 
+## V4 Current Status
+
+### ✅ Working in V4:
+- `@@target` pragma recognition
+- `@@system` and `system` keyword parsing  
+- `@@persist` annotation support
+- Correct state name detection (no "A" fallback)
+- Single system compilation with proper state detection
+- Native code before/after system preserved
+
+### ⚠️ Known Limitations:
+- **Multi-system files**: V4 currently only compiles the FIRST system in a file
+- **Interleaved native code**: Native code between multiple systems not yet supported
+- Full "oceans model" (multiple Frame islands in native ocean) planned but not implemented
+
 ## V4 Syntax Additions
 
 ### New in V4:

@@ -37,11 +37,16 @@ pub mod system_param_semantics;
 pub mod rust_domain_scanner;
 pub mod machines;
 pub mod ts_harness_machine;
+pub mod system_transformer;
 // Test infrastructure moved to shared environment - using stub for backward compatibility
 pub mod test_harness_rs {
     pub use super::test_harness_stub::*;
 }
 mod test_harness_stub;
+
+// Unit tests for v4 components
+#[cfg(test)]
+mod arcanum_tests;
 // future: pub mod import_validator;
 
 fn ts_param_idents(params: &str) -> String {
@@ -896,13 +901,71 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
         Ok(joined)
     } else {
         if cursor < bytes.len() { out.push_str(&content_str[cursor..]); }
-        // Build runnable module code for Python/TypeScript/Rust unless explicitly disabled
-        let compile_runtimable = std::env::var("FRAME_COMPILE_RUNTIMABLE").ok().map(|v| v != "0").unwrap_or(true);
+        
+        // Check if we have any systems to transform
+        let module_ast = crate::frame_c::v4::system_parser::SystemParserV3::parse_module(bytes, lang);
+        let has_systems = !module_ast.systems.is_empty();
         
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("[compile_module] At runtime generation: compile_runtimable = {}, is_module = {}", compile_runtimable, is_module);
-            eprintln!("[compile_module] out.len() before system check = {}", out.len());
+            eprintln!("[compile_module] has_systems = {}, is_module = {}", has_systems, is_module);
+            eprintln!("[compile_module] Processing {} systems", module_ast.systems.len());
         }
+        
+        // Transform Frame systems to native classes when in prober mode
+        if has_systems && !is_module {
+            // Build a new output by transforming systems
+            use crate::frame_c::v4::system_transformer::SystemTransformer;
+            let transformer = SystemTransformer;
+            
+            // Start fresh with the content, transforming systems as we go
+            let mut transformed_content = String::new();
+            let mut last_pos = 0;
+            
+            for system in &module_ast.systems {
+                // Find the system boundaries
+                let sys_start = system.span.start;
+                // The span.end points to the last character of the system (the closing brace)
+                // We need to go past it to skip the closing brace
+                let sys_end = system.span.end + 1;
+                
+                if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
+                    eprintln!("[compile_module] Transforming system '{}' from {} to {}", 
+                        system.name, sys_start, sys_end);
+                    eprintln!("[compile_module] System content snippet: {:?}", 
+                        String::from_utf8_lossy(&bytes[sys_start..(sys_start + 30).min(sys_end)]));
+                }
+                
+                // Preserve native code before the system
+                if sys_start > last_pos {
+                    transformed_content.push_str(&content_str[last_pos..sys_start]);
+                }
+                
+                // Transform the system to a native class
+                let transformed_system = transformer.transform_system(
+                    bytes,
+                    sys_start, 
+                    sys_end,
+                    &system.name,
+                    &arc_for_ctx,
+                    lang
+                );
+                
+                transformed_content.push_str(&transformed_system);
+                last_pos = sys_end;
+            }
+            
+            // Preserve any native code after the last system
+            if last_pos < content_str.len() {
+                transformed_content.push_str(&content_str[last_pos..]);
+            }
+            
+            // Replace out with the transformed content
+            out = transformed_content;
+        }
+        
+        // Runtime generation disabled - using prober/splicer methodology only
+        // The probers expand Frame statements inline while preserving native code
+        let compile_runtimable = false;  // Always use prober methodology
         
         if compile_runtimable && !is_module {
             // Only generate system machinery if this is a system, not a module

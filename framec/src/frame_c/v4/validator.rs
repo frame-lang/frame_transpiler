@@ -88,8 +88,8 @@ impl ValidatorV3 {
         let sys = system.unwrap_or("_");
         for m in mir {
             if let MirItemV3::Transition{ target, state_args, .. } = m {
-                if let Some(state) = arc.resolve_state(sys, target) {
-                    let expected = state.params.len();
+                // Use the enhanced get_state_param_count method
+                if let Some(expected) = arc.get_state_param_count(sys, target) {
                     let got = state_args.len();
                     if expected != got {
                         issues.push(ValidationIssueV3 { message: format!("E405: State '{}' expects {} param(s) but transition supplies {}", target, expected, got) });
@@ -777,12 +777,15 @@ impl ValidatorV3 {
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
                 let coarse_known = known_states.contains(target);
-                let arc_known = arcanum
-                    .resolve_state(sys, target)
-                    .or_else(|| arcanum.resolve_state("_", target))
-                    .is_some();
-                if !coarse_known && !arc_known {
-                    issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
+                // Use the enhanced validation method for better error messages
+                if !coarse_known {
+                    if let Err(err_msg) = arcanum.validate_transition(sys, target) {
+                        issues.push(ValidationIssueV3{ message: format!("E402: {}", err_msg) });
+                    }
+                    // Fall back to checking default system if specific system fails
+                    else if arcanum.resolve_state("_", target).is_none() {
+                        issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
+                    }
                 }
             }
         }
