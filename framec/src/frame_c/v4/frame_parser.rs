@@ -790,54 +790,138 @@ impl FrameParser {
         let start = self.cursor;
         
         self.expect_char('{')?;
-        self.skip_whitespace();
         
         let mut statements = vec![];
+        let mut depth = 1; // Track brace depth for nested blocks
         
-        while !self.peek_char('}') {
-            self.skip_whitespace();
+        // Simple approach: collect everything between braces
+        let body_start = self.cursor;
+        
+        while self.cursor < self.source.len() && depth > 0 {
+            let ch = self.source[self.cursor];
             
-            if self.peek_char('}') {
+            if ch == b'{' {
+                depth += 1;
+            } else if ch == b'}' {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            
+            self.cursor += 1;
+        }
+        
+        // Extract the body content
+        let body_content = &self.source[body_start..self.cursor];
+        
+        // Now parse the body content for Frame statements
+        let mut body_cursor = 0;
+        while body_cursor < body_content.len() {
+            // Skip whitespace
+            while body_cursor < body_content.len() && body_content[body_cursor].is_ascii_whitespace() {
+                body_cursor += 1;
+            }
+            
+            if body_cursor >= body_content.len() {
                 break;
             }
             
-            // Parse Frame statements or native code
-            if let Some(stmt) = self.try_parse_frame_statement()? {
-                statements.push(stmt);
-                // Skip any trailing whitespace/semicolons after Frame statement
-                self.skip_whitespace();
-                while self.peek_char(';') {
-                    self.cursor += 1;
-                    self.skip_whitespace();
+            // Check for Frame statements
+            let remaining = &body_content[body_cursor..];
+            
+            if remaining.starts_with(b"->") {
+                // Parse transition inline
+                body_cursor += 2;
+                // Skip whitespace
+                while body_cursor < body_content.len() && body_content[body_cursor].is_ascii_whitespace() {
+                    body_cursor += 1;
+                }
+                // Expect $
+                if body_cursor < body_content.len() && body_content[body_cursor] == b'$' {
+                    body_cursor += 1;
+                    // Parse state name
+                    let name_start = body_cursor;
+                    while body_cursor < body_content.len() {
+                        let ch = body_content[body_cursor];
+                        if !ch.is_ascii_alphanumeric() && ch != b'_' {
+                            break;
+                        }
+                        body_cursor += 1;
+                    }
+                    let target = String::from_utf8_lossy(&body_content[name_start..body_cursor]).to_string();
+                    
+                    // Skip optional ()
+                    if body_cursor < body_content.len() && body_content[body_cursor] == b'(' {
+                        // Skip to matching )
+                        let mut paren_depth = 1;
+                        body_cursor += 1;
+                        while body_cursor < body_content.len() && paren_depth > 0 {
+                            if body_content[body_cursor] == b'(' {
+                                paren_depth += 1;
+                            } else if body_content[body_cursor] == b')' {
+                                paren_depth -= 1;
+                            }
+                            body_cursor += 1;
+                        }
+                    }
+                    
+                    statements.push(Statement::Transition(TransitionAst {
+                        target,
+                        args: vec![],
+                        span: Span::new(body_start + body_cursor, body_start + body_cursor),
+                    }));
+                }
+            } else if remaining.starts_with(b"=>") {
+                // Forward - similar parsing
+                body_cursor += 2;
+                // For now, skip to next statement
+                while body_cursor < body_content.len() && body_content[body_cursor] != b'\n' {
+                    body_cursor += 1;
+                }
+            } else if remaining.starts_with(b"^") {
+                // Return or continue
+                body_cursor += 1;
+                if body_cursor < body_content.len() && body_content[body_cursor] == b'>' {
+                    // Continue
+                    body_cursor += 1;
+                    statements.push(Statement::Continue(ContinueAst {
+                        span: Span::new(body_start + body_cursor - 2, body_start + body_cursor),
+                    }));
+                } else {
+                    // Return
+                    statements.push(Statement::Return(ReturnAst {
+                        value: None,
+                        span: Span::new(body_start + body_cursor - 1, body_start + body_cursor),
+                    }));
                 }
             } else {
-                // Parse as native code block
-                let native_start = self.cursor;
-                
-                // Collect native code until next Frame statement or closing brace
-                let mut found_content = false;
-                while self.cursor < self.source.len() {
-                    if self.peek_char('}') || self.is_frame_statement_start() {
+                // Native code - collect until next Frame statement or newline
+                let native_start = body_cursor;
+                while body_cursor < body_content.len() {
+                    if body_content[body_cursor] == b'\n' {
+                        body_cursor += 1;
                         break;
                     }
-                    // Also stop at newline after collecting some content
-                    if found_content && self.source[self.cursor] == b'\n' {
-                        self.cursor += 1;
+                    if body_cursor + 1 < body_content.len() {
+                        let next2 = &body_content[body_cursor..body_cursor + 2];
+                        if next2 == b"->" || next2 == b"=>" || next2 == b"$$" {
+                            break;
+                        }
+                    }
+                    if body_content[body_cursor] == b'^' {
                         break;
                     }
-                    if !self.source[self.cursor].is_ascii_whitespace() {
-                        found_content = true;
-                    }
-                    self.cursor += 1;
+                    body_cursor += 1;
                 }
                 
-                if self.cursor > native_start {
-                    let content = String::from_utf8_lossy(&self.source[native_start..self.cursor]).trim().to_string();
+                if body_cursor > native_start {
+                    let content = String::from_utf8_lossy(&body_content[native_start..body_cursor]).trim().to_string();
                     if !content.is_empty() {
                         statements.push(Statement::Native(NativeBlock {
                             content,
                             language: self.target,
-                            span: Span::new(native_start, self.cursor),
+                            span: Span::new(body_start + native_start, body_start + body_cursor),
                         }));
                     }
                 }
