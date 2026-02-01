@@ -8,14 +8,20 @@ This document summarizes the implementation work completed on Frame v4, includin
 
 ## Completed Features
 
-### 1. Phase 1: Frame AST Parser (2026-01-31) ✅
-- **Major Achievement**: Built proper Frame AST parser from scratch
-- Created comprehensive Frame AST node definitions
-- Implemented recursive descent parser for Frame syntax
-- Parser handles systems, states, handlers, and transitions
-- Successfully parses mixed Frame/native code in handlers
-- Fixed critical infinite loop bug in handler body parsing
-- Stub implementations for interface/actions/operations/domain
+### 1. Complete Frame Language Support (2026-01-31) ✅
+- **Major Achievement**: Full Frame language parsing and validation on AST foundation
+- **Frame AST**: Comprehensive node definitions for all Frame constructs
+- **Frame Parser**: Complete recursive descent parser
+  - Systems with all sections (interface, machine, actions, operations, domain)
+  - States with handlers, enter/exit, and HSM parent relationships
+  - All Frame statements (transitions, forwards, returns, continues, stack ops)
+  - Mixed Frame/native code in handlers
+  - Type annotations and parameters throughout
+- **Frame Validator**: Semantic validation using AST
+  - E402: Unknown state transitions
+  - E403: Invalid parent forwards in HSM
+  - E405: State parameter arity mismatches
+  - Builds complete symbol tables from AST
 
 ### 2. Phase 0: Validation Blocking (2026-01-31) ✅
 - **Critical Achievement**: Validation now blocks code generation on errors
