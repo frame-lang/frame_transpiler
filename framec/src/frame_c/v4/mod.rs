@@ -41,6 +41,7 @@ pub mod system_transformer;
 // Phase 1: Frame AST modules
 pub mod frame_ast;
 pub mod frame_parser;
+pub mod frame_validator;
 pub mod parser_debug;
 // Test infrastructure moved to shared environment - using stub for backward compatibility
 pub mod test_harness_rs {
