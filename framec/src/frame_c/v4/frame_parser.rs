@@ -1104,25 +1104,363 @@ impl FrameParser {
         }
     }
     
+    /// Parse actions section
     fn parse_actions(&mut self) -> Result<Vec<ActionAst>, ParseError> {
-        // TODO: Implement actions parsing
         self.expect_keyword("actions:")?;
-        self.skip_to_next_section();
-        Ok(vec![])
+        self.skip_whitespace();
+        
+        let mut actions = vec![];
+        
+        while self.peek_identifier() && !self.is_section_keyword() {
+            actions.push(self.parse_action()?);
+            self.skip_whitespace();
+        }
+        
+        Ok(actions)
     }
     
+    /// Parse a single action
+    fn parse_action(&mut self) -> Result<ActionAst, ParseError> {
+        let start = self.cursor;
+        
+        let name = self.parse_identifier()?;
+        
+        // Parse parameters
+        let params = if self.peek_char('(') {
+            self.parse_action_params()?
+        } else {
+            vec![]
+        };
+        
+        self.skip_whitespace();
+        
+        // Parse action body (native code block)
+        let body = self.parse_action_body()?;
+        
+        Ok(ActionAst {
+            name,
+            params,
+            body,
+            span: Span::new(start, self.cursor),
+        })
+    }
+    
+    /// Parse action parameters
+    fn parse_action_params(&mut self) -> Result<Vec<ActionParam>, ParseError> {
+        self.expect_char('(')?;
+        let mut params = vec![];
+        
+        while !self.peek_char(')') {
+            self.skip_whitespace();
+            
+            if self.peek_char(')') {
+                break;
+            }
+            
+            let name = self.parse_identifier()?;
+            
+            let param_type = if self.peek_char(':') {
+                self.cursor += 1;
+                self.skip_whitespace();
+                self.parse_type()?
+            } else {
+                Type::Unknown
+            };
+            
+            let default = if self.peek_char('=') {
+                self.cursor += 1;
+                self.skip_whitespace();
+                Some(self.parse_until_chars(&[',', ')'])?)
+            } else {
+                None
+            };
+            
+            params.push(ActionParam {
+                name,
+                param_type,
+                default,
+                span: Span::new(self.cursor, self.cursor),
+            });
+            
+            if self.peek_char(',') {
+                self.cursor += 1;
+            }
+        }
+        
+        self.expect_char(')')?;
+        Ok(params)
+    }
+    
+    /// Parse action body
+    fn parse_action_body(&mut self) -> Result<ActionBody, ParseError> {
+        let start = self.cursor;
+        
+        self.expect_char('{')?;
+        
+        // Collect native code until closing brace
+        let body_start = self.cursor;
+        let mut depth = 1;
+        
+        while self.cursor < self.source.len() && depth > 0 {
+            if self.source[self.cursor] == b'{' {
+                depth += 1;
+            } else if self.source[self.cursor] == b'}' {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            self.cursor += 1;
+        }
+        
+        let content = String::from_utf8_lossy(&self.source[body_start..self.cursor]).to_string();
+        
+        self.expect_char('}')?;
+        
+        Ok(ActionBody {
+            native: NativeBlock {
+                content,
+                language: self.target,
+                span: Span::new(body_start, self.cursor),
+            },
+            span: Span::new(start, self.cursor),
+        })
+    }
+    
+    /// Parse operations section
     fn parse_operations(&mut self) -> Result<Vec<OperationAst>, ParseError> {
-        // TODO: Implement operations parsing
         self.expect_keyword("operations:")?;
-        self.skip_to_next_section();
-        Ok(vec![])
+        self.skip_whitespace();
+        
+        let mut operations = vec![];
+        
+        while self.peek_identifier() && !self.is_section_keyword() {
+            operations.push(self.parse_operation()?);
+            self.skip_whitespace();
+        }
+        
+        Ok(operations)
     }
     
+    /// Parse a single operation
+    fn parse_operation(&mut self) -> Result<OperationAst, ParseError> {
+        let start = self.cursor;
+        
+        let name = self.parse_identifier()?;
+        
+        // Parse parameters
+        let params = if self.peek_char('(') {
+            self.parse_operation_params()?
+        } else {
+            vec![]
+        };
+        
+        // Parse return type
+        let return_type = if self.peek_char(':') {
+            self.cursor += 1;
+            self.skip_whitespace();
+            self.parse_type()?
+        } else {
+            Type::Unknown
+        };
+        
+        self.skip_whitespace();
+        
+        // Parse operation body
+        let body = self.parse_operation_body()?;
+        
+        Ok(OperationAst {
+            name,
+            params,
+            return_type,
+            body,
+            span: Span::new(start, self.cursor),
+        })
+    }
+    
+    /// Parse operation parameters
+    fn parse_operation_params(&mut self) -> Result<Vec<OperationParam>, ParseError> {
+        self.expect_char('(')?;
+        let mut params = vec![];
+        
+        while !self.peek_char(')') {
+            self.skip_whitespace();
+            
+            if self.peek_char(')') {
+                break;
+            }
+            
+            let name = self.parse_identifier()?;
+            
+            let param_type = if self.peek_char(':') {
+                self.cursor += 1;
+                self.skip_whitespace();
+                self.parse_type()?
+            } else {
+                Type::Unknown
+            };
+            
+            let default = if self.peek_char('=') {
+                self.cursor += 1;
+                self.skip_whitespace();
+                Some(self.parse_until_chars(&[',', ')'])?)
+            } else {
+                None
+            };
+            
+            params.push(OperationParam {
+                name,
+                param_type,
+                default,
+                span: Span::new(self.cursor, self.cursor),
+            });
+            
+            if self.peek_char(',') {
+                self.cursor += 1;
+            }
+        }
+        
+        self.expect_char(')')?;
+        Ok(params)
+    }
+    
+    /// Parse operation body
+    fn parse_operation_body(&mut self) -> Result<OperationBody, ParseError> {
+        let start = self.cursor;
+        
+        self.expect_char('{')?;
+        
+        // Collect native code until closing brace
+        let body_start = self.cursor;
+        let mut depth = 1;
+        
+        while self.cursor < self.source.len() && depth > 0 {
+            if self.source[self.cursor] == b'{' {
+                depth += 1;
+            } else if self.source[self.cursor] == b'}' {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            self.cursor += 1;
+        }
+        
+        let content = String::from_utf8_lossy(&self.source[body_start..self.cursor]).to_string();
+        
+        self.expect_char('}')?;
+        
+        Ok(OperationBody {
+            native: NativeBlock {
+                content,
+                language: self.target,
+                span: Span::new(body_start, self.cursor),
+            },
+            span: Span::new(start, self.cursor),
+        })
+    }
+    
+    /// Parse domain section
     fn parse_domain(&mut self) -> Result<Vec<DomainVar>, ParseError> {
-        // TODO: Implement domain parsing
         self.expect_keyword("domain:")?;
-        self.skip_to_next_section();
-        Ok(vec![])
+        self.skip_whitespace();
+        
+        let mut vars = vec![];
+        
+        while !self.is_section_keyword() && !self.peek_char('}') {
+            self.skip_whitespace();
+            
+            if self.cursor >= self.source.len() {
+                break;
+            }
+            
+            // Check for var keyword or direct identifier
+            let is_frame_var = if self.peek_keyword("var") {
+                self.cursor += 3;
+                self.skip_whitespace();
+                true
+            } else if self.peek_identifier() {
+                // Could be a native declaration or Frame var without 'var' keyword
+                true
+            } else {
+                // Skip any non-variable content
+                self.skip_to_next_line();
+                continue;
+            };
+            
+            if let Ok(var) = self.parse_domain_var(is_frame_var) {
+                vars.push(var);
+            } else {
+                // Skip to next line if parsing fails
+                self.skip_to_next_line();
+            }
+        }
+        
+        Ok(vars)
+    }
+    
+    /// Parse a single domain variable
+    fn parse_domain_var(&mut self, is_frame: bool) -> Result<DomainVar, ParseError> {
+        let start = self.cursor;
+        
+        let name = self.parse_identifier()?;
+        
+        // Parse type annotation if present
+        let var_type = if self.peek_char(':') {
+            self.cursor += 1;
+            self.skip_whitespace();
+            self.parse_type()?
+        } else {
+            Type::Unknown
+        };
+        
+        // Parse initializer if present
+        let initializer = if self.peek_char('=') {
+            self.cursor += 1;
+            self.skip_whitespace();
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+        
+        // Skip to end of line or semicolon
+        while self.cursor < self.source.len() {
+            let ch = self.source[self.cursor];
+            if ch == b'\n' || ch == b';' {
+                if ch == b';' {
+                    self.cursor += 1;
+                }
+                break;
+            }
+            self.cursor += 1;
+        }
+        
+        Ok(DomainVar {
+            name,
+            var_type,
+            initializer,
+            is_frame,
+            span: Span::new(start, self.cursor),
+        })
+    }
+    
+    /// Check if current position is a section keyword
+    fn is_section_keyword(&self) -> bool {
+        self.peek_keyword("interface:") ||
+        self.peek_keyword("machine:") ||
+        self.peek_keyword("actions:") ||
+        self.peek_keyword("operations:") ||
+        self.peek_keyword("domain:")
+    }
+    
+    /// Skip to next line
+    fn skip_to_next_line(&mut self) {
+        while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
+            self.cursor += 1;
+        }
+        if self.cursor < self.source.len() {
+            self.cursor += 1; // Skip the newline
+        }
     }
 }
 
