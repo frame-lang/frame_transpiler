@@ -1,6 +1,6 @@
-@target python
+@@target python
 
-system MultiTargetDemo {
+@@system MultiTargetDemo {
     actions:
         log_all() {
             #[target: python]

@@ -282,7 +282,7 @@ pub(crate) fn parse_system_params(bytes: &[u8], sys_name: &str) -> SystemParamGr
         let token = String::from_utf8_lossy(&bytes[i..j]).to_ascii_lowercase();
         if token != "system" {
             // Keep scanning the same line so we can catch `system` after
-            // annotations like `@persist system Foo`.
+            // annotations like `@@persist @@system Foo`.
             i = j;
             continue;
         }
@@ -440,11 +440,11 @@ fn find_start_state_name(
     best_name
 }
 
-/// Main V3 module compiler for `@target` files.
+/// Main module compiler for `@@target` files.
 ///
 /// This is the production module path used by the CLI `compile` /
-/// `compile-project` commands when a V3 `@target` header is present. The
-/// single-body “demo-frame” path is implemented separately by
+/// `compile-project` commands when a `@@target` header is present. The
+/// single-body "demo-frame" path is implemented separately by
 /// `CompilerV3::compile_single_file` / `validate_single_body`.
 pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
     // Phase 0 Fix: Validate BEFORE code generation
@@ -495,7 +495,9 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
     let mut frameful_chunks: Vec<(bool, String)> = Vec::new();
     let mut exec_body_src: Option<String> = None;
     let mut exec_mir: Option<Vec<crate::frame_c::v4::mir::MirItemV3>> = None;
-    let mut cursor = 0usize;
+    // Start cursor after prolog (and imports if any) to avoid outputting @@target line
+    let prolog_end = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end + 1)).unwrap_or(0);
+    let mut cursor = prolog_end;
     for b in &parts.bodies {
         if b.open_byte > cursor { out.push_str(&content_str[cursor..b.open_byte]); }
         let body_src = &content_str[b.open_byte..b.close_byte+1];
@@ -947,8 +949,9 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
             let transformer = SystemTransformer;
             
             // Start fresh with the content, transforming systems as we go
+            // Start after prolog to avoid including @@target line in output
             let mut transformed_content = String::new();
-            let mut last_pos = 0;
+            let mut last_pos = prolog_end;
             
             for system in &module_ast.systems {
                 // Find the system boundaries
@@ -2281,7 +2284,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         .unwrap_or_else(|| String::from("S"));
                     // Collect per-system interface method metadata so we can derive
                     // a typed return enum and (later) interface wrappers, and read
-                    // any `@persist` attribute on the system header.
+                    // any `@@persist` attribute on the system header.
                     let has_persist_attr = module_ast_rust
                         .systems
                         .iter()
@@ -3058,7 +3061,7 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                         }
                         module.push_str("}\n\n");
                     }
-                    // If this system is annotated with `@persist`, synthesize a
+                    // If this system is annotated with `@@persist`, synthesize a
                     // SnapshotableSystem implementation and ergonomic JSON helpers
                     // that delegate to frame_persistence_rs.
                     if has_persist_attr {
@@ -3627,11 +3630,11 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 // E105: Missing/invalid prolog; ensure a proper validator failure rather than a hard error
                 let mut issues = Vec::new();
                 let msg = if emsg.contains("NotFirstNonWhitespace") {
-                    "E105: expected @target prolog as first non-whitespace token"
+                    "E105: expected @@target prolog as first non-whitespace token"
                 } else if emsg.contains("Missing") {
-                    "E105: expected @target <lang> at start of file"
+                    "E105: expected @@target <lang> at start of file"
                 } else {
-                    "E105: invalid @target prolog"
+                    "E105: invalid @@target prolog"
                 };
                 issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: msg.into() });
                 return Ok(ValidationResultV3 { ok: false, issues });
@@ -4020,7 +4023,7 @@ pub fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
                 }
             }
             // Continue scanning the rest of the line so we can catch `system`
-            // after leading annotations (e.g., `@persist system Foo {`).
+            // after leading annotations (e.g., `@@persist @@system Foo {`).
             i = j;
             continue;
         }

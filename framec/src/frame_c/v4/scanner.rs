@@ -120,20 +120,6 @@ impl Scanner {
                     break;
                 }
             }
-            // Also check for regular system keyword (shouldn't happen in v4 but be safe)
-            if self.current == 0 || self.source.chars().nth(self.current - 1) == Some('\n') {
-                // At start of line
-                let rest = &self.source[self.current..];
-                if rest.starts_with("system ") {
-                    // Emit native code token if we have any
-                    if self.current > native_start {
-                        self.start = native_start;
-                        self.add_token(TokenType::NativeCode);
-                    }
-                    break;
-                }
-            }
-            
             if self.advance() == '\n' {
                 self.line += 1;
                 self.column = 1;
@@ -478,7 +464,6 @@ impl Scanner {
         
         let text = self.source[self.start..self.current].to_string();
         let token_type = match text.as_str() {
-            "system" => TokenType::System,
             "operations" => TokenType::Operations,
             "interface" => TokenType::Interface,
             "machine" => TokenType::Machine,

@@ -1,6 +1,6 @@
-@target rust
+@@target rust
 
-system TsHarnessBuilder {
+@@system TsHarnessBuilder {
     interface:
         // Build a minimal TypeScript harness program from the current lines.
         // The harness mirrors `_execute_ts_harness_from_spliced` in

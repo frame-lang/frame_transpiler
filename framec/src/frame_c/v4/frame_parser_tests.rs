@@ -8,7 +8,7 @@ mod tests {
     #[test]
     fn test_parse_simple_traffic_light() {
         let source = r#"
-system TrafficLight {
+@@system TrafficLight {
     machine:
         $Red {
             tick() { 
@@ -75,7 +75,7 @@ system TrafficLight {
     #[test]
     fn test_parse_state_with_parameters() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Start {
             go() { -> $Target(5, "hello") }
@@ -129,7 +129,7 @@ system Test {
     #[test]
     fn test_parse_enter_exit_handlers() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Active {
             $>() {
@@ -165,7 +165,7 @@ system Test {
     #[test]
     fn test_parse_forward_to_parent() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Child => $Parent {
             unhandled() {
@@ -203,7 +203,7 @@ system Test {
     #[test]
     fn test_parse_stack_operations() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Active {
             push() {
@@ -247,7 +247,7 @@ system Test {
     #[test]
     fn test_parse_return_and_continue() {
         let source = r#"
-system Test {
+@@system Test {
     interface:
         getValue(): int
         
@@ -302,7 +302,7 @@ system Test {
     #[test]
     fn test_parse_mixed_native_and_frame() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Active {
             process(data: string) {
@@ -351,7 +351,7 @@ system Test {
     #[test]
     fn test_parse_interface_section() {
         let source = r#"
-system Calculator {
+@@system Calculator {
     interface:
         add(x: int, y: int): int
         subtract(a: float, b: float): float
@@ -404,7 +404,7 @@ system Calculator {
     #[test]
     fn test_parse_actions_section() {
         let source = r#"
-system Robot {
+@@system Robot {
     machine:
         $Idle {
         }
@@ -457,7 +457,7 @@ system Robot {
     #[test]
     fn test_parse_operations_section() {
         let source = r#"
-system MathLib {
+@@system MathLib {
     machine:
         $Ready {
         }
@@ -506,7 +506,7 @@ system MathLib {
     #[test]
     fn test_parse_domain_section() {
         let source = r#"
-system Counter {
+@@system Counter {
     machine:
         $Active {
         }
@@ -557,7 +557,7 @@ system Counter {
     #[test]
     fn test_parse_complete_system() {
         let source = r#"
-system CompleteSystem {
+@@system CompleteSystem {
     interface:
         start()
         stop()

@@ -1,6 +1,6 @@
 @@target python
 
-system Simple {
+@@system Simple {
     interface:
         go()
     

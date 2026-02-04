@@ -1,4 +1,4 @@
-@target python_3
+@@target python_3
 
 # Native imports and setup before system
 import json
@@ -7,7 +7,7 @@ def log_transition(from_state, to_state):
     """Native helper function"""
     print(f"Transition: {from_state} -> {to_state}")
 
-system TrafficLight {
+@@system TrafficLight {
     interface:
         start()
         tick() 

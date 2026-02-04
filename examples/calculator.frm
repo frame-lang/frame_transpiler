@@ -8,7 +8,7 @@
 #
 # Expected output: 7 (when called with add(3, 4))
 
-system Calculator {
+@@system Calculator {
     interface:
         add(a: int, b: int): int
     

@@ -173,7 +173,7 @@ impl FrameParser {
     fn try_parse_system(&mut self) -> Result<Option<SystemAst>, ParseError> {
         self.skip_whitespace();
         
-        if self.peek_keyword("system") || self.peek_keyword("@@system") {
+        if self.peek_keyword("@@system") {
             Ok(Some(self.parse_system()?))
         } else {
             Ok(None)
@@ -184,13 +184,11 @@ impl FrameParser {
     pub fn parse_system(&mut self) -> Result<SystemAst, ParseError> {
         let start = self.cursor;
         
-        // Skip "system" or "@@system"
+        // Skip "@@system"
         if self.peek_keyword("@@system") {
             self.cursor += 8;
-        } else if self.peek_keyword("system") {
-            self.cursor += 6;
         } else {
-            return Err(ParseError::Expected("system keyword".to_string()));
+            return Err(ParseError::Expected("@@system keyword".to_string()));
         }
         
         self.skip_whitespace();
@@ -1491,7 +1489,7 @@ mod tests {
     #[test]
     fn test_parse_simple_system() {
         let source = r#"
-system TrafficLight {
+@@system TrafficLight {
     machine:
         $Red {
             tick() { -> $Green() }

@@ -7,7 +7,7 @@ mod tests {
     #[test]
     fn test_basic_scanner() {
         let source = r#"@@target python
-system Test {
+@@system Test {
     machine:
         $Start {
             go() {
@@ -24,11 +24,11 @@ system Test {
         
         // Check for key tokens
         let has_target = tokens.iter().any(|t| matches!(t.token_type, scanner::TokenType::FrameAnnotation));
-        let has_system = tokens.iter().any(|t| t.lexeme == "system");
+        let has_system = tokens.iter().any(|t| t.lexeme == "@@system");
         let has_state = tokens.iter().any(|t| matches!(t.token_type, scanner::TokenType::State));
         
         assert!(has_target, "Should have @@target annotation");
-        assert!(has_system, "Should have system keyword");
+        assert!(has_system, "Should have @@system keyword");
         assert!(has_state, "Should have state token");
     }
 
@@ -36,7 +36,7 @@ system Test {
     fn test_basic_parser() {
         let source = r#"@@target python
 
-system TrafficLight {
+@@system TrafficLight {
     interface:
         timer()
         getColor(): str
@@ -95,7 +95,7 @@ system TrafficLight {
     fn test_system_params() {
         let source = r#"@@target python
 
-system Robot ($(x, y), $>(battery), name) {
+@@system Robot ($(x, y), $>(battery), name) {
     domain:
         name = ""
     
@@ -131,7 +131,7 @@ system Robot ($(x, y), $>(battery), name) {
         // Test mismatched start state params
         let source = r#"@@target python
 
-system Test ($(x, y)) {
+@@system Test ($(x, y)) {
     machine:
         $Start {  // Missing (x, y) params - should error
             init() {}
@@ -149,7 +149,7 @@ system Test ($(x, y)) {
     fn test_python_codegen() {
         let source = r#"@@target python
 
-system Simple {
+@@system Simple {
     interface:
         go()
     
@@ -189,7 +189,7 @@ system Simple {
     fn test_frame_statements() {
         let source = r#"@@target python
 
-system Test {
+@@system Test {
     machine:
         $A {
             test() {
@@ -256,7 +256,7 @@ class Config:
     name: str
     value: int
 
-system Test {
+@@system Test {
     actions:
         helper(x: int) {
             # This is native Python code

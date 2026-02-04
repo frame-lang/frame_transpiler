@@ -46,7 +46,7 @@ pub struct SystemParamsAst {
     pub domain_params: Vec<String>,
 }
 
-/// Optional per-system persistence attribute, parsed from an `@persist`
+/// Optional per-system persistence attribute, parsed from an `@@persist`
 /// annotation on the system header line.
 #[derive(Debug, Clone)]
 pub struct PersistAttrAst {
@@ -84,7 +84,7 @@ pub struct SystemAst {
     pub sections: SystemSectionsAst,
     /// Section order as encountered in the source (may contain duplicates).
     pub section_order: Vec<SystemSectionKind>,
-    /// Optional persistence metadata derived from `@persist`.
+    /// Optional persistence metadata derived from `@@persist`.
     pub persist_attr: Option<PersistAttrAst>,
 }
 

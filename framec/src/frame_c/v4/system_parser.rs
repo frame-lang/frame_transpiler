@@ -2,11 +2,12 @@ use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::ast::{ModuleAst, SystemAst, SystemParamsAst, SystemSectionsAst, Span, SystemSectionKind};
 use crate::frame_c::v4::body_closer::{self as closer, BodyCloserV3};
 
-/// Parser for outer V3 system headers and section layout.
+/// Parser for outer system headers and section layout.
 ///
-/// This is a Frame-only parser: it understands `system` headers, optional
-/// system parameters `($(start), $>(enter), domain)`, and the locations of
-/// `operations:`, `interface:`, `machine:`, `actions:`, and `domain:` blocks.
+/// This is a Frame-only parser: it understands `@@system` headers, optional
+/// `@@persist` attributes, system parameters `($(start), $>(enter), domain)`,
+/// and the locations of `operations:`, `interface:`, `machine:`, `actions:`,
+/// and `domain:` blocks.
 pub struct SystemParserV3;
 
 impl SystemParserV3 {
@@ -92,19 +93,18 @@ impl SystemParserV3 {
 
             let system_line_start = i;
 
-            // Optional per-system attribute at SOL, e.g. `@persist system Foo {`.
-            // For now we only recognize `@persist` without parameters and treat it
+            // Optional per-system attribute at SOL, e.g. `@@persist @@system Foo {`.
+            // For now we only recognize `@@persist` without parameters and treat it
             // as an opt-in for persistence helpers during codegen.
             let mut persist_attr: Option<crate::frame_c::v4::ast::PersistAttrAst> = None;
 
-            // V4: Look for optional @@persist followed by @@system or system keyword at SOL.
+            // Look for optional @@persist followed by @@system keyword at SOL.
             let mut j = i;
             while j < n && is_space(bytes[j]) {
                 j += 1;
             }
             
-            // Check for @@persist (v4) or @persist (v3)
-            // But first check if it's @@system to avoid misparsing
+            // Check for @@persist, but first check if it's @@system to avoid misparsing
             if j + 8 <= n && &bytes[j..j+8] == b"@@system" {
                 // This is @@system, not an attribute, so don't consume it here
                 // j remains at the @@ position for the system check below
@@ -134,58 +134,11 @@ impl SystemParserV3 {
                         }
                     }
                 }
-            } else if j < n && bytes[j] == b'@' {
-                // V3 compatibility: @persist
-                j += 1;
-                let attr_start = j;
-                while j < n && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
-                    j += 1;
-                }
-                if attr_start == j {
-                    // Malformed attribute; skip this line.
-                    while i < n && bytes[i] != b'\n' {
-                        i += 1;
-                    }
-                    continue;
-                }
-                let attr =
-                    String::from_utf8_lossy(&bytes[attr_start..j]).to_ascii_lowercase();
-                if attr.as_str() != "persist" {
-                    // Unknown attribute at SOL; skip this line for now.
-                    while i < n && bytes[i] != b'\n' {
-                        i += 1;
-                    }
-                    continue;
-                }
-                // For now we do not parse parameters on @persist; language-specific
-                // defaults are used for helper names.
-                persist_attr = Some(crate::frame_c::v4::ast::PersistAttrAst {
-                    save_name: None,
-                    restore_name: None,
-                });
-                // Skip any whitespace between the attribute and `system`.
-                while j < n && is_space(bytes[j]) {
-                    j += 1;
-                }
             }
 
-            // V4: Check for @@system first, then fall back to system
-            let is_v4_system = j + 8 <= n && &bytes[j..j+8] == b"@@system";
-            let is_v3_system = !is_v4_system && j + 6 <= n && &bytes[j..j+6] == b"system" && 
-                              (j + 6 >= n || !bytes[j+6].is_ascii_alphanumeric());
-            
-            if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
-                eprintln!("[system_parser] At byte {}, checking for system keyword", j);
-                if j + 8 <= n {
-                    eprintln!("[system_parser]   Next 8 bytes: {:?}", String::from_utf8_lossy(&bytes[j..j+8]));
-                }
-                eprintln!("[system_parser]   is_v4_system: {}, is_v3_system: {}", is_v4_system, is_v3_system);
-            }
-            
-            if is_v4_system {
+            // Check for @@system keyword
+            if j + 8 <= n && &bytes[j..j+8] == b"@@system" {
                 j += 8; // skip @@system
-            } else if is_v3_system {
-                j += 6; // skip system
             } else {
                 // Not a system declaration, skip line
                 while i < n && bytes[i] != b'\n' {

@@ -301,7 +301,7 @@ mod tests {
     #[test]
     fn test_e402_unknown_state() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Start {
             go() { -> $Unknown() }
@@ -320,7 +320,7 @@ system Test {
     #[test]
     fn test_e403_invalid_parent() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Child => $InvalidParent {
             event() { => event() }
@@ -339,7 +339,7 @@ system Test {
     #[test]
     fn test_e403_forward_without_parent() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Standalone {
             unhandled() {
@@ -358,7 +358,7 @@ system Test {
     #[test]
     fn test_e405_parameter_arity() {
         let source = r#"
-system Test {
+@@system Test {
     machine:
         $Start {
             go() { -> $Target(1, 2, 3) }
@@ -377,7 +377,7 @@ system Test {
     #[test]
     fn test_valid_system() {
         let source = r#"
-system Valid {
+@@system Valid {
     interface:
         process(data: string): bool
         
@@ -400,7 +400,7 @@ system Valid {
     #[test]
     fn test_valid_hsm() {
         let source = r#"
-system HSM {
+@@system HSM {
     machine:
         $Parent {
             baseEvent() { }

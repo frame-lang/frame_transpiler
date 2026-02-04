@@ -10,7 +10,7 @@ mod tests {
         // Test case with an invalid state transition (E402)
         let invalid_frame = r#"
 @@target python_3
-system Test {
+@@system Test {
     machine:
         $Start {
             go() { 
@@ -45,7 +45,7 @@ system Test {
         // Test case with invalid parent forwarding (E403)
         let invalid_frame = r#"
 @@target python_3
-system Test {
+@@system Test {
     machine:
         $Start {
             test() {
@@ -73,7 +73,7 @@ system Test {
         // Test case with state parameter arity mismatch (E405)
         let invalid_frame = r#"
 @@target python_3
-system Test {
+@@system Test {
     machine:
         $Start {
             go() { 
@@ -104,7 +104,7 @@ system Test {
         // Valid Frame code should compile successfully
         let valid_frame = r#"
 @@target python_3
-system TrafficLight {
+@@system TrafficLight {
     machine:
         $Red {
             tick() { -> $Green() }
@@ -140,7 +140,7 @@ system TrafficLight {
         // Test case calling non-existent interface method (E406)
         let invalid_frame = r#"
 @@target python_3
-system Test {
+@@system Test {
     interface:
         start()
         
@@ -174,7 +174,7 @@ system Test {
         // Frame code with multiple validation errors
         let invalid_frame = r#"
 @@target python_3
-system Test {
+@@system Test {
     machine:
         $Start {
             test1() { -> $Unknown1() }  // E402
@@ -201,7 +201,7 @@ system Test {
         // Test TypeScript target also blocks on validation errors
         let invalid_frame = r#"
 @@target typescript
-system Test {
+@@system Test {
     machine:
         $Start {
             go() { -> $Missing() }

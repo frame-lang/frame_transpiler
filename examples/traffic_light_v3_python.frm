@@ -1,6 +1,6 @@
-@target python_3
+@@target python_3
 
-system TrafficLight {
+@@system TrafficLight {
     machine:
         $A {
             tick() {

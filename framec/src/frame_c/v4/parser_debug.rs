@@ -4,7 +4,7 @@ use super::frame_parser::*;
 use super::frame_ast::*;
 
 pub fn debug_parse() {
-    let source = r#"system Test {
+    let source = r#"@@system Test {
     machine:
         $Start {
         }

@@ -1,6 +1,6 @@
-@target rust
+@@target rust
 
-system IndentNormalizer {
+@@system IndentNormalizer {
     interface:
         // General entrypoint: run normalization using the current
         // domain fields (lines/flags/pad) and print the normalized

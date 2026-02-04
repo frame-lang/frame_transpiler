@@ -1,4 +1,4 @@
-@target typescript
+@@target typescript
 
 native module runtime/socket {
     async frame_socket_client_connect(host: string, port: number) -> FrameSocketClient
@@ -7,7 +7,7 @@ native module runtime/socket {
     frame_socket_client_close(instance: FrameSocketClient) -> void
 }
 
-system RuntimeProtocolTs {
+@@system RuntimeProtocolTs {
     interface:
         async run(host, port)
 

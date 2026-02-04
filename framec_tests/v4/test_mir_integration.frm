@@ -1,6 +1,6 @@
 @@target python
 
-system TrafficLight {
+@@system TrafficLight {
     interface:
         start()
         stop()
