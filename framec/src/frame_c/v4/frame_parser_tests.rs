@@ -316,35 +316,26 @@ mod tests {
             }
         }
 }"#;
-        
+
         let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
         let result = parser.parse_module();
-        
+
         assert!(result.is_ok());
-        
+
         if let Ok(FrameAst::System(system)) = result {
             let machine = system.machine.unwrap();
             let active = &machine.states[0];
             let handler = &active.handlers[0];
-            
-            // Should have native code followed by transition
-            assert!(handler.body.statements.len() >= 2);
-            
-            // First statement should be native code
-            match &handler.body.statements[0] {
-                Statement::Native(n) => {
-                    assert!(n.content.contains("print"));
-                }
-                _ => panic!("Expected native code block"),
-            }
-            
-            // Second statement should be transition
-            match &handler.body.statements[1] {
-                Statement::Transition(t) => {
-                    assert_eq!(t.target, "Done");
-                }
-                _ => panic!("Expected transition statement"),
-            }
+
+            // Handler body should contain Frame statements only (native code is NOT in AST)
+            // Native code is preserved by the splicer during code generation
+            assert!(!handler.body.statements.is_empty());
+
+            // Check for transition statement (native code is handled by splicer, not stored in AST)
+            let has_transition = handler.body.statements.iter().any(|s| {
+                matches!(s, Statement::Transition(t) if t.target == "Done")
+            });
+            assert!(has_transition, "Expected transition to Done state");
         }
     }
     
@@ -439,7 +430,8 @@ mod tests {
             assert_eq!(move_forward.params.len(), 1);
             assert_eq!(move_forward.params[0].name, "distance");
             assert_eq!(move_forward.params[0].param_type, Type::Float);
-            assert!(move_forward.body.native.content.contains("self.position"));
+            // Action body stores span only - content is extracted by codegen from source
+            assert!(move_forward.body.span.start < move_forward.body.span.end);
             
             // Check turnLeft action
             let turn_left = &system.actions[1];
@@ -489,7 +481,8 @@ mod tests {
             assert_eq!(calc.name, "calculate");
             assert_eq!(calc.params.len(), 2);
             assert_eq!(calc.return_type, Type::Int);
-            assert!(calc.body.native.content.contains("return"));
+            // Operation body stores span only - content is extracted by codegen from source
+            assert!(calc.body.span.start < calc.body.span.end);
             
             // Check isValid operation
             let is_valid = &system.operations[1];

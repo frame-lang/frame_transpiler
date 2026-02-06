@@ -1,6 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use super::ast::{SystemDecl, MachineDecl, StateDecl, ModuleAst, Span};
+use super::frame_ast::{
+    FrameAst, SystemAst as FrameSystemAst, StateAst as FrameStateAst,
+    ModuleAst as FrameModuleAst, Span as FrameSpan,
+};
 
 /// Variable type information for Frame validation
 #[derive(Debug, Clone)]
@@ -384,4 +388,102 @@ pub fn build_arcanum_from_module_ast(bytes: &[u8], module: &ModuleAst) -> Arcanu
         arc.systems.insert(sys_ast.name.clone(), sys_entry);
     }
     arc
+}
+
+// ============================================================================
+// New AST-based Arcanum builder (Phase 1.3)
+// ============================================================================
+
+/// Build Arcanum from the proper Frame AST (replaces byte-scanning approach)
+///
+/// This is the preferred way to build the symbol table. It extracts all
+/// information directly from the parsed Frame AST, avoiding the error-prone
+/// byte-level scanning.
+pub fn build_arcanum_from_frame_ast(ast: &FrameAst) -> Arcanum {
+    let mut arc = Arcanum::new();
+
+    match ast {
+        FrameAst::System(system) => {
+            let entry = build_system_entry_from_frame_ast(system);
+            arc.systems.insert(system.name.clone(), entry);
+        }
+        FrameAst::Module(module) => {
+            for system in &module.systems {
+                let entry = build_system_entry_from_frame_ast(system);
+                arc.systems.insert(system.name.clone(), entry);
+            }
+        }
+    }
+
+    if std::env::var("FRAME_TRANSPILER_DEBUG").ok().as_deref() == Some("1") {
+        eprintln!("[build_arcanum_from_frame_ast] Built arcanum with {} systems", arc.systems.len());
+        for (name, entry) in &arc.systems {
+            eprintln!("[build_arcanum_from_frame_ast]   System '{}': {} states, {} interface, {} actions, {} operations",
+                name,
+                entry.machines.values().map(|m| m.states.len()).sum::<usize>(),
+                entry.interface_methods.len(),
+                entry.actions.len(),
+                entry.operations.len()
+            );
+        }
+    }
+
+    arc
+}
+
+/// Build a SystemEntry from a Frame AST SystemAst
+fn build_system_entry_from_frame_ast(system: &FrameSystemAst) -> SystemEntry {
+    let mut entry = SystemEntry::default();
+
+    // Extract interface methods
+    for method in &system.interface {
+        entry.interface_methods.insert(method.name.clone());
+    }
+
+    // Extract actions
+    for action in &system.actions {
+        entry.actions.insert(action.name.clone());
+    }
+
+    // Extract operations
+    for operation in &system.operations {
+        entry.operations.insert(operation.name.clone());
+    }
+
+    // Extract domain variables
+    for var in &system.domain {
+        let var_type = if var.is_frame {
+            VarType::Frame
+        } else {
+            VarType::Native
+        };
+        entry.domain_vars.insert(var.name.clone(), var_type);
+    }
+
+    // Extract machine states
+    if let Some(ref machine) = system.machine {
+        let mut machine_entry = MachineEntry::default();
+
+        for state in &machine.states {
+            let state_decl = build_state_decl_from_frame_ast(state);
+            machine_entry.states.insert(state.name.clone(), state_decl);
+        }
+
+        entry.machines.insert("machine".to_string(), machine_entry);
+    }
+
+    entry
+}
+
+/// Build a StateDecl from a Frame AST StateAst
+fn build_state_decl_from_frame_ast(state: &FrameStateAst) -> StateDecl {
+    StateDecl {
+        name: state.name.clone(),
+        parent: state.parent.clone(),
+        params: state.params.iter().map(|p| p.name.clone()).collect(),
+        span: Span {
+            start: state.span.start,
+            end: state.span.end,
+        },
+    }
 }

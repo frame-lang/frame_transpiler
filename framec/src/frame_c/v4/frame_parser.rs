@@ -3,12 +3,20 @@
 //! This parser is responsible for parsing Frame-specific constructs and building
 //! the Frame AST. It works in conjunction with the native parsers to create a
 //! complete picture of the source code.
+//!
+//! Enhanced with native_region_scanner integration for proper handler body parsing.
 
 use super::frame_ast::*;
-use super::system_parser::SystemParserV3;
-use super::machine_parser::MachineParserV3;
-use crate::frame_c::utils::RunError;
-use std::collections::HashMap;
+use super::native_region_scanner::{
+    NativeRegionScannerV3, RegionV3, RegionSpan, FrameSegmentKindV3,
+    python::NativeRegionScannerPyV3,
+    typescript::NativeRegionScannerTsV3,
+    rust::NativeRegionScannerRustV3,
+    csharp::NativeRegionScannerCsV3,
+    c::NativeRegionScannerCV3,
+    cpp::NativeRegionScannerCppV3,
+    java::NativeRegionScannerJavaV3,
+};
 
 /// Main Frame parser
 pub struct FrameParser {
@@ -34,19 +42,11 @@ impl FrameParser {
     pub fn parse_module(&mut self) -> Result<FrameAst, ParseError> {
         // Skip any leading whitespace or comments
         self.skip_whitespace();
-        
-        // Skip @@target directive if present
-        if self.peek_string("@@target") {
-            // Skip the entire line
-            while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
-                self.cursor += 1;
-            }
-            if self.cursor < self.source.len() {
-                self.cursor += 1; // Skip the newline
-            }
-            self.skip_whitespace();
-        }
-        
+
+        // Skip all @@ pragmas until we hit @@system or @@module
+        // This handles @@target, @@run-expect, @@skip-if, and any future pragmas
+        self.skip_pragmas();
+
         // Check if this is a module or a single system
         if self.is_module() {
             self.parse_module_ast()
@@ -54,6 +54,45 @@ impl FrameParser {
             // Single system file
             let system = self.parse_system()?;
             Ok(FrameAst::System(system))
+        }
+    }
+
+    /// Skip unknown @@ pragmas (@@target, @@run-expect, etc.)
+    ///
+    /// Frame uses @@ for all directives/pragmas. Known structural pragmas:
+    /// - @@target <lang>     - Target language
+    /// - @@system <name>     - System definition (not skipped - parsed)
+    /// - @@module <name>     - Module definition (not skipped - parsed)
+    /// - @@persist           - Persistence attribute
+    ///
+    /// Unknown pragmas (like test metadata) are skipped:
+    /// - @@run-expect: <value>
+    /// - @@skip-if: <condition>
+    /// - @@timeout: <ms>
+    ///
+    /// This allows forward compatibility - new pragmas can be added without
+    /// breaking the parser.
+    fn skip_pragmas(&mut self) {
+        loop {
+            self.skip_whitespace();
+
+            // Check for @@ pragma
+            if !self.peek_string("@@") {
+                break;
+            }
+
+            // Don't skip @@system or @@module - those are structural
+            if self.peek_string("@@system") || self.peek_string("@@module") {
+                break;
+            }
+
+            // Skip this pragma line (@@target, @@run-expect, etc.)
+            while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
+                self.cursor += 1;
+            }
+            if self.cursor < self.source.len() {
+                self.cursor += 1; // Skip the newline
+            }
         }
     }
     
@@ -243,6 +282,9 @@ impl FrameParser {
             operations,
             domain,
             span: Span::new(start, self.cursor),
+            section_spans: SystemSectionSpans::default(),
+            persist_attr: None,
+            section_order: vec![],
         })
     }
     
@@ -250,11 +292,19 @@ impl FrameParser {
     fn parse_system_params(&mut self) -> Result<Vec<SystemParam>, ParseError> {
         self.expect_char('(')?;
         let mut params = vec![];
-        
+
         while !self.peek_char(')') {
             self.skip_whitespace();
-            
-            let name = self.parse_identifier()?;
+
+            // Handle $(...) state parameter syntax - e.g., $(color)
+            let (name, is_state_param) = if self.peek_string("$(") {
+                self.cursor += 2; // Skip "$("
+                let inner_name = self.parse_identifier()?;
+                self.expect_char(')')?;
+                (inner_name, true)
+            } else {
+                (self.parse_identifier()?, false)
+            };
             self.skip_whitespace();
             
             // Parse optional type
@@ -279,6 +329,7 @@ impl FrameParser {
                 name,
                 param_type,
                 default,
+                is_state_param,
                 span: Span::new(self.cursor, self.cursor),
             });
             
@@ -295,21 +346,21 @@ impl FrameParser {
     fn parse_interface(&mut self) -> Result<Vec<InterfaceMethod>, ParseError> {
         self.expect_keyword("interface:")?;
         self.skip_whitespace();
-        
+
         let mut methods = vec![];
-        
-        while self.peek_method_start() {
+
+        // Parse methods until we hit a section keyword or closing brace
+        while self.peek_method_start() && !self.is_section_keyword() && !self.peek_char('}') {
             methods.push(self.parse_interface_method()?);
             self.skip_whitespace();
         }
-        
+
         Ok(methods)
     }
     
     /// Parse a single interface method
     fn parse_interface_method(&mut self) -> Result<InterfaceMethod, ParseError> {
         let start = self.cursor;
-        
         let name = self.parse_identifier()?;
         
         // Parse parameters
@@ -417,7 +468,9 @@ impl FrameParser {
         } else {
             vec![]
         };
-        
+
+        self.skip_whitespace();
+
         // Parse optional parent (=> syntax for HSM)
         let parent = if self.peek_string("=>") {
             self.cursor += 2;
@@ -462,8 +515,9 @@ impl FrameParser {
             }
         }
         
+        let end = self.cursor;
         self.expect_char('}')?;
-        
+
         Ok(StateAst {
             name,
             params,
@@ -472,6 +526,7 @@ impl FrameParser {
             enter,
             exit,
             span: Span::new(start, self.cursor),
+            body_span: Span::new(start, end), // Body span before closing brace
         })
     }
     
@@ -512,19 +567,26 @@ impl FrameParser {
     
     // Helper methods
     
-    /// Skip whitespace and comments
+    /// Skip whitespace and Frame-level comments
+    ///
+    /// Note: We only handle Frame structural comments (// and /* */), NOT
+    /// language-specific comments like Python's #. Language-specific syntax
+    /// belongs in native code regions handled by native_region_scanner.
+    ///
+    /// Test metadata and other pragmas should use @@ syntax (e.g., @@run-expect)
+    /// rather than language-specific comments.
     fn skip_whitespace(&mut self) {
         while self.cursor < self.source.len() {
             let ch = self.source[self.cursor] as char;
             if ch.is_whitespace() {
                 self.cursor += 1;
             } else if self.peek_string("//") {
-                // Skip line comment
+                // Skip Frame line comment
                 while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
                     self.cursor += 1;
                 }
             } else if self.peek_string("/*") {
-                // Skip block comment
+                // Skip Frame block comment
                 self.cursor += 2;
                 while self.cursor < self.source.len() - 1 {
                     if self.peek_string("*/") {
@@ -592,7 +654,7 @@ impl FrameParser {
     /// Parse an identifier
     fn parse_identifier(&mut self) -> Result<String, ParseError> {
         let start = self.cursor;
-        
+
         if !self.peek_identifier() {
             return Err(ParseError::Expected("identifier".to_string()));
         }
@@ -674,22 +736,22 @@ impl FrameParser {
     
     fn parse_enter_handler(&mut self) -> Result<EnterHandler, ParseError> {
         let start = self.cursor;
-        
+
         // Skip $>
         self.cursor += 2;
-        
+
         // Parse optional parameters
         let params = if self.peek_char('(') {
             self.parse_event_params()?
         } else {
             vec![]
         };
-        
+
         self.skip_whitespace();
-        
-        // Parse handler body
-        let body = self.parse_handler_body()?;
-        
+
+        // Parse handler body using native region scanner for proper Frame detection
+        let body = self.parse_handler_body_with_scanner()?;
+
         Ok(EnterHandler {
             params,
             body,
@@ -699,21 +761,21 @@ impl FrameParser {
     
     fn parse_exit_handler(&mut self) -> Result<ExitHandler, ParseError> {
         let start = self.cursor;
-        
+
         // Skip $<
         self.cursor += 2;
-        
+
         // Skip optional empty parens
         if self.peek_char('(') {
             self.expect_char('(')?;
             self.expect_char(')')?;
         }
-        
+
         self.skip_whitespace();
-        
-        // Parse handler body
-        let body = self.parse_handler_body()?;
-        
+
+        // Parse handler body using native region scanner for proper Frame detection
+        let body = self.parse_handler_body_with_scanner()?;
+
         Ok(ExitHandler {
             body,
             span: Span::new(start, self.cursor),
@@ -722,22 +784,22 @@ impl FrameParser {
     
     fn parse_handler(&mut self) -> Result<HandlerAst, ParseError> {
         let start = self.cursor;
-        
+
         // Parse event name
         let event = self.parse_identifier()?;
-        
+
         // Parse parameters
         let params = if self.peek_char('(') {
             self.parse_event_params()?
         } else {
             vec![]
         };
-        
+
         self.skip_whitespace();
-        
-        // Parse handler body
-        let body = self.parse_handler_body()?;
-        
+
+        // Parse handler body using native region scanner for proper Frame detection
+        let body = self.parse_handler_body_with_scanner()?;
+
         Ok(HandlerAst {
             event,
             params,
@@ -782,158 +844,7 @@ impl FrameParser {
         self.expect_char(')')?;
         Ok(params)
     }
-    
-    /// Parse handler body
-    fn parse_handler_body(&mut self) -> Result<HandlerBody, ParseError> {
-        let start = self.cursor;
-        
-        self.expect_char('{')?;
-        
-        let mut statements = vec![];
-        let mut depth = 1; // Track brace depth for nested blocks
-        
-        // Simple approach: collect everything between braces
-        let body_start = self.cursor;
-        
-        while self.cursor < self.source.len() && depth > 0 {
-            let ch = self.source[self.cursor];
-            
-            if ch == b'{' {
-                depth += 1;
-            } else if ch == b'}' {
-                depth -= 1;
-                if depth == 0 {
-                    break;
-                }
-            }
-            
-            self.cursor += 1;
-        }
-        
-        // Extract the body content
-        let body_content = &self.source[body_start..self.cursor];
-        
-        // Now parse the body content for Frame statements
-        let mut body_cursor = 0;
-        while body_cursor < body_content.len() {
-            // Skip whitespace
-            while body_cursor < body_content.len() && body_content[body_cursor].is_ascii_whitespace() {
-                body_cursor += 1;
-            }
-            
-            if body_cursor >= body_content.len() {
-                break;
-            }
-            
-            // Check for Frame statements
-            let remaining = &body_content[body_cursor..];
-            
-            if remaining.starts_with(b"->") {
-                // Parse transition inline
-                body_cursor += 2;
-                // Skip whitespace
-                while body_cursor < body_content.len() && body_content[body_cursor].is_ascii_whitespace() {
-                    body_cursor += 1;
-                }
-                // Expect $
-                if body_cursor < body_content.len() && body_content[body_cursor] == b'$' {
-                    body_cursor += 1;
-                    // Parse state name
-                    let name_start = body_cursor;
-                    while body_cursor < body_content.len() {
-                        let ch = body_content[body_cursor];
-                        if !ch.is_ascii_alphanumeric() && ch != b'_' {
-                            break;
-                        }
-                        body_cursor += 1;
-                    }
-                    let target = String::from_utf8_lossy(&body_content[name_start..body_cursor]).to_string();
-                    
-                    // Skip optional ()
-                    if body_cursor < body_content.len() && body_content[body_cursor] == b'(' {
-                        // Skip to matching )
-                        let mut paren_depth = 1;
-                        body_cursor += 1;
-                        while body_cursor < body_content.len() && paren_depth > 0 {
-                            if body_content[body_cursor] == b'(' {
-                                paren_depth += 1;
-                            } else if body_content[body_cursor] == b')' {
-                                paren_depth -= 1;
-                            }
-                            body_cursor += 1;
-                        }
-                    }
-                    
-                    statements.push(Statement::Transition(TransitionAst {
-                        target,
-                        args: vec![],
-                        span: Span::new(body_start + body_cursor, body_start + body_cursor),
-                    }));
-                }
-            } else if remaining.starts_with(b"=>") {
-                // Forward - similar parsing
-                body_cursor += 2;
-                // For now, skip to next statement
-                while body_cursor < body_content.len() && body_content[body_cursor] != b'\n' {
-                    body_cursor += 1;
-                }
-            } else if remaining.starts_with(b"^") {
-                // Return or continue
-                body_cursor += 1;
-                if body_cursor < body_content.len() && body_content[body_cursor] == b'>' {
-                    // Continue
-                    body_cursor += 1;
-                    statements.push(Statement::Continue(ContinueAst {
-                        span: Span::new(body_start + body_cursor - 2, body_start + body_cursor),
-                    }));
-                } else {
-                    // Return
-                    statements.push(Statement::Return(ReturnAst {
-                        value: None,
-                        span: Span::new(body_start + body_cursor - 1, body_start + body_cursor),
-                    }));
-                }
-            } else {
-                // Native code - collect until next Frame statement or newline
-                let native_start = body_cursor;
-                while body_cursor < body_content.len() {
-                    if body_content[body_cursor] == b'\n' {
-                        body_cursor += 1;
-                        break;
-                    }
-                    if body_cursor + 1 < body_content.len() {
-                        let next2 = &body_content[body_cursor..body_cursor + 2];
-                        if next2 == b"->" || next2 == b"=>" || next2 == b"$$" {
-                            break;
-                        }
-                    }
-                    if body_content[body_cursor] == b'^' {
-                        break;
-                    }
-                    body_cursor += 1;
-                }
-                
-                if body_cursor > native_start {
-                    let content = String::from_utf8_lossy(&body_content[native_start..body_cursor]).trim().to_string();
-                    if !content.is_empty() {
-                        statements.push(Statement::Native(NativeBlock {
-                            content,
-                            language: self.target,
-                            span: Span::new(body_start + native_start, body_start + body_cursor),
-                        }));
-                    }
-                }
-            }
-        }
-        
-        self.expect_char('}')?;
-        
-        Ok(HandlerBody {
-            statements,
-            span: Span::new(start, self.cursor),
-        })
-    }
-    
+
     /// Try to parse a Frame statement
     fn try_parse_frame_statement(&mut self) -> Result<Option<Statement>, ParseError> {
         self.skip_whitespace();
@@ -950,12 +861,14 @@ impl FrameParser {
             self.cursor += 5;
             Ok(Some(Statement::StackPush(StackPushAst {
                 span: Span::new(self.cursor - 5, self.cursor),
+                indent: 0,
             })))
         } else if self.peek_string("$$[-]") {
             // Stack pop
             self.cursor += 5;
             Ok(Some(Statement::StackPop(StackPopAst {
                 span: Span::new(self.cursor - 5, self.cursor),
+                indent: 0,
             })))
         } else if self.peek_char('^') {
             // Return or continue
@@ -1014,31 +927,33 @@ impl FrameParser {
             target,
             args,
             span: Span::new(start, self.cursor),
+            indent: 0,
         }))
     }
-    
+
     /// Parse forward statement
     fn parse_forward(&mut self) -> Result<Statement, ParseError> {
         let start = self.cursor;
-        
+
         // Skip =>
         self.cursor += 2;
         self.skip_whitespace();
-        
+
         // Parse event name
         let event = self.parse_identifier()?;
-        
+
         // Parse optional arguments
         let args = if self.peek_char('(') {
             self.parse_call_args()?
         } else {
             vec![]
         };
-        
+
         Ok(Statement::Forward(ForwardAst {
             event,
             args,
             span: Span::new(start, self.cursor),
+            indent: 0,
         }))
     }
     
@@ -1211,20 +1126,14 @@ impl FrameParser {
             self.cursor += 1;
         }
         
-        let content = String::from_utf8_lossy(&self.source[body_start..self.cursor]).to_string();
-        
         self.expect_char('}')?;
-        
+
+        // ActionBody just stores span - splicer extracts content from original source
         Ok(ActionBody {
-            native: NativeBlock {
-                content,
-                language: self.target,
-                span: Span::new(body_start, self.cursor),
-            },
             span: Span::new(start, self.cursor),
         })
     }
-    
+
     /// Parse operations section
     fn parse_operations(&mut self) -> Result<Vec<OperationAst>, ParseError> {
         self.expect_keyword("operations:")?;
@@ -1344,20 +1253,14 @@ impl FrameParser {
             self.cursor += 1;
         }
         
-        let content = String::from_utf8_lossy(&self.source[body_start..self.cursor]).to_string();
-        
         self.expect_char('}')?;
-        
+
+        // OperationBody just stores span - splicer extracts content from original source
         Ok(OperationBody {
-            native: NativeBlock {
-                content,
-                language: self.target,
-                span: Span::new(body_start, self.cursor),
-            },
             span: Span::new(start, self.cursor),
         })
     }
-    
+
     /// Parse domain section
     fn parse_domain(&mut self) -> Result<Vec<DomainVar>, ParseError> {
         self.expect_keyword("domain:")?;
@@ -1458,6 +1361,190 @@ impl FrameParser {
         }
         if self.cursor < self.source.len() {
             self.cursor += 1; // Skip the newline
+        }
+    }
+
+    // ========================================================================
+    // Error Recovery Methods
+    // ========================================================================
+
+    /// Recover to next section marker, skipping malformed content
+    fn recover_to_next_section(&mut self) {
+        while self.cursor < self.source.len() {
+            if self.is_section_keyword() || self.peek_char('}') {
+                break;
+            }
+            // Skip to end of line
+            self.skip_to_next_line();
+        }
+    }
+
+    /// Recover to next state marker ($), skipping malformed content
+    fn recover_to_next_state(&mut self) {
+        while self.cursor < self.source.len() {
+            self.skip_whitespace();
+            if self.peek_state_start() || self.is_section_keyword() || self.peek_char('}') {
+                break;
+            }
+            self.skip_to_next_line();
+        }
+    }
+
+    /// Recover to next handler, skipping malformed content
+    fn recover_to_next_handler(&mut self) {
+        while self.cursor < self.source.len() {
+            self.skip_whitespace();
+            // Look for handler start: identifier(, $>, $<, or closing }
+            if self.peek_identifier() || self.peek_string("$>") || self.peek_string("$<") || self.peek_char('}') {
+                break;
+            }
+            self.skip_to_next_line();
+        }
+    }
+
+    // ========================================================================
+    // Native Region Scanner Integration
+    // ========================================================================
+
+    /// Get the appropriate native region scanner for the target language
+    fn get_native_scanner(&self) -> Box<dyn NativeRegionScannerV3> {
+        match self.target {
+            TargetLanguage::Python3 => Box::new(NativeRegionScannerPyV3),
+            TargetLanguage::TypeScript => Box::new(NativeRegionScannerTsV3),
+            TargetLanguage::Rust => Box::new(NativeRegionScannerRustV3),
+            TargetLanguage::CSharp => Box::new(NativeRegionScannerCsV3),
+            TargetLanguage::C => Box::new(NativeRegionScannerCV3),
+            TargetLanguage::Cpp => Box::new(NativeRegionScannerCppV3),
+            TargetLanguage::Java => Box::new(NativeRegionScannerJavaV3),
+        }
+    }
+
+    /// Parse handler body using native region scanner for proper Frame detection
+    ///
+    /// This parser only extracts Frame statements - native code is NOT stored in AST.
+    /// The splicer in codegen handles native code preservation using scanner regions.
+    fn parse_handler_body_with_scanner(&mut self) -> Result<HandlerBody, ParseError> {
+        let start = self.cursor;
+
+        // Find the opening brace
+        if !self.peek_char('{') {
+            return Err(ParseError::Expected("'{' to start handler body".to_string()));
+        }
+
+        // Use native_region_scanner to identify Frame segments
+        let mut scanner = self.get_native_scanner();
+        let scan_result = scanner.scan(&self.source, self.cursor)
+            .map_err(|e| ParseError::Unexpected(format!("Scanner error: {}", e.message)))?;
+
+        // Parse only Frame segments - native code is handled by splicer in codegen
+        let mut statements = Vec::new();
+
+        for region in &scan_result.regions {
+            match region {
+                RegionV3::NativeText { .. } => {
+                    // Skip native text - it's preserved by the splicer, not stored in AST
+                }
+                RegionV3::FrameSegment { span, kind, indent } => {
+                    let segment_bytes = &self.source[span.start..span.end];
+                    let stmt = self.parse_frame_segment_from_bytes(segment_bytes, *kind, span, *indent)?;
+                    statements.push(stmt);
+                }
+            }
+        }
+
+        // Update cursor to after the closing brace
+        self.cursor = scan_result.close_byte + 1;
+
+        Ok(HandlerBody {
+            statements,
+            span: Span::new(start, self.cursor),
+        })
+    }
+
+    /// Parse a Frame segment from bytes based on its kind
+    fn parse_frame_segment_from_bytes(
+        &self,
+        bytes: &[u8],
+        kind: FrameSegmentKindV3,
+        span: &RegionSpan,
+        indent: usize,
+    ) -> Result<Statement, ParseError> {
+        let content = String::from_utf8_lossy(bytes);
+
+        match kind {
+            FrameSegmentKindV3::Transition => {
+                // Parse transition: -> $State(args) or (exit_args) -> (enter_args) $State(state_args)
+                let (target, args) = self.parse_transition_from_string(&content)?;
+                Ok(Statement::Transition(TransitionAst {
+                    target,
+                    args,
+                    span: Span::new(span.start, span.end),
+                    indent,
+                }))
+            }
+            FrameSegmentKindV3::Forward => {
+                // Parse forward: => $^
+                Ok(Statement::Forward(ForwardAst {
+                    event: "^".to_string(), // Forward to parent
+                    args: vec![],
+                    span: Span::new(span.start, span.end),
+                    indent,
+                }))
+            }
+            FrameSegmentKindV3::StackPush => {
+                Ok(Statement::StackPush(StackPushAst {
+                    span: Span::new(span.start, span.end),
+                    indent,
+                }))
+            }
+            FrameSegmentKindV3::StackPop => {
+                Ok(Statement::StackPop(StackPopAst {
+                    span: Span::new(span.start, span.end),
+                    indent,
+                }))
+            }
+        }
+    }
+
+    /// Parse transition string: "-> $State" or "-> $State(args)" or "(exit) -> (enter) $State(args)"
+    fn parse_transition_from_string(&self, content: &str) -> Result<(String, Vec<Expression>), ParseError> {
+        let content = content.trim();
+
+        // Find the state name (after $)
+        if let Some(dollar_pos) = content.rfind('$') {
+            let after_dollar = &content[dollar_pos + 1..];
+
+            // Extract state name
+            let mut target = String::new();
+            let mut chars = after_dollar.chars().peekable();
+            while let Some(&ch) = chars.peek() {
+                if ch.is_alphanumeric() || ch == '_' {
+                    target.push(ch);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+
+            // Check for state arguments
+            let mut args = Vec::new();
+            let remaining: String = chars.collect();
+            if remaining.starts_with('(') {
+                // Parse arguments (simplified)
+                if let Some(end_paren) = remaining.find(')') {
+                    let args_str = &remaining[1..end_paren];
+                    for arg in args_str.split(',') {
+                        let arg = arg.trim();
+                        if !arg.is_empty() {
+                            args.push(Expression::Var(arg.to_string()));
+                        }
+                    }
+                }
+            }
+
+            Ok((target, args))
+        } else {
+            Err(ParseError::Expected("state name after '$'".to_string()))
         }
     }
 }

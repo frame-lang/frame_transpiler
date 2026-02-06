@@ -1,8 +1,13 @@
-# Frame v4 Validation Architecture
+# Frame V4 Validation Architecture
 
 ## Executive Summary
 
-Frame v4 adopts a **pragmatic hybrid validation approach** that validates Frame semantics authoritatively while delegating native language validation to native compilers. This architecture provides intelligible error messages without the complexity of full heterogeneous AST parsing.
+Frame V4 adopts a **two-pass semantic validation model** that validates Frame semantics authoritatively while delegating native language validation to native compilers:
+
+- **Pass 1 (Transpile-time)**: Frame validates Frame-specific semantics using the Arcanum
+- **Pass 2 (Compile-time)**: Native compiler validates native code semantics
+
+This architecture provides complete validation without the complexity of building multi-language type checkers. See `COMPILER_ARCHITECTURE.md` for the overall compilation pipeline.
 
 ## Core Principles
 
@@ -16,7 +21,7 @@ Frame v4 adopts a **pragmatic hybrid validation approach** that validates Frame 
 
 ### 1. Arcanum (Frame Symbol Table) - Authoritative
 
-The Arcanum is Frame's authoritative symbol table for all Frame constructs:
+The Arcanum is Frame's authoritative symbol table for all Frame constructs, enhanced with scope tracking for Frame-declared symbols:
 
 ```rust
 pub struct Arcanum {
@@ -24,21 +29,65 @@ pub struct Arcanum {
 }
 
 pub struct SystemEntry {
-    pub states: HashMap<String, StateEntry>,
     pub interface_methods: HashSet<String>,
     pub actions: HashSet<String>,
     pub operations: HashSet<String>,
-    pub domain_vars: HashMap<String, VarType>,
+    pub domain_vars: HashMap<String, FrameSymbol>,  // Enhanced with full symbol info
+    pub machines: HashMap<String, MachineEntry>,
 }
+
+pub struct MachineEntry {
+    pub states: HashMap<String, StateEntry>,
+}
+
+pub struct StateEntry {
+    pub name: String,
+    pub params: Vec<FrameSymbol>,           // State parameters with types
+    pub parent: Option<String>,
+    pub handlers: HashMap<String, HandlerEntry>,
+    pub span: Span,
+}
+
+pub struct HandlerEntry {
+    pub event: String,
+    pub params: Vec<FrameSymbol>,           // Handler parameters with types
+    pub span: Span,
+}
+
+pub struct FrameSymbol {
+    pub name: String,
+    pub kind: FrameSymbolKind,
+    pub declared_at: Span,
+    pub symbol_type: Option<Type>,
+}
+
+pub enum FrameSymbolKind {
+    StateParam,
+    HandlerParam,
+    DomainVar,
+}
+```
+
+**Scope Hierarchy:**
+```
+System Scope
+├── domain variables
+├── interface methods
+├── actions / operations
+└── State Scope (per state)
+    ├── state parameters
+    └── Handler Scope (per handler)
+        └── handler parameters
 ```
 
 **Validates:**
 - State existence (E402)
 - Transition targets are valid
 - Parent forwarding availability (E403)
-- Interface method compliance
+- Interface method compliance (E406)
 - State parameter arity (E405)
-- Frame statement correctness
+- Frame statement correctness (E400, E401)
+- Frame symbol resolution (state params, handler params, domain vars)
 
 ### 2. Source Map Generation - Required
 
@@ -103,30 +152,67 @@ This mode:
 
 ## Validation Phases
 
-### Phase 1: Frame Syntax Validation (Parser)
+### Pass 1: Frame Validation (Transpile-time)
+
+#### Phase 1.1: Frame Syntax Validation (Parser)
 - Frame syntax correctness
 - Block structure validity
 - Frame statement parsing
+- Build Frame AST
 
-### Phase 2: Frame Semantic Validation (Arcanum)
-- State existence
-- Transition validity
-- Interface compliance
-- Parameter matching
+#### Phase 1.2: Symbol Table Construction (Arcanum Builder)
+- Build Arcanum from Frame AST
+- Populate scope hierarchy (system → state → handler)
+- Track all Frame-declared symbols
 
-### Phase 3: Code Generation with Source Maps
-- Generate native code
+#### Phase 1.3: Frame Semantic Validation (Validator)
+- E402: State existence
+- E403: Parent forwarding validity
+- E405: State parameter arity
+- E406: Interface compliance
+- E400/E401: Statement correctness
+- Frame symbol resolution
+
+#### Phase 1.4: Code Generation with Source Maps
+- Generate native code via splicer
 - Embed source mappings
 - Create translation metadata
 
-### Phase 4: Native Compilation (Delegated)
-- Native compiler validates generated code
-- Errors reported with native context
+**If any errors in Pass 1, compilation STOPS here.**
 
-### Phase 5: Error Translation (Optional)
-- Map native errors to Frame source
+### Pass 2: Native Validation (Compile/Runtime)
+
+#### Phase 2.1: Native Compilation (Delegated)
+- Native compiler validates generated code
+- Variable existence
+- Type compatibility
+- Import resolution
+- Native syntax
+
+#### Phase 2.2: Error Translation (Optional)
+- Map native errors to Frame source via source maps
 - Provide Frame-contextual help
 - Suggest corrections
+
+## What Frame Validates vs. What Native Validates
+
+| Semantic Check | Validated By | When | Error Code |
+|---------------|--------------|------|------------|
+| State exists | Frame | Transpile | E402 |
+| Parent exists for forward | Frame | Transpile | E403 |
+| State parameter arity | Frame | Transpile | E405 |
+| Interface method exists | Frame | Transpile | E406 |
+| Terminal statement last | Frame | Transpile | E400 |
+| No Frame in actions | Frame | Transpile | E401 |
+| Section ordering | Frame | Transpile | E113 |
+| Duplicate sections | Frame | Transpile | E114 |
+| Variable exists in scope | Native | Compile/Run | - |
+| Type compatibility | Native | Compile/Run | - |
+| Import resolution | Native | Compile/Run | - |
+| Function signatures | Native | Compile/Run | - |
+| Flow analysis | Native | Compile/Run | - |
+
+**Key Insight**: Frame validates what only Frame knows (state machine topology). Native compilers validate the rest.
 
 ## Error Codes
 
@@ -149,23 +235,29 @@ All other errors come from native compilers with Frame context added via source 
 
 ## Implementation Plan
 
-### Stage 1: Enhance Arcanum (Week 1-2)
+### Stage 1: Basic Arcanum ✅ COMPLETE
 
-**Goal**: Complete Frame symbol table with full validation
+**Completed:**
+- Arcanum tracks systems, states, interface methods, actions, operations
+- Basic state parameter arity validation (E405)
+- State existence validation (E402)
+
+### Stage 2: Enhanced Arcanum with Scopes (CURRENT)
+
+**Goal**: Add scope hierarchy for Frame symbol tracking
 
 **Tasks:**
-1. Extend Arcanum to track all Frame constructs
-2. Add interface method tracking
-3. Add action/operation tracking
-4. Add domain variable tracking
-5. Implement state parameter validation
+1. Add `FrameSymbol` struct with kind and type info
+2. Add `HandlerEntry` to track handler parameters
+3. Enhance `StateEntry` with full parameter symbols
+4. Implement `resolve_frame_symbol()` with scope chain lookup
+5. Update `build_arcanum_from_frame_ast()` to populate scopes
 
-**Testing:**
-- Unit tests for each validation rule
-- Integration tests with known error cases
-- No temporary file testing
+**Files:**
+- `framec/src/frame_c/v4/arcanum.rs`
+- `framec/src/frame_c/v4/arcanum_tests.rs`
 
-### Stage 2: Source Map Generation (Week 2-3)
+### Stage 3: Source Map Generation
 
 **Goal**: Every generated line maps to Frame source
 

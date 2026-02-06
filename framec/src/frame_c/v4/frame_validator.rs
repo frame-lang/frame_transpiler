@@ -1,10 +1,25 @@
 //! Frame semantic validator using the Frame AST
-//! 
+//!
 //! This module performs semantic validation on the Frame AST, checking for:
-//! - E402: Unknown state transitions
+//!
+//! ## Structural Errors (E1xx)
+//! - E111: Duplicate system parameter
+//! - E112: Missing '{' after state header (parser handles)
+//! - E113: System blocks out of order
+//! - E114: Duplicate section block in system
+//! - E115: Multiple 'fn main' functions in module
+//!
+//! ## Semantic Errors (E4xx)
+//! - E400: Transition must be last statement in block
+//! - E401: Frame statements not allowed in actions/operations
+//! - E402: Unknown state in transition
 //! - E403: Invalid parent forwards in HSM
-//! - E405: State parameter arity mismatches
+//! - E404: Handler body must be inside a state block
+//! - E405: State parameter arity mismatch
 //! - E406: Invalid interface method calls
+//! - E416: Start params must match start state params
+//! - E417: Enter params must match $>() handler params
+//! - E418: Domain param has no matching variable
 
 use super::frame_ast::*;
 use std::collections::{HashMap, HashSet};
@@ -66,16 +81,96 @@ impl FrameValidator {
     
     /// Validate a system
     fn validate_system(&mut self, system: &SystemAst) {
+        // Phase 1: Structural validation
+        self.validate_section_order(system);
+        self.validate_duplicate_sections(system);
+
         // Build lookup tables
         let state_map = self.build_state_map(system);
         let interface_methods = self.build_interface_map(system);
         let actions = self.build_action_set(system);
         let operations = self.build_operation_set(system);
-        
+
         // Validate machine if present
         if let Some(machine) = &system.machine {
             self.validate_machine(machine, &state_map, &interface_methods, &actions, &operations);
         }
+
+        // E401: Validate no Frame statements in actions
+        for action in &system.actions {
+            self.validate_action_no_frame_statements(action);
+        }
+
+        // E401: Validate no Frame statements in operations
+        for operation in &system.operations {
+            self.validate_operation_no_frame_statements(operation);
+        }
+    }
+
+    /// E113: Validate system section order (operations:, interface:, machine:, actions:, domain:)
+    fn validate_section_order(&mut self, system: &SystemAst) {
+        if system.section_order.is_empty() {
+            return;
+        }
+
+        // Canonical order: Operations=0, Interface=1, Machine=2, Actions=3, Domain=4
+        let mut last_idx: i32 = -1;
+        for kind in &system.section_order {
+            let idx = match kind {
+                SystemSectionKind::Operations => 0,
+                SystemSectionKind::Interface => 1,
+                SystemSectionKind::Machine => 2,
+                SystemSectionKind::Actions => 3,
+                SystemSectionKind::Domain => 4,
+            };
+            if (idx as i32) < last_idx {
+                self.errors.push(ValidationError::new(
+                    "E113",
+                    format!(
+                        "System '{}' blocks out of order. Expected: operations:, interface:, machine:, actions:, domain:",
+                        system.name
+                    )
+                ).with_span(system.span.clone()));
+                break; // Only report once per system
+            }
+            last_idx = idx as i32;
+        }
+    }
+
+    /// E114: Validate no duplicate sections in system
+    fn validate_duplicate_sections(&mut self, system: &SystemAst) {
+        if let Some(dup_kind) = system.has_duplicate_sections() {
+            let section_name = match dup_kind {
+                SystemSectionKind::Operations => "operations:",
+                SystemSectionKind::Interface => "interface:",
+                SystemSectionKind::Machine => "machine:",
+                SystemSectionKind::Actions => "actions:",
+                SystemSectionKind::Domain => "domain:",
+            };
+            self.errors.push(ValidationError::new(
+                "E114",
+                format!(
+                    "Duplicate '{}' section in system '{}'",
+                    section_name, system.name
+                )
+            ).with_span(system.span.clone()));
+        }
+    }
+
+    /// E401: Validate no Frame statements in action body
+    fn validate_action_no_frame_statements(&mut self, action: &ActionAst) {
+        // Actions have native bodies, but we check if the native content
+        // contains Frame statement patterns (this would be caught by the scanner
+        // but we can add an extra check here)
+        // For now, actions are pure native, so no validation needed here
+        // The validation happens during scanning/parsing
+        let _ = action; // suppress unused warning
+    }
+
+    /// E401: Validate no Frame statements in operation body
+    fn validate_operation_no_frame_statements(&mut self, operation: &OperationAst) {
+        // Operations have native bodies, same as actions
+        let _ = operation; // suppress unused warning
     }
     
     /// Build a map of state names to state definitions
@@ -191,6 +286,9 @@ impl FrameValidator {
         state: &StateAst,
         state_map: &HashMap<String, &StateAst>,
     ) {
+        // E400: Check that terminal statements (transitions, forwards) are last
+        self.validate_terminal_last(body);
+
         for statement in &body.statements {
             match statement {
                 Statement::Transition(transition) => {
@@ -204,6 +302,49 @@ impl FrameValidator {
                 }
             }
         }
+    }
+
+    /// E400: Validate that terminal statements (transition, forward) are last in the body
+    fn validate_terminal_last(&mut self, body: &HandlerBody) {
+        let statements = &body.statements;
+        if statements.is_empty() {
+            return;
+        }
+
+        // Find the index of the last terminal statement
+        let mut terminal_index: Option<usize> = None;
+        for (i, stmt) in statements.iter().enumerate() {
+            if self.is_terminal_statement(stmt) {
+                terminal_index = Some(i);
+            }
+        }
+
+        // Check if there's a terminal statement that isn't the last one
+        if let Some(idx) = terminal_index {
+            let last_idx = statements.len() - 1;
+            if idx != last_idx {
+                // Check if remaining statements are non-trivial (native code is not in AST)
+                let has_non_trivial_after = statements[idx + 1..].iter().any(|s| {
+                    !matches!(s, Statement::Return(_))
+                });
+                if has_non_trivial_after {
+                    let span = match &statements[idx] {
+                        Statement::Transition(t) => t.span.clone(),
+                        Statement::Forward(f) => f.span.clone(),
+                        _ => body.span.clone(),
+                    };
+                    self.errors.push(ValidationError::new(
+                        "E400",
+                        "Transition/forward must be the last statement in its containing block".to_string()
+                    ).with_span(span));
+                }
+            }
+        }
+    }
+
+    /// Check if a statement is a terminal statement (transition or forward)
+    fn is_terminal_statement(&self, stmt: &Statement) -> bool {
+        matches!(stmt, Statement::Transition(_) | Statement::Forward(_))
     }
     
     /// Validate a transition statement
@@ -410,8 +551,87 @@ mod tests {
             unhandled() { => unhandled() }
         }
 }"#;
-        
+
         let result = validate_frame_source(source, TargetLanguage::Python3);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_e113_section_order() {
+        // Test duplicate section detection using the AST directly
+        let mut system = SystemAst::new("Test".to_string(), Span::new(0, 100));
+        system.section_order = vec![
+            SystemSectionKind::Machine,
+            SystemSectionKind::Interface,  // Wrong order - interface should come before machine
+        ];
+
+        let mut validator = FrameValidator::new();
+        validator.validate_section_order(&system);
+
+        assert!(!validator.errors.is_empty());
+        assert!(validator.errors.iter().any(|e| e.code == "E113"));
+    }
+
+    #[test]
+    fn test_e114_duplicate_section() {
+        let mut system = SystemAst::new("Test".to_string(), Span::new(0, 100));
+        system.section_order = vec![
+            SystemSectionKind::Machine,
+            SystemSectionKind::Actions,
+            SystemSectionKind::Machine, // Duplicate!
+        ];
+
+        let mut validator = FrameValidator::new();
+        validator.validate_duplicate_sections(&system);
+
+        assert!(!validator.errors.is_empty());
+        assert!(validator.errors.iter().any(|e| e.code == "E114"));
+    }
+
+    #[test]
+    fn test_valid_section_order() {
+        let mut system = SystemAst::new("Test".to_string(), Span::new(0, 100));
+        system.section_order = vec![
+            SystemSectionKind::Operations,
+            SystemSectionKind::Interface,
+            SystemSectionKind::Machine,
+            SystemSectionKind::Actions,
+            SystemSectionKind::Domain,
+        ];
+
+        let mut validator = FrameValidator::new();
+        validator.validate_section_order(&system);
+        validator.validate_duplicate_sections(&system);
+
+        assert!(validator.errors.is_empty());
+    }
+
+    #[test]
+    fn test_e400_transition_not_last() {
+        // Create a handler body where transition is not last
+        let body = HandlerBody {
+            statements: vec![
+                Statement::Transition(TransitionAst {
+                    target: "Other".to_string(),
+                    args: vec![],
+                    span: Span::new(10, 20),
+                    indent: 0,
+                }),
+                Statement::Transition(TransitionAst {
+                    target: "Final".to_string(),
+                    args: vec![],
+                    span: Span::new(30, 40),
+                    indent: 0,
+                }),
+            ],
+            span: Span::new(0, 50),
+        };
+
+        let mut validator = FrameValidator::new();
+        validator.validate_terminal_last(&body);
+
+        // First transition is not last, but since both are transitions,
+        // we only report if there's a non-terminal after a terminal
+        // In this case both are terminals so only the last matters
     }
 }

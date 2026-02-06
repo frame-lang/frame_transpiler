@@ -1,10 +1,14 @@
 //! Frame AST - Abstract Syntax Tree for Frame language constructs
-//! 
+//!
 //! This module defines the AST representation for Frame v4, which will be used
 //! in the hybrid compiler architecture to represent Frame constructs independently
 //! of native code, before merging into a unified Hybrid AST.
+//!
+//! This is the SINGLE unified AST for Frame V4. The old `ast.rs` module has been
+//! merged into this file to eliminate the dual-AST problem.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use crate::frame_c::v4::native_region_scanner::{RegionV3, RegionSpan};
 
 /// Span represents a source location in the original Frame code
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +35,42 @@ pub enum Type {
     Custom(String),
     /// Unknown/inferred type
     Unknown,
+}
+
+// ============================================================================
+// Section and Attribute Types (merged from old ast.rs)
+// ============================================================================
+
+/// Kinds of sections in a Frame system
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SystemSectionKind {
+    Operations,
+    Interface,
+    Machine,
+    Actions,
+    Domain,
+}
+
+/// Section span tracking for validation (tracks where each section is located)
+#[derive(Debug, Clone, Default)]
+pub struct SystemSectionSpans {
+    pub operations: Option<Span>,
+    pub interface: Option<Span>,
+    pub machine: Option<Span>,
+    pub actions: Option<Span>,
+    pub domain: Option<Span>,
+}
+
+/// Persistence attribute parsed from `@@persist` annotation
+#[derive(Debug, Clone)]
+pub struct PersistAttr {
+    /// Optional custom save method name. When None, language-specific
+    /// defaults are used (e.g., save_to_json / saveToJson).
+    pub save_name: Option<String>,
+    /// Optional custom restore method name. When None, language-specific
+    /// defaults are used (e.g., restore_from_json / restoreFromJson).
+    pub restore_name: Option<String>,
+    pub span: Span,
 }
 
 /// Root AST node - either a system or a module
@@ -69,6 +109,13 @@ pub struct SystemAst {
     pub operations: Vec<OperationAst>,
     pub domain: Vec<DomainVar>,
     pub span: Span,
+    // NEW fields for unified AST:
+    /// Section span tracking for validation
+    pub section_spans: SystemSectionSpans,
+    /// Optional persistence metadata from `@@persist`
+    pub persist_attr: Option<PersistAttr>,
+    /// Section order as encountered in source (may contain duplicates for validation)
+    pub section_order: Vec<SystemSectionKind>,
 }
 
 /// System parameter (for parameterized systems)
@@ -77,6 +124,8 @@ pub struct SystemParam {
     pub name: String,
     pub param_type: Type,
     pub default: Option<String>,
+    /// Whether this is a state parameter (uses $() syntax to pass to initial state)
+    pub is_state_param: bool,
     pub span: Span,
 }
 
@@ -115,6 +164,8 @@ pub struct StateAst {
     pub enter: Option<EnterHandler>,
     pub exit: Option<ExitHandler>,
     pub span: Span,
+    /// Body span (inside braces only, for precise error reporting)
+    pub body_span: Span,
 }
 
 /// State parameter
@@ -157,14 +208,18 @@ pub struct EventParam {
     pub span: Span,
 }
 
-/// Handler body contains mixed Frame statements and native code
+/// Handler body contains Frame statements only
+/// Native code is handled by the splicer in codegen, not stored in AST
 #[derive(Debug, Clone)]
 pub struct HandlerBody {
+    /// Frame statements only (transitions, forwards, etc.)
     pub statements: Vec<Statement>,
+    /// Full span of handler body (used by scanner/splicer)
     pub span: Span,
 }
 
-/// Statement in a handler - either Frame or native
+/// Statement in a handler - Frame statements only
+/// Native code is NOT in the AST - it's handled by splicer in codegen
 #[derive(Debug, Clone)]
 pub enum Statement {
     /// Frame transition statement (->)
@@ -179,8 +234,6 @@ pub enum Statement {
     Return(ReturnAst),
     /// Frame continue (^>)
     Continue(ContinueAst),
-    /// Native code block (preserved as-is)
-    Native(NativeBlock),
     /// Frame if statement
     If(IfAst),
     /// Frame loop statement
@@ -195,6 +248,8 @@ pub struct TransitionAst {
     pub target: String,
     pub args: Vec<Expression>,
     pub span: Span,
+    /// Source indentation level (for proper code generation)
+    pub indent: usize,
 }
 
 /// Forward to parent (=> event)
@@ -203,18 +258,24 @@ pub struct ForwardAst {
     pub event: String,
     pub args: Vec<Expression>,
     pub span: Span,
+    /// Source indentation level (for proper code generation)
+    pub indent: usize,
 }
 
 /// Stack push ($$[+])
 #[derive(Debug, Clone)]
 pub struct StackPushAst {
     pub span: Span,
+    /// Source indentation level (for proper code generation)
+    pub indent: usize,
 }
 
 /// Stack pop ($$[-])
 #[derive(Debug, Clone)]
 pub struct StackPopAst {
     pub span: Span,
+    /// Source indentation level (for proper code generation)
+    pub indent: usize,
 }
 
 /// Return statement (^)
@@ -230,13 +291,6 @@ pub struct ContinueAst {
     pub span: Span,
 }
 
-/// Native code block (preserved verbatim)
-#[derive(Debug, Clone)]
-pub struct NativeBlock {
-    pub content: String,
-    pub language: TargetLanguage,
-    pub span: Span,
-}
 
 /// If statement
 #[derive(Debug, Clone)]
@@ -354,10 +408,10 @@ pub struct ActionParam {
     pub span: Span,
 }
 
-/// Action body (native code)
+/// Action body - native code only, content preserved by splicer
 #[derive(Debug, Clone)]
 pub struct ActionBody {
-    pub native: NativeBlock,
+    /// Span referencing original source - splicer extracts content directly
     pub span: Span,
 }
 
@@ -380,10 +434,10 @@ pub struct OperationParam {
     pub span: Span,
 }
 
-/// Operation body (native code with return)
+/// Operation body - native code only, content preserved by splicer
 #[derive(Debug, Clone)]
 pub struct OperationBody {
-    pub native: NativeBlock,
+    /// Span referencing original source - splicer extracts content directly
     pub span: Span,
 }
 
@@ -411,95 +465,204 @@ pub enum TargetLanguage {
 
 // Helper methods for AST nodes
 impl SystemAst {
+    /// Create a new minimal SystemAst (useful for tests and builder patterns)
+    pub fn new(name: String, span: Span) -> Self {
+        Self {
+            name,
+            params: vec![],
+            interface: vec![],
+            machine: None,
+            actions: vec![],
+            operations: vec![],
+            domain: vec![],
+            span,
+            section_spans: SystemSectionSpans::default(),
+            persist_attr: None,
+            section_order: vec![],
+        }
+    }
+
     /// Get the start state of the machine (first state defined)
     pub fn start_state(&self) -> Option<&StateAst> {
         self.machine.as_ref()?.states.first()
     }
-    
+
     /// Find a state by name
     pub fn find_state(&self, name: &str) -> Option<&StateAst> {
         self.machine.as_ref()?
             .states.iter()
             .find(|s| s.name == name)
     }
-    
+
     /// Check if an interface method exists
     pub fn has_interface_method(&self, name: &str) -> bool {
         self.interface.iter().any(|m| m.name == name)
     }
-    
+
     /// Check if an action exists
     pub fn has_action(&self, name: &str) -> bool {
         self.actions.iter().any(|a| a.name == name)
     }
-    
+
     /// Check if an operation exists
     pub fn has_operation(&self, name: &str) -> bool {
         self.operations.iter().any(|o| o.name == name)
     }
+
+    /// Get section span for a given section kind
+    pub fn get_section_span(&self, kind: SystemSectionKind) -> Option<&Span> {
+        match kind {
+            SystemSectionKind::Operations => self.section_spans.operations.as_ref(),
+            SystemSectionKind::Interface => self.section_spans.interface.as_ref(),
+            SystemSectionKind::Machine => self.section_spans.machine.as_ref(),
+            SystemSectionKind::Actions => self.section_spans.actions.as_ref(),
+            SystemSectionKind::Domain => self.section_spans.domain.as_ref(),
+        }
+    }
+
+    /// Check if a section appears more than once (for duplicate detection)
+    pub fn has_duplicate_sections(&self) -> Option<SystemSectionKind> {
+        let mut seen = std::collections::HashSet::new();
+        for kind in &self.section_order {
+            if !seen.insert(*kind) {
+                return Some(*kind);
+            }
+        }
+        None
+    }
 }
 
 impl StateAst {
+    /// Create a new minimal StateAst
+    pub fn new(name: String, span: Span) -> Self {
+        Self {
+            name,
+            params: vec![],
+            parent: None,
+            handlers: vec![],
+            enter: None,
+            exit: None,
+            span: span.clone(),
+            body_span: span,
+        }
+    }
+
     /// Get parameter count
     pub fn param_count(&self) -> usize {
         self.params.len()
     }
-    
+
     /// Find handler by event name
     pub fn find_handler(&self, event: &str) -> Option<&HandlerAst> {
         self.handlers.iter().find(|h| h.event == event)
     }
-    
+
     /// Check if state has a parent (HSM)
     pub fn has_parent(&self) -> bool {
         self.parent.is_some()
     }
 }
 
+impl HandlerBody {
+    /// Create a new empty handler body
+    pub fn empty(span: Span) -> Self {
+        Self {
+            statements: vec![],
+            span,
+        }
+    }
+}
+
+impl SystemSectionSpans {
+    /// Set the span for a given section kind
+    pub fn set(&mut self, kind: SystemSectionKind, span: Span) {
+        match kind {
+            SystemSectionKind::Operations => self.operations = Some(span),
+            SystemSectionKind::Interface => self.interface = Some(span),
+            SystemSectionKind::Machine => self.machine = Some(span),
+            SystemSectionKind::Actions => self.actions = Some(span),
+            SystemSectionKind::Domain => self.domain = Some(span),
+        }
+    }
+
+    /// Get the span for a given section kind
+    pub fn get(&self, kind: SystemSectionKind) -> Option<&Span> {
+        match kind {
+            SystemSectionKind::Operations => self.operations.as_ref(),
+            SystemSectionKind::Interface => self.interface.as_ref(),
+            SystemSectionKind::Machine => self.machine.as_ref(),
+            SystemSectionKind::Actions => self.actions.as_ref(),
+            SystemSectionKind::Domain => self.domain.as_ref(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_system_ast_creation() {
-        let system = SystemAst {
-            name: "TrafficLight".to_string(),
-            params: vec![],
-            interface: vec![],
-            machine: Some(MachineAst {
-                states: vec![
-                    StateAst {
-                        name: "Red".to_string(),
-                        params: vec![],
-                        parent: None,
-                        handlers: vec![],
-                        enter: None,
-                        exit: None,
-                        span: Span::new(0, 10),
-                    },
-                ],
-                span: Span::new(0, 20),
-            }),
-            actions: vec![],
-            operations: vec![],
-            domain: vec![],
-            span: Span::new(0, 100),
-        };
-        
+        let mut system = SystemAst::new("TrafficLight".to_string(), Span::new(0, 100));
+        system.machine = Some(MachineAst {
+            states: vec![
+                StateAst::new("Red".to_string(), Span::new(0, 10)),
+            ],
+            span: Span::new(0, 20),
+        });
+
         assert_eq!(system.name, "TrafficLight");
         assert!(system.find_state("Red").is_some());
         assert!(system.find_state("Green").is_none());
     }
-    
+
     #[test]
     fn test_transition_ast() {
         let transition = TransitionAst {
             target: "Green".to_string(),
             args: vec![],
             span: Span::new(10, 20),
+            indent: 8,
         };
-        
+
         assert_eq!(transition.target, "Green");
         assert!(transition.args.is_empty());
+        assert_eq!(transition.indent, 8);
+    }
+
+    #[test]
+    fn test_section_spans() {
+        let mut spans = SystemSectionSpans::default();
+        spans.set(SystemSectionKind::Machine, Span::new(10, 50));
+        spans.set(SystemSectionKind::Actions, Span::new(50, 80));
+
+        assert!(spans.get(SystemSectionKind::Machine).is_some());
+        assert!(spans.get(SystemSectionKind::Actions).is_some());
+        assert!(spans.get(SystemSectionKind::Interface).is_none());
+    }
+
+    #[test]
+    fn test_duplicate_sections() {
+        let mut system = SystemAst::new("Test".to_string(), Span::new(0, 100));
+        system.section_order = vec![
+            SystemSectionKind::Machine,
+            SystemSectionKind::Actions,
+            SystemSectionKind::Machine, // duplicate!
+        ];
+
+        assert_eq!(system.has_duplicate_sections(), Some(SystemSectionKind::Machine));
+    }
+
+    #[test]
+    fn test_persist_attr() {
+        let mut system = SystemAst::new("PersistentSystem".to_string(), Span::new(0, 100));
+        system.persist_attr = Some(PersistAttr {
+            save_name: Some("custom_save".to_string()),
+            restore_name: None,
+            span: Span::new(0, 20),
+        });
+
+        assert!(system.persist_attr.is_some());
+        assert_eq!(system.persist_attr.as_ref().unwrap().save_name, Some("custom_save".to_string()));
     }
 }

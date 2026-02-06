@@ -1,321 +1,395 @@
-# Frame v4 Compiler Architecture - Oceans Model
+# Frame V4 Compiler Architecture - Two-Pass Semantic Model
 
 ## Executive Summary
 
-Frame v4 implements a **hybrid compiler architecture** that combines classical compiler design principles with Frame's unique "islands in oceans" model. Frame constructs (islands) are embedded within native code (oceans), requiring a unified approach to parsing, validation, and code generation.
+Frame V4 implements a **two-pass semantic validation architecture** that leverages the strengths of both Frame and native language compilers:
 
-## Core Architecture Principles
+- **Pass 1 (Transpile-time)**: Frame validates Frame-specific semantics
+- **Pass 2 (Compile-time)**: Native compiler validates native code semantics
 
-### 1. The Oceans Model
-- **Native code is the ocean** - The bulk of the source is native language code
-- **Frame constructs are islands** - Frame systems, states, and statements are embedded islands
-- **Unified representation** - Both must be represented in a single, queryable structure
-- **Bidirectional validation** - Frame validates Frame semantics; native validates native syntax
+This approach is cleaner, simpler, and more maintainable than attempting to build a full multi-language type checker within Frame.
 
-### 2. Classical Compiler Phases with Frame Adaptations
+## Core Design Principle
+
+**Frame validates what only Frame knows; native compilers validate the rest.**
+
+Frame constructs have semantics that only the Frame compiler understands:
+- State machine topology (which states exist, parent relationships)
+- Transition validity (target state exists, parameter arity matches)
+- Handler structure (terminal statements must be last)
+- Interface/action/operation declarations
+
+Native code semantics (variable types, import resolution, function signatures) are validated by the target language's compiler - which is already battle-tested and maintained.
+
+## Architecture Overview
 
 ```
-┌─────────────────┐
-│   Lexical       │ → Tokenize mixed Frame/native source
-│   Analysis      │   Identify Frame markers (@@, ->, =>, etc.)
-└────────┬────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    PASS 1: Frame Validation                     │
+│                     (At Transpile Time)                         │
+└─────────────────────────────────────────────────────────────────┘
          │
-┌────────▼────────┐
-│   Syntactic     │ → Parse Frame constructs into Frame AST
-│   Analysis      │   Parse native code into Native AST
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│   AST Merger    │ → Combine Frame AST + Native AST
-│                 │   Build unified Hybrid AST
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│   Semantic      │ → Validate Frame semantics (Arcanum)
-│   Analysis      │   Validate native semantics (facades)
-│                 │   Cross-validate Frame↔Native references
-└────────┬────────┘
-         │
-    ❌ STOP if errors
-         │
-┌────────▼────────┐
-│   Code          │ → Visitor pattern traversal
-│   Generation    │   Generate target language code
-└─────────────────┘
+         ▼
+┌─────────────┐     ┌─────────────┐     ┌─────────────────────┐
+│   Parser    │ ──▶ │ Frame AST + │ ──▶ │  Frame Semantic     │
+│             │     │   Arcanum   │     │     Validator       │
+└─────────────┘     └─────────────┘     └──────────┬──────────┘
+                                                   │
+         Validates:                                │
+         ✓ E402: State exists                      │
+         ✓ E403: Parent exists for forward         │
+         ✓ E405: State parameter arity             │
+         ✓ E400: Terminal statement last           │
+         ✓ E406: Interface method exists           │
+         ✓ E401: No Frame in actions/operations    │
+         ✓ E113: Section ordering                  │
+         ✓ E114: No duplicate sections             │
+                                                   │
+                                        ┌──────────▼──────────┐
+                                        │      Codegen        │
+                                        │   (Splicer Model)   │
+                                        └──────────┬──────────┘
+                                                   │
+                                                   ▼
+                                        ┌─────────────────────┐
+                                        │   Generated Code    │
+                                        │  (Python/TS/etc.)   │
+                                        └──────────┬──────────┘
+                                                   │
+┌─────────────────────────────────────────────────────────────────┐
+│                    PASS 2: Native Validation                    │
+│                     (At Compile/Run Time)                       │
+└─────────────────────────────────────────────────────────────────┘
+                                                   │
+                                                   ▼
+                                        ┌─────────────────────┐
+                                        │   Native Compiler   │
+                                        │  (pyc/tsc/rustc)    │
+                                        └──────────┬──────────┘
+                                                   │
+         Validates:                                │
+         ✓ Variable exists in scope                │
+         ✓ Type compatibility                      │
+         ✓ Import resolution                       │
+         ✓ Native syntax correctness               │
+         ✓ Flow analysis                           │
+                                                   │
+                                                   ▼
+                                              [Executable]
 ```
 
-### 3. Phase Separation with Error Propagation
+## The Oceans Model
 
-**Critical Rule**: Each phase must complete successfully before the next phase begins. If errors are detected during semantic analysis, compilation MUST halt and not proceed to code generation.
+Frame uses the "oceans model" for mixed Frame/native code:
+
+- **Native code is the ocean** - Preserved exactly as written
+- **Frame constructs are islands** - Identified, validated, and replaced with generated code
+- **Splicer combines them** - Native regions + Frame expansions → final output
+
+```frame
+$Processing(timeout: int) {
+    tick(delta: int) {
+        # Native Python (ocean) - Frame doesn't parse this
+        remaining = timeout - delta
+        if remaining <= 0:
+            # Frame statement (island) - Frame validates this
+            -> $Expired(remaining)
+    }
+}
+```
+
+Frame validates:
+- `$Expired` state exists
+- `$Expired` takes 1 parameter
+- Transition is a valid terminal statement
+
+Native compiler validates:
+- `remaining` is defined
+- `timeout` and `delta` exist (they're handler params)
+- Subtraction is valid
 
 ## Data Structures
 
-### 1. Hybrid AST (HybridAst)
+### Frame AST (frame_ast.rs)
 
-The unified representation of both Frame and native code:
+The Frame AST represents Frame constructs only. Native code is referenced by span, not stored.
 
 ```rust
-pub enum HybridNode {
-    // Frame nodes
-    FrameSystem {
-        name: String,
-        span: Span,
-        interface: Vec<InterfaceMethod>,
-        machine: Option<MachineNode>,
-        actions: Vec<ActionNode>,
-        operations: Vec<OperationNode>,
-        domain: Vec<DomainVar>,
-    },
-    FrameState {
-        name: String,
-        params: Vec<Param>,
-        handlers: Vec<HandlerNode>,
-        parent: Option<String>,
-        span: Span,
-    },
-    FrameTransition {
-        target: String,
-        args: Vec<Expr>,
-        span: Span,
-    },
-    
-    // Native nodes (language-specific)
-    NativeFunction {
-        name: String,
-        params: Vec<Param>,
-        body: Vec<HybridNode>,
-        return_type: Option<Type>,
-        span: Span,
-    },
-    NativeStatement {
-        kind: StatementKind,
-        content: String,
-        span: Span,
-    },
-    NativeExpression {
-        kind: ExprKind,
-        content: String,
-        span: Span,
-    },
-    
-    // Hybrid nodes (Frame-in-native)
-    MixedHandler {
-        event_name: String,
-        params: Vec<Param>,
-        native_body: Vec<HybridNode>,
-        frame_statements: Vec<FrameStatement>,
-        span: Span,
-    },
+pub struct SystemAst {
+    pub name: String,
+    pub interface: Vec<InterfaceMethod>,
+    pub machine: Option<MachineAst>,
+    pub actions: Vec<ActionAst>,
+    pub operations: Vec<OperationAst>,
+    pub domain: Vec<DomainVar>,
+    pub span: Span,
+}
+
+pub struct StateAst {
+    pub name: String,
+    pub params: Vec<StateParam>,
+    pub parent: Option<String>,
+    pub handlers: Vec<HandlerAst>,
+    pub span: Span,
+}
+
+pub struct HandlerBody {
+    pub statements: Vec<Statement>,  // Frame statements only
+    pub span: Span,                  // Points to source bytes (for splicer)
+}
+
+/// Frame statements - things Frame needs to validate
+pub enum Statement {
+    Transition(TransitionAst),
+    Forward(ForwardAst),
+    StackPush(StackPushAst),
+    StackPop(StackPopAst),
+    Return(ReturnAst),
+    // Note: No NativeBlock - native code is handled by splicer
 }
 ```
 
-### 2. Unified Symbol Table (UnifiedSymbolTable)
+### Arcanum with Frame Scopes (arcanum.rs)
 
-Combines Frame's Arcanum with native symbol information:
+The Arcanum is Frame's symbol table, enhanced with scope tracking for Frame-declared symbols.
 
 ```rust
-pub struct UnifiedSymbolTable {
-    // Frame symbols (authoritative for Frame constructs)
-    pub arcanum: Arcanum,
-    
-    // Native symbols (advisory for cross-validation)
-    pub native_symbols: NativeSymbolTable,
-    
-    // Cross-reference mappings
-    pub frame_to_native: HashMap<FrameSymbol, NativeSymbol>,
-    pub native_to_frame: HashMap<NativeSymbol, FrameSymbol>,
-}
-
 pub struct Arcanum {
     pub systems: HashMap<String, SystemEntry>,
 }
 
 pub struct SystemEntry {
-    pub states: HashMap<String, StateEntry>,
     pub interface_methods: HashSet<String>,
     pub actions: HashSet<String>,
     pub operations: HashSet<String>,
-    pub domain_vars: HashMap<String, VarType>,
-    pub event_handlers: HashMap<String, HandlerEntry>,
+    pub domain_vars: HashMap<String, FrameSymbol>,
+    pub machines: HashMap<String, MachineEntry>,
 }
 
-pub struct NativeSymbolTable {
-    pub functions: HashMap<String, FunctionSymbol>,
-    pub variables: HashMap<String, VarSymbol>,
-    pub types: HashMap<String, TypeSymbol>,
-    pub imports: Vec<ImportSymbol>,
+pub struct MachineEntry {
+    pub states: HashMap<String, StateEntry>,
+}
+
+pub struct StateEntry {
+    pub name: String,
+    pub params: Vec<FrameSymbol>,      // State parameters
+    pub parent: Option<String>,
+    pub handlers: HashMap<String, HandlerEntry>,
+}
+
+pub struct HandlerEntry {
+    pub event: String,
+    pub params: Vec<FrameSymbol>,      // Handler parameters
+}
+
+pub struct FrameSymbol {
+    pub name: String,
+    pub kind: FrameSymbolKind,
+    pub declared_at: Span,
+    pub symbol_type: Option<Type>,
+}
+
+pub enum FrameSymbolKind {
+    StateParam,
+    HandlerParam,
+    DomainVar,
 }
 ```
+
+### Scope Resolution
+
+Frame scope resolution follows a simple hierarchy:
+
+```
+System Scope
+├── domain variables
+├── interface methods
+├── actions
+├── operations
+└── State Scope (per state)
+    ├── state parameters
+    └── Handler Scope (per handler)
+        └── handler parameters
+```
+
+When validating a Frame reference (e.g., transition argument):
+1. Check handler scope (handler params)
+2. Check state scope (state params)
+3. Check system scope (domain vars)
+4. If not found → **don't error** (might be native variable, let native compiler check)
+
+This is the key insight: Frame validates Frame symbols, and **trusts** that undefined symbols are native (the native compiler will catch actual errors).
 
 ## Compilation Pipeline
 
-### Phase 1: Lexical Analysis (Scanner)
+### Phase 1: Parsing
 
-**Purpose**: Tokenize the mixed Frame/native source into a token stream.
-
-**Components**:
-- `FrameScanner`: Identifies Frame-specific tokens (`@@`, `->`, `=>`, `$$`, etc.)
-- `NativeScanner`: Language-specific tokenization
-
-**Output**: Unified token stream with token types and spans
-
-### Phase 2: Syntactic Analysis (Parser)
-
-**Purpose**: Build separate ASTs for Frame and native constructs.
-
-**Components**:
-- `FrameParser`: Parses Frame systems, states, transitions
-- `NativeParser`: Language-specific parsing (can be lightweight/partial)
-
-**Key Features**:
-- Frame parser is authoritative for Frame constructs
-- Native parser can be partial (only what's needed for validation)
-- Both parsers preserve source spans for error reporting
-
-**Output**: 
-- Frame AST (complete and authoritative)
-- Native AST (potentially partial but sufficient for validation)
-
-### Phase 3: AST Merger
-
-**Purpose**: Combine Frame and Native ASTs into a unified Hybrid AST.
-
-**Process**:
-1. Start with native code structure as the base
-2. Replace Frame construct regions with parsed Frame AST nodes
-3. Maintain bidirectional links between Frame and native contexts
-4. Preserve all source mapping information
-
-**Output**: `HybridAst` with complete program representation
-
-### Phase 4: Symbol Table Construction
-
-**Purpose**: Build unified symbol tables for semantic analysis.
-
-**Process**:
-1. Traverse Frame AST → populate Arcanum
-2. Traverse Native AST → populate NativeSymbolTable
-3. Build cross-reference mappings
-4. Identify potential conflicts or shadowing
-
-**Output**: `UnifiedSymbolTable` with all program symbols
-
-### Phase 5: Semantic Analysis (Validator)
-
-**Purpose**: Validate both Frame and native semantics with cross-validation.
-
-**Frame Validation (via Arcanum)**:
-- E402: Unknown state transitions
-- E403: Invalid parent forwarding
-- E405: State parameter arity mismatch
-- E406: Invalid interface method calls
-- E407: Incorrect Frame statement context
-
-**Native Validation (via Facades)**:
-- Type checking (where possible)
-- Import resolution
-- Variable scoping
-- Basic syntax validation
-
-**Cross-Validation**:
-- Interface methods match native implementations
-- Domain variables properly initialized
-- Event handlers have correct signatures
-- Frame calls from native are valid
-
-**Critical**: If ANY errors are found, compilation MUST stop here.
-
-**Output**: 
-- `ValidationResult { ok: bool, errors: Vec<Error> }`
-- If `ok == false`, return errors and halt
-- If `ok == true`, proceed to code generation
-
-### Phase 6: Code Generation (Visitor)
-
-**Purpose**: Generate target language code from the validated Hybrid AST.
-
-**Architecture**: Visitor Pattern
 ```rust
-trait AstVisitor {
-    fn visit_system(&mut self, system: &FrameSystem) -> String;
-    fn visit_state(&mut self, state: &FrameState) -> String;
-    fn visit_handler(&mut self, handler: &MixedHandler) -> String;
-    fn visit_transition(&mut self, trans: &FrameTransition) -> String;
-    fn visit_native_function(&mut self, func: &NativeFunction) -> String;
-    // ... etc
-}
-
-struct PythonCodeGenerator;
-impl AstVisitor for PythonCodeGenerator { /* ... */ }
-
-struct TypeScriptCodeGenerator;
-impl AstVisitor for TypeScriptCodeGenerator { /* ... */ }
+let mut parser = FrameParser::new(source, target_language);
+let ast = parser.parse_module()?;  // Returns FrameAst
 ```
 
-**Features**:
-- Clean separation of traversal from generation
-- Language-specific visitors for each target
-- Source map generation during traversal
-- Deterministic output
+The parser:
+- Identifies Frame constructs (systems, states, handlers)
+- Stores Frame statements (transitions, forwards, etc.)
+- Records spans for native regions (doesn't parse native code)
 
-**Output**: Generated source code with source maps
+### Phase 2: Symbol Table Construction
 
-## Error Handling Philosophy
+```rust
+let arcanum = build_arcanum_from_frame_ast(&ast);
+```
 
-### Fail Early, Fail Hard
+Builds the Arcanum by traversing the Frame AST:
+- Collects all state declarations with parameters
+- Collects all handler declarations with parameters
+- Collects interface methods, actions, operations
+- Collects domain variables
 
-1. **Parser errors** → Stop immediately, return parse errors
-2. **Symbol conflicts** → Stop at symbol table construction
-3. **Semantic errors** → Stop before code generation
-4. **Never generate invalid code** → No output if validation fails
+### Phase 3: Frame Semantic Validation
 
-### Error Quality
+```rust
+let mut validator = FrameValidator::new();
+validator.validate(&ast, &arcanum)?;
+```
 
-Every error must include:
-- Error code (E4xx for Frame, N4xx for native)
-- Source location (file:line:column)
-- Clear description of the problem
-- Suggested fix when possible
-- Available alternatives (e.g., "Did you mean $Green?")
+Validates Frame-specific semantics:
 
-## Implementation Strategy
+| Error | Description | Validation |
+|-------|-------------|------------|
+| E402 | Unknown state in transition | Check Arcanum for target state |
+| E403 | Forward without parent | Check state has parent in Arcanum |
+| E405 | Parameter arity mismatch | Compare arg count to state param count |
+| E400 | Terminal not last | Check statement position in handler |
+| E401 | Frame in actions/ops | Scan action/operation bodies |
+| E406 | Unknown interface method | Check Arcanum interface_methods |
+| E113 | Section ordering | Check AST section order |
+| E114 | Duplicate sections | Check AST section counts |
 
-### Incremental Approach
+### Phase 4: Code Generation (Splicer Model)
 
-1. **Stage 1**: Enhance Arcanum (✅ Complete)
-2. **Stage 2**: Build Frame AST parser
-3. **Stage 3**: Add lightweight native AST parsing
-4. **Stage 4**: Implement AST merger
-5. **Stage 5**: Create unified symbol table
-6. **Stage 6**: Integrate semantic validation
-7. **Stage 7**: Implement visitor-based code generation
+```rust
+let backend = get_backend(target_language);
+let output = backend.emit(&ast, source_bytes, &arcanum);
+```
 
-### Compatibility
+Code generation uses the splicer pattern:
+1. Scan handler body for Frame segments (using native_region_scanner)
+2. Generate code for each Frame segment
+3. Splice: preserve native regions, replace Frame segments with generated code
 
-- Maintain v3 backend as fallback during transition
-- New v4 pipeline can be feature-flagged
-- Gradual migration of languages (Python first, then TypeScript, etc.)
+```rust
+fn generate_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> String {
+    let body_bytes = &source[body.span.start..body.span.end];
+
+    // Scan for Frame segments
+    let mut scanner = get_native_scanner(lang);
+    let scan_result = scanner.scan(body_bytes, 0)?;
+
+    // Generate expansions for Frame segments
+    let mut expansions = Vec::new();
+    for region in &scan_result.regions {
+        if let RegionV3::FrameSegment { span, kind, indent } = region {
+            let expansion = generate_frame_expansion(kind, span, indent, lang);
+            expansions.push(expansion);
+        }
+    }
+
+    // Splice native + Frame
+    let splicer = SplicerV3;
+    splicer.splice(body_bytes, &scan_result.regions, &expansions).text
+}
+```
+
+### Phase 5: Native Compilation (External)
+
+The generated code is compiled/interpreted by the target language's toolchain:
+
+```bash
+# Python
+python3 generated_code.py
+
+# TypeScript
+tsc generated_code.ts && node generated_code.js
+
+# Rust
+rustc generated_code.rs && ./generated_code
+```
+
+Native errors point to the generated code. Source maps can map these back to the original Frame source.
+
+## What Frame Validates vs. What Native Validates
+
+| Semantic Check | Validated By | When |
+|---------------|--------------|------|
+| State exists | Frame | Transpile |
+| Parent exists | Frame | Transpile |
+| Parameter arity | Frame | Transpile |
+| Terminal last | Frame | Transpile |
+| Section order | Frame | Transpile |
+| Variable exists | Native | Compile/Run |
+| Type compatibility | Native | Compile/Run |
+| Import resolution | Native | Compile/Run |
+| Function signatures | Native | Compile/Run |
 
 ## Benefits of This Architecture
 
-1. **Correctness**: Proper validation before code generation
-2. **Error Quality**: Comprehensive error messages with context
-3. **Maintainability**: Clean phase separation
-4. **Extensibility**: Easy to add new validation rules or targets
-5. **Performance**: Single-pass parsing, efficient validation
-6. **Debugging**: Complete source mapping throughout
+### 1. Simplicity
+- No need to build type checkers for 7 languages
+- No need to track native language spec changes
+- Clear separation of concerns
 
-## Comparison with Current Implementation
+### 2. Correctness
+- Frame semantics are fully validated
+- Native semantics are validated by proven compilers
+- All errors are caught (just at different times)
 
-| Aspect | Current v4 | Proposed Architecture |
-|--------|-----------|----------------------|
-| Validation | Optional, non-blocking | Required, blocking |
-| AST | Separate, not unified | Hybrid AST |
-| Symbol Table | Frame-only (Arcanum) | Unified (Frame + Native) |
-| Code Generation | Direct text manipulation | Visitor pattern on AST |
-| Error Handling | Warnings only | Fail on first error |
-| Native Integration | Text-based regions | Parsed native AST |
+### 3. Maintainability
+- Frame compiler focuses on Frame concerns
+- Native compilers maintained by their communities
+- Less code to write and maintain
+
+### 4. Performance
+- No native parsing overhead at transpile time
+- Single-pass Frame parsing
+- Fast splicer-based code generation
+
+## Comparison with Full Native Parsing
+
+| Aspect | Full Native Parsing | Two-Pass Model |
+|--------|--------------------|-----------------|
+| Implementation effort | 12-18 weeks | 2-4 weeks |
+| Native parsers needed | All 7 languages | None |
+| Type checker needed | Yes, multi-language | No |
+| Maintenance burden | High | Low |
+| Error timing | All at transpile | Frame at transpile, native at compile |
+| Error location | All in .frm | Frame in .frm, native in generated |
+| Correctness | Same | Same |
+
+## Future Enhancements
+
+### Source Maps
+
+Generate source maps to translate native compiler errors back to Frame source locations:
+- Map generated code positions to Frame source spans
+- IDE integration can show native errors in Frame source
+- Debugger can step through Frame source
+
+### Optional Native Declaration Extraction
+
+For IDE support (autocomplete, hover), optionally parse native code for declarations:
+- Extract variable assignments
+- Extract function definitions
+- Don't validate, just inform
+
+This would be opt-in and non-blocking (errors in extraction don't fail compilation).
 
 ## Conclusion
 
-This architecture brings Frame v4 in line with classical compiler design while respecting Frame's unique "islands in oceans" model. By building proper data structures (Hybrid AST, Unified Symbol Table) and enforcing phase separation with error propagation, we ensure that only valid programs produce output, and error messages are meaningful in terms of both Frame and native semantics.
+The two-pass semantic model provides:
+- **Complete validation** of Frame semantics at transpile time
+- **Leverage** of native compilers for native validation
+- **Simplicity** in implementation and maintenance
+- **Correctness** equivalent to full parsing (errors caught, just at different times)
+
+Frame focuses on what makes Frame unique - state machine semantics - and trusts native compilers to do what they do best.

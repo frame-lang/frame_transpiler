@@ -166,14 +166,104 @@ mod tests {
                 lastUpdate = now()
                 isActive: bool
         ";
-        
+
         let span = Span { start: 0, end: source.len() };
         let vars = super::super::arcanum::collect_domain_vars(source, &span);
-        
+
         assert_eq!(vars.len(), 4);
         assert!(vars.contains_key("color"));
         assert!(vars.contains_key("count"));
         assert!(vars.contains_key("lastUpdate"));
         assert!(vars.contains_key("isActive"));
+    }
+
+    #[test]
+    fn test_build_arcanum_from_frame_ast() {
+        use super::super::frame_ast::{
+            FrameAst, SystemAst as FrameSystemAst, MachineAst, StateAst,
+            InterfaceMethod, ActionAst, OperationAst, DomainVar,
+            Span as FrameSpan, Type, ActionBody, OperationBody,
+        };
+
+        // Create a Frame AST manually
+        let system = FrameSystemAst::new("TestSystem".to_string(), FrameSpan::new(0, 100));
+        let mut system = system;
+
+        // Add interface methods
+        system.interface.push(InterfaceMethod {
+            name: "start".to_string(),
+            params: vec![],
+            return_type: None,
+            span: FrameSpan::new(10, 20),
+        });
+        system.interface.push(InterfaceMethod {
+            name: "stop".to_string(),
+            params: vec![],
+            return_type: None,
+            span: FrameSpan::new(20, 30),
+        });
+
+        // Add actions (body now just has span - content is extracted from source by codegen)
+        system.actions.push(ActionAst {
+            name: "doSomething".to_string(),
+            params: vec![],
+            body: ActionBody {
+                span: FrameSpan::new(0, 10),
+            },
+            span: FrameSpan::new(30, 40),
+        });
+
+        // Add operations (body now just has span - content is extracted from source by codegen)
+        system.operations.push(OperationAst {
+            name: "getValue".to_string(),
+            params: vec![],
+            return_type: Type::Int,
+            body: OperationBody {
+                span: FrameSpan::new(0, 10),
+            },
+            span: FrameSpan::new(40, 50),
+        });
+
+        // Add machine with states
+        system.machine = Some(MachineAst {
+            states: vec![
+                StateAst::new("Idle".to_string(), FrameSpan::new(50, 60)),
+                StateAst::new("Running".to_string(), FrameSpan::new(60, 70)),
+            ],
+            span: FrameSpan::new(50, 70),
+        });
+
+        // Add domain var
+        system.domain.push(DomainVar {
+            name: "counter".to_string(),
+            var_type: Type::Int,
+            initializer: None,
+            is_frame: true,
+            span: FrameSpan::new(70, 80),
+        });
+
+        // Build arcanum from Frame AST
+        let ast = FrameAst::System(system);
+        let arc = super::super::arcanum::build_arcanum_from_frame_ast(&ast);
+
+        // Verify the arcanum was built correctly
+        assert!(arc.systems.contains_key("TestSystem"));
+
+        let sys_entry = arc.systems.get("TestSystem").unwrap();
+        assert!(sys_entry.interface_methods.contains("start"));
+        assert!(sys_entry.interface_methods.contains("stop"));
+        assert!(sys_entry.actions.contains("doSomething"));
+        assert!(sys_entry.operations.contains("getValue"));
+        assert!(sys_entry.domain_vars.contains_key("counter"));
+
+        // Check states
+        assert!(arc.resolve_state("TestSystem", "Idle").is_some());
+        assert!(arc.resolve_state("TestSystem", "Running").is_some());
+        assert!(arc.resolve_state("TestSystem", "NonExistent").is_none());
+
+        // Check validation methods work
+        assert!(arc.validate_transition("TestSystem", "Idle").is_ok());
+        assert!(arc.validate_transition("TestSystem", "Running").is_ok());
+        assert!(arc.validate_transition("TestSystem", "NonExistent").is_err());
     }
 }

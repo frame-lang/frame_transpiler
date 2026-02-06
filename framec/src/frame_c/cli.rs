@@ -310,6 +310,11 @@ impl Default for Cli {
 
 pub fn run() {
     run_with(Cli::new());
+
+    // Print V3/V4 usage report if requested
+    if std::env::var("FRAME_USAGE_REPORT").ok().as_deref() == Some("1") {
+        crate::frame_c::v4::print_usage_report();
+    }
 }
 
 pub fn run_with(args: Cli) {
