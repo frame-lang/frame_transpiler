@@ -12,7 +12,7 @@ use crate::frame_c::v4::frame_ast::{
     ActionAst, OperationAst, Type, LoopKind,
     Expression, Literal, BinaryOp, UnaryOp,
 };
-use crate::frame_c::v4::arcanum::Arcanum;
+use crate::frame_c::v4::arcanum::{Arcanum, HandlerEntry};
 use crate::frame_c::v4::splice::SplicerV3;
 use crate::frame_c::v4::native_region_scanner::{
     NativeRegionScannerV3, RegionV3, FrameSegmentKindV3,
@@ -31,7 +31,7 @@ use super::backend::get_backend;
 ///
 /// # Arguments
 /// * `system` - The parsed Frame system AST
-/// * `arcanum` - Symbol table for the system
+/// * `arcanum` - Symbol table for the system (used for handler info and validation)
 /// * `lang` - Target language for code generation
 /// * `source` - Original source bytes (used to extract native code via spans)
 pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLanguage, source: &[u8]) -> CodegenNode {
@@ -53,9 +53,9 @@ pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLangua
     // Interface wrappers
     methods.extend(generate_interface_wrappers(system, &syntax));
 
-    // State handlers - need source for splicer
-    if let Some(ref machine) = system.machine {
-        methods.extend(generate_state_handlers(machine, &syntax, source, lang));
+    // State handlers - use enhanced Arcanum for clean iteration
+    if system.machine.is_some() {
+        methods.extend(generate_state_handlers_via_arcanum(&system.name, arcanum, source, lang));
     }
 
     // Actions - extract native code from source using spans
@@ -364,9 +364,140 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
     }).collect()
 }
 
-/// Generate state handler methods
+/// Generate state handler methods using the enhanced Arcanum
+///
+/// This is the preferred method - uses the Arcanum's handler tracking for clean iteration.
+/// The Arcanum was populated from the AST, so this is functionally equivalent but cleaner.
+fn generate_state_handlers_via_arcanum(system_name: &str, arcanum: &Arcanum, source: &[u8], lang: TargetLanguage) -> Vec<CodegenNode> {
+    let mut methods = Vec::new();
+
+    // Iterate over all enhanced states in the system
+    for state_entry in arcanum.get_enhanced_states(system_name) {
+        // Generate handler methods for each handler in the state
+        for (event, handler_entry) in &state_entry.handlers {
+            let method = generate_handler_from_arcanum(
+                &state_entry.name,
+                handler_entry,
+                source,
+                lang,
+            );
+            methods.push(method);
+        }
+    }
+
+    methods
+}
+
+/// Generate a handler method from Arcanum's HandlerEntry
+///
+/// Uses the handler's body_span to extract and splice native code with Frame expansions.
+fn generate_handler_from_arcanum(
+    state_name: &str,
+    handler: &HandlerEntry,
+    source: &[u8],
+    lang: TargetLanguage,
+) -> CodegenNode {
+    // Build params from handler's parameter symbols
+    let params: Vec<Param> = handler.params.iter().map(|p| {
+        let type_str = p.symbol_type.as_deref().unwrap_or("Any");
+        // Clean up the type string (remove "Some(" prefix if present from debug format)
+        let clean_type = if type_str.starts_with("Some(") {
+            type_str.trim_start_matches("Some(").trim_end_matches(")")
+        } else {
+            type_str
+        };
+        Param::new(&p.name).with_type(clean_type)
+    }).collect();
+
+    // Determine method name based on handler type
+    let method_name = if handler.is_enter {
+        format!("_s_{}_enter", state_name)
+    } else if handler.is_exit {
+        format!("_s_{}_exit", state_name)
+    } else {
+        format!("_s_{}_{}", state_name, handler.event)
+    };
+
+    // Splice the handler body: preserve native code, expand Frame segments
+    let body_code = splice_handler_body_from_span(&handler.body_span, source, lang);
+
+    CodegenNode::Method {
+        name: method_name,
+        params,
+        return_type: None,
+        body: vec![CodegenNode::NativeBlock {
+            code: body_code,
+            span: Some(crate::frame_c::v4::frame_ast::Span {
+                start: handler.body_span.start,
+                end: handler.body_span.end,
+            }),
+        }],
+        is_async: false,
+        is_static: false,
+        visibility: Visibility::Private,
+        decorators: vec![],
+    }
+}
+
+/// Splice handler body from a span (used by Arcanum-based generation)
+fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &[u8], lang: TargetLanguage) -> String {
+    // Ensure span is within bounds
+    if span.start >= source.len() || span.end > source.len() || span.start >= span.end {
+        return String::new();
+    }
+
+    let body_bytes = &source[span.start..span.end];
+
+    // Find the opening brace
+    let open_brace = body_bytes.iter().position(|&b| b == b'{');
+    if open_brace.is_none() {
+        // No brace found - return the content as-is (might be a simple body)
+        return String::from_utf8_lossy(body_bytes).trim().to_string();
+    }
+
+    // Scan for Frame segments within the body
+    let mut scanner = get_native_scanner(lang);
+    let scan_result = match scanner.scan(body_bytes, open_brace.unwrap()) {
+        Ok(r) => r,
+        Err(_) => return String::new(),
+    };
+
+    // Generate expansions for each Frame segment
+    let mut expansions = Vec::new();
+    for region in &scan_result.regions {
+        if let RegionV3::FrameSegment { span, kind, indent } = region {
+            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang);
+            expansions.push(expansion);
+        }
+    }
+
+    // Use splicer to combine native + generated Frame code
+    let splicer = SplicerV3;
+    let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
+
+    // Strip only the outer braces, preserve internal whitespace structure
+    let text = &spliced.text;
+
+    // Find opening brace
+    let open = text.find('{');
+    // Find closing brace (last one)
+    let close = text.rfind('}');
+
+    match (open, close) {
+        (Some(o), Some(c)) if o < c => {
+            // Get content between braces
+            let inner = &text[o + 1..c];
+            // Trim only the first newline after { and trailing whitespace before }
+            inner.trim_start_matches('\n').trim_end().to_string()
+        }
+        _ => text.to_string()
+    }
+}
+
+/// Generate state handler methods (legacy - kept for reference)
 ///
 /// Uses the splicer to preserve native code and splice in generated Frame code
+#[allow(dead_code)]
 fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
 

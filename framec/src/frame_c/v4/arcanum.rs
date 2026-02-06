@@ -3,16 +3,71 @@ use std::collections::{HashMap, HashSet};
 use super::ast::{SystemDecl, MachineDecl, StateDecl, ModuleAst, Span};
 use super::frame_ast::{
     FrameAst, SystemAst as FrameSystemAst, StateAst as FrameStateAst,
-    ModuleAst as FrameModuleAst, Span as FrameSpan,
+    ModuleAst as FrameModuleAst, MachineAst as FrameMachineAst,
+    HandlerAst as FrameHandlerAst, Span as FrameSpan,
 };
 
 /// Variable type information for Frame validation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VarType {
     Frame,      // Frame-specific types
     Native,     // Native language types
     Unknown,    // Type not yet determined
 }
+
+// ============================================================================
+// Enhanced Arcanum Types (Phase 7)
+// ============================================================================
+
+/// Kind of Frame-declared symbol
+#[derive(Debug, Clone, PartialEq)]
+pub enum FrameSymbolKind {
+    StateParam,
+    HandlerParam,
+    DomainVar,
+    InterfaceMethod,
+    Action,
+    Operation,
+}
+
+/// A Frame-declared symbol with full metadata
+#[derive(Debug, Clone)]
+pub struct FrameSymbol {
+    pub name: String,
+    pub kind: FrameSymbolKind,
+    pub declared_at: Span,
+    pub symbol_type: Option<String>,  // Type annotation if present
+}
+
+/// Handler entry with parameters and body span
+#[derive(Debug, Clone)]
+pub struct HandlerEntry {
+    pub event: String,
+    pub params: Vec<FrameSymbol>,
+    pub body_span: Span,              // For splicer to extract body content
+    pub is_enter: bool,               // $>
+    pub is_exit: bool,                // $<
+}
+
+/// Enhanced state entry with handlers
+#[derive(Debug, Clone)]
+pub struct EnhancedStateEntry {
+    pub name: String,
+    pub params: Vec<FrameSymbol>,
+    pub parent: Option<String>,
+    pub handlers: HashMap<String, HandlerEntry>,
+    pub span: Span,
+}
+
+/// Enhanced machine entry with enhanced states
+#[derive(Debug, Clone, Default)]
+pub struct EnhancedMachineEntry {
+    pub states: HashMap<String, EnhancedStateEntry>,
+}
+
+// ============================================================================
+// Original Arcanum Types (kept for backwards compatibility)
+// ============================================================================
 
 /// Enhanced Arcanum - Frame's authoritative symbol table for validation
 #[derive(Debug, Default, Clone)]
@@ -25,12 +80,16 @@ pub struct Arcanum {
 pub struct SystemEntry {
     pub decl: Option<SystemDecl>,
     pub machines: HashMap<String, MachineEntry>,
-    
+
     // Enhanced for validation (Stage 1)
     pub interface_methods: HashSet<String>,
     pub actions: HashSet<String>,
     pub operations: HashSet<String>,
     pub domain_vars: HashMap<String, VarType>,
+
+    // Phase 7: Enhanced with full symbol info
+    pub domain_symbols: HashMap<String, FrameSymbol>,
+    pub enhanced_machines: HashMap<String, EnhancedMachineEntry>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -123,6 +182,90 @@ impl Arcanum {
                 states.sort();
                 states
             })
+            .unwrap_or_default()
+    }
+
+    // ========================================================================
+    // Phase 7: Enhanced Scope Resolution API
+    // ========================================================================
+
+    /// Resolve a Frame symbol in the given scope context.
+    /// Searches handler scope → state scope → system scope.
+    /// Returns None if not a Frame symbol (might be native variable).
+    pub fn resolve_frame_symbol(
+        &self,
+        system: &str,
+        state: Option<&str>,
+        handler: Option<&str>,
+        name: &str,
+    ) -> Option<&FrameSymbol> {
+        let sys = self.systems.get(system)?;
+
+        // 1. Check handler scope (if in a handler)
+        if let (Some(state_name), Some(handler_name)) = (state, handler) {
+            if let Some(machine) = sys.enhanced_machines.values().next() {
+                if let Some(state_entry) = machine.states.get(state_name) {
+                    if let Some(handler_entry) = state_entry.handlers.get(handler_name) {
+                        if let Some(sym) = handler_entry.params.iter().find(|p| p.name == name) {
+                            return Some(sym);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Check state scope (if in a state)
+        if let Some(state_name) = state {
+            if let Some(machine) = sys.enhanced_machines.values().next() {
+                if let Some(state_entry) = machine.states.get(state_name) {
+                    if let Some(sym) = state_entry.params.iter().find(|p| p.name == name) {
+                        return Some(sym);
+                    }
+                }
+            }
+        }
+
+        // 3. Check system scope (domain vars)
+        if let Some(sym) = sys.domain_symbols.get(name) {
+            return Some(sym);
+        }
+
+        // Not a Frame symbol
+        None
+    }
+
+    /// Check if a name is a Frame-declared symbol in the given context
+    pub fn is_frame_symbol(
+        &self,
+        system: &str,
+        state: Option<&str>,
+        handler: Option<&str>,
+        name: &str,
+    ) -> bool {
+        self.resolve_frame_symbol(system, state, handler, name).is_some()
+    }
+
+    /// Get all handlers for a state (for codegen iteration)
+    pub fn get_state_handlers(&self, system: &str, state: &str) -> Vec<&HandlerEntry> {
+        self.systems.get(system)
+            .and_then(|s| s.enhanced_machines.values().next())
+            .and_then(|m| m.states.get(state))
+            .map(|s| s.handlers.values().collect())
+            .unwrap_or_default()
+    }
+
+    /// Get enhanced state entry (for codegen)
+    pub fn get_enhanced_state(&self, system: &str, state: &str) -> Option<&EnhancedStateEntry> {
+        self.systems.get(system)
+            .and_then(|s| s.enhanced_machines.values().next())
+            .and_then(|m| m.states.get(state))
+    }
+
+    /// Get all enhanced states for a system (for codegen iteration)
+    pub fn get_enhanced_states(&self, system: &str) -> Vec<&EnhancedStateEntry> {
+        self.systems.get(system)
+            .and_then(|s| s.enhanced_machines.values().next())
+            .map(|m| m.states.values().collect())
             .unwrap_or_default()
     }
 }
@@ -450,7 +593,7 @@ fn build_system_entry_from_frame_ast(system: &FrameSystemAst) -> SystemEntry {
         entry.operations.insert(operation.name.clone());
     }
 
-    // Extract domain variables
+    // Extract domain variables (old style)
     for var in &system.domain {
         let var_type = if var.is_frame {
             VarType::Frame
@@ -460,7 +603,18 @@ fn build_system_entry_from_frame_ast(system: &FrameSystemAst) -> SystemEntry {
         entry.domain_vars.insert(var.name.clone(), var_type);
     }
 
-    // Extract machine states
+    // Phase 7: Extract domain variables with full symbol info
+    for var in &system.domain {
+        let symbol = FrameSymbol {
+            name: var.name.clone(),
+            kind: FrameSymbolKind::DomainVar,
+            declared_at: Span { start: var.span.start, end: var.span.end },
+            symbol_type: Some(format!("{:?}", var.var_type)),
+        };
+        entry.domain_symbols.insert(var.name.clone(), symbol);
+    }
+
+    // Extract machine states (old style for backwards compat)
     if let Some(ref machine) = system.machine {
         let mut machine_entry = MachineEntry::default();
 
@@ -472,7 +626,115 @@ fn build_system_entry_from_frame_ast(system: &FrameSystemAst) -> SystemEntry {
         entry.machines.insert("machine".to_string(), machine_entry);
     }
 
+    // Phase 7: Build enhanced machine with handlers
+    if let Some(ref machine) = system.machine {
+        let enhanced_machine = build_enhanced_machine_from_frame_ast(machine);
+        entry.enhanced_machines.insert("machine".to_string(), enhanced_machine);
+    }
+
     entry
+}
+
+/// Build an EnhancedMachineEntry from Frame AST MachineAst
+fn build_enhanced_machine_from_frame_ast(machine: &FrameMachineAst) -> EnhancedMachineEntry {
+    let mut entry = EnhancedMachineEntry::default();
+
+    for state in &machine.states {
+        let enhanced_state = build_enhanced_state_from_frame_ast(state);
+        entry.states.insert(state.name.clone(), enhanced_state);
+    }
+
+    entry
+}
+
+/// Build an EnhancedStateEntry from Frame AST StateAst
+fn build_enhanced_state_from_frame_ast(state: &FrameStateAst) -> EnhancedStateEntry {
+    let mut handlers = HashMap::new();
+
+    // Helper to convert frame_ast::Span to ast::Span
+    fn convert_span(s: &FrameSpan) -> Span {
+        Span { start: s.start, end: s.end }
+    }
+
+    // Convert state parameters to FrameSymbols
+    let params: Vec<FrameSymbol> = state.params.iter().map(|p| {
+        FrameSymbol {
+            name: p.name.clone(),
+            kind: FrameSymbolKind::StateParam,
+            declared_at: convert_span(&p.span),
+            symbol_type: Some(format!("{:?}", p.param_type)),
+        }
+    }).collect();
+
+    // Convert regular handlers
+    for handler in &state.handlers {
+        let handler_entry = build_handler_entry_from_ast(handler);
+        handlers.insert(handler.event.clone(), handler_entry);
+    }
+
+    // Convert enter handler ($>)
+    if let Some(ref enter) = state.enter {
+        let handler_entry = HandlerEntry {
+            event: "$>".to_string(),
+            params: enter.params.iter().map(|p| {
+                FrameSymbol {
+                    name: p.name.clone(),
+                    kind: FrameSymbolKind::HandlerParam,
+                    declared_at: convert_span(&p.span),
+                    symbol_type: Some(format!("{:?}", p.param_type)),
+                }
+            }).collect(),
+            body_span: convert_span(&enter.body.span),
+            is_enter: true,
+            is_exit: false,
+        };
+        handlers.insert("$>".to_string(), handler_entry);
+    }
+
+    // Convert exit handler ($<)
+    if let Some(ref exit) = state.exit {
+        let handler_entry = HandlerEntry {
+            event: "$<".to_string(),
+            params: Vec::new(),  // Exit handlers don't have params
+            body_span: convert_span(&exit.body.span),
+            is_enter: false,
+            is_exit: true,
+        };
+        handlers.insert("$<".to_string(), handler_entry);
+    }
+
+    EnhancedStateEntry {
+        name: state.name.clone(),
+        params,
+        parent: state.parent.clone(),
+        handlers,
+        span: convert_span(&state.span),
+    }
+}
+
+/// Build a HandlerEntry from Frame AST HandlerAst
+fn build_handler_entry_from_ast(handler: &FrameHandlerAst) -> HandlerEntry {
+    // Helper to convert frame_ast::Span to ast::Span
+    fn convert_span(s: &FrameSpan) -> Span {
+        Span { start: s.start, end: s.end }
+    }
+
+    let params: Vec<FrameSymbol> = handler.params.iter().map(|p| {
+        FrameSymbol {
+            name: p.name.clone(),
+            kind: FrameSymbolKind::HandlerParam,
+            declared_at: convert_span(&p.span),
+            symbol_type: Some(format!("{:?}", p.param_type)),
+        }
+    }).collect();
+
+    HandlerEntry {
+        event: handler.event.clone(),
+        params,
+        body_span: convert_span(&handler.body.span),
+        is_enter: false,
+        is_exit: false,
+    }
 }
 
 /// Build a StateDecl from a Frame AST StateAst

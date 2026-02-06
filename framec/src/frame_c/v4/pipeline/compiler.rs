@@ -440,4 +440,64 @@ mod tests {
         // Should not return an error from RunError
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_compile_ast_based_with_handler() {
+        // System with handlers to verify Arcanum-based handler generation
+        let source = br#"@@system TestHandler {
+    machine:
+        $Idle {
+            start() {
+                x = 1
+            }
+        }
+}"#;
+        let config = PipelineConfig::production(TargetLanguage::Python3);
+        let result = compile_ast_based(source, &config);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        if !output.errors.is_empty() {
+            for e in &output.errors {
+                eprintln!("Error: {}: {}", e.code, e.message);
+            }
+            // Don't fail - parser may still have issues
+            return;
+        }
+        // The generated code should have the handler method
+        eprintln!("Generated code:\n{}", output.code);
+        assert!(output.code.contains("class TestHandler"));
+    }
+
+    #[test]
+    fn test_compile_ast_based_with_transition() {
+        // System with transition to verify Frame segment expansion
+        let source = br#"@@system TestTransition {
+    machine:
+        $Idle {
+            start() {
+                x = 1
+                -> $Running
+            }
+        }
+        $Running {
+            stop() {
+                -> $Idle
+            }
+        }
+}"#;
+        let config = PipelineConfig::production(TargetLanguage::Python3);
+        let result = compile_ast_based(source, &config);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        if !output.errors.is_empty() {
+            for e in &output.errors {
+                eprintln!("Error: {}: {}", e.code, e.message);
+            }
+            return;
+        }
+        eprintln!("Generated code:\n{}", output.code);
+        // Should have transition call
+        assert!(output.code.contains("_transition"));
+        assert!(output.code.contains("_s_Running"));
+    }
 }

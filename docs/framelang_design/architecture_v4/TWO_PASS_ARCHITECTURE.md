@@ -358,22 +358,46 @@ Handler Body Source:
 
 ## Implementation Phases
 
-### Phase 1: Enhanced Arcanum ← NEXT
+### Phase 1: Enhanced Arcanum ← CURRENT
 
-**Goal**: Add scope hierarchy for Frame symbol tracking
+**Goal**: Add scope hierarchy for Frame symbol tracking. This is foundational - codegen depends on having handler information in the Arcanum.
+
+**Rationale**: The current Arcanum lacks handler tracking, forcing codegen to do ad-hoc AST traversal. By adding `HandlerEntry` to the Arcanum, codegen becomes a clean iteration over well-structured data.
 
 **Files**:
 - `framec/src/frame_c/v4/arcanum.rs`
 - `framec/src/frame_c/v4/arcanum_tests.rs`
 
 **Tasks**:
-1. Add `FrameSymbol`, `HandlerEntry` structs
-2. Enhance `StateEntry` with params as `Vec<FrameSymbol>`
-3. Implement `resolve_frame_symbol()` with scope chain lookup
-4. Update `build_arcanum_from_frame_ast()` to populate all scopes
-5. Add comprehensive tests
+1. Add `FrameSymbol` struct with kind, type, and span
+2. Add `HandlerEntry` struct to track handlers with parameters
+3. Enhance `StateEntry` with:
+   - `params: Vec<FrameSymbol>` (not just names)
+   - `handlers: HashMap<String, HandlerEntry>`
+4. Implement `resolve_frame_symbol()` with scope chain lookup
+5. Update `build_arcanum_from_frame_ast()` to populate handlers
+6. Add comprehensive tests
 
-### Phase 2: Complete Frame Validator
+**Codegen Benefit**: After this phase, codegen can iterate handlers cleanly:
+```rust
+for (event, handler) in &state_entry.handlers {
+    generate_handler_method(state, event, &handler.params, &handler.span);
+}
+```
+
+### Phase 2: Fix Codegen Handler Generation
+
+**Goal**: Use enhanced Arcanum to properly generate handler methods
+
+**Dependency**: Phase 1 (Enhanced Arcanum)
+
+**Tasks**:
+1. Update `system_codegen.rs` to iterate Arcanum handlers
+2. Generate `_handle_{State}_{event}()` methods for each handler
+3. Use splicer to include handler body content
+4. Test pass rate should improve from 32% to 80%+
+
+### Phase 3: Complete Frame Validator
 
 **Goal**: Implement all Frame semantic validations
 
