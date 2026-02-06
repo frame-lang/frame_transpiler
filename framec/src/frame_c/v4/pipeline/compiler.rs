@@ -256,9 +256,9 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
         eprintln!("[compile_ast_based] Built Arcanum with {} systems", arcanum.systems.len());
     }
 
-    // Step 4: Validate AST
+    // Step 4: Validate AST (using enhanced Arcanum-based validation)
     let mut validator = FrameValidator::new();
-    let validation_errors = match validator.validate(&ast) {
+    let validation_errors = match validator.validate_with_arcanum(&ast, &arcanum) {
         Ok(()) => vec![],
         Err(errs) => errs.iter().map(|e| {
             CompileError::new(&e.code, &e.message)

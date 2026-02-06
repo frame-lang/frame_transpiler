@@ -22,6 +22,7 @@
 //! - E418: Domain param has no matching variable
 
 use super::frame_ast::*;
+use super::arcanum::Arcanum;
 use std::collections::{HashMap, HashSet};
 
 /// Validation error with error code and message
@@ -71,11 +72,103 @@ impl FrameValidator {
                 }
             }
         }
-        
+
         if self.errors.is_empty() {
             Ok(())
         } else {
             Err(self.errors.clone())
+        }
+    }
+
+    /// Validate a Frame AST using the enhanced Arcanum
+    ///
+    /// This is the preferred validation method when the Arcanum has been built.
+    /// It uses the Arcanum's scope resolution for more thorough validation.
+    pub fn validate_with_arcanum(&mut self, ast: &FrameAst, arcanum: &Arcanum) -> Result<(), Vec<ValidationError>> {
+        match ast {
+            FrameAst::System(system) => {
+                self.validate_system(system);
+                self.validate_system_with_arcanum(system, arcanum);
+            }
+            FrameAst::Module(module) => {
+                for system in &module.systems {
+                    self.validate_system(system);
+                    self.validate_system_with_arcanum(system, arcanum);
+                }
+            }
+        }
+
+        if self.errors.is_empty() {
+            Ok(())
+        } else {
+            Err(self.errors.clone())
+        }
+    }
+
+    /// Additional validation using the Arcanum
+    fn validate_system_with_arcanum(&mut self, system: &SystemAst, arcanum: &Arcanum) {
+        // E402 enhanced: Validate transitions using Arcanum
+        if let Some(machine) = &system.machine {
+            for state in &machine.states {
+                self.validate_state_transitions_with_arcanum(&system.name, state, arcanum);
+            }
+        }
+    }
+
+    /// Validate state transitions using Arcanum's state resolution
+    fn validate_state_transitions_with_arcanum(&mut self, system_name: &str, state: &StateAst, arcanum: &Arcanum) {
+        // Validate handlers
+        for handler in &state.handlers {
+            for stmt in &handler.body.statements {
+                if let Statement::Transition(trans) = stmt {
+                    self.validate_transition_with_arcanum(system_name, trans, arcanum);
+                }
+            }
+        }
+
+        // Validate enter handler
+        if let Some(enter) = &state.enter {
+            for stmt in &enter.body.statements {
+                if let Statement::Transition(trans) = stmt {
+                    self.validate_transition_with_arcanum(system_name, trans, arcanum);
+                }
+            }
+        }
+
+        // Validate exit handler
+        if let Some(exit) = &state.exit {
+            for stmt in &exit.body.statements {
+                if let Statement::Transition(trans) = stmt {
+                    self.validate_transition_with_arcanum(system_name, trans, arcanum);
+                }
+            }
+        }
+    }
+
+    /// Validate a transition using Arcanum's state resolution
+    fn validate_transition_with_arcanum(&mut self, system_name: &str, trans: &TransitionAst, arcanum: &Arcanum) {
+        // Use Arcanum's validate_transition which includes "did you mean" suggestions
+        if let Err(msg) = arcanum.validate_transition(system_name, &trans.target) {
+            // Only add if not already reported by basic validation
+            if !self.errors.iter().any(|e| e.code == "E402" && e.span.as_ref() == Some(&trans.span)) {
+                self.errors.push(ValidationError::new("E402", msg).with_span(trans.span.clone()));
+            }
+        } else {
+            // State exists, check parameter arity using Arcanum
+            if let Some(param_count) = arcanum.get_state_param_count(system_name, &trans.target) {
+                if param_count != trans.args.len() {
+                    // Only add if not already reported
+                    if !self.errors.iter().any(|e| e.code == "E405" && e.span.as_ref() == Some(&trans.span)) {
+                        self.errors.push(ValidationError::new(
+                            "E405",
+                            format!(
+                                "State '{}' expects {} parameters but {} provided",
+                                trans.target, param_count, trans.args.len()
+                            )
+                        ).with_span(trans.span.clone()));
+                    }
+                }
+            }
         }
     }
     
@@ -479,19 +572,21 @@ mod tests {
     
     #[test]
     fn test_e403_forward_without_parent() {
+        // Test using the supported forward syntax: => $^
+        // Note: The scanner currently only detects "=> $^" pattern
         let source = r#"
 @@system Test {
     machine:
         $Standalone {
             unhandled() {
-                => unhandled()
+                => $^
             }
         }
 }"#;
-        
+
         let result = validate_frame_source(source, TargetLanguage::Python3);
         assert!(result.is_err());
-        
+
         let errors = result.unwrap_err();
         assert!(errors.iter().any(|e| e.code == "E403" && e.message.contains("no parent")));
     }
@@ -633,5 +728,57 @@ mod tests {
         // First transition is not last, but since both are transitions,
         // we only report if there's a non-terminal after a terminal
         // In this case both are terminals so only the last matters
+    }
+
+    #[test]
+    fn test_validate_with_arcanum() {
+        use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
+        use crate::frame_c::v4::frame_parser::FrameParser;
+
+        // System with valid transition
+        let source = r#"
+@@system TestArcanum {
+    machine:
+        $Idle {
+            go() { -> $Active() }
+        }
+        $Active {
+            back() { -> $Idle() }
+        }
+}"#;
+
+        let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
+        let ast = parser.parse_module().unwrap();
+        let arcanum = build_arcanum_from_frame_ast(&ast);
+
+        let mut validator = FrameValidator::new();
+        let result = validator.validate_with_arcanum(&ast, &arcanum);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_with_arcanum_invalid_state() {
+        use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
+        use crate::frame_c::v4::frame_parser::FrameParser;
+
+        // System with invalid transition target
+        let source = r#"
+@@system TestInvalid {
+    machine:
+        $Start {
+            go() { -> $NonExistent() }
+        }
+}"#;
+
+        let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
+        let ast = parser.parse_module().unwrap();
+        let arcanum = build_arcanum_from_frame_ast(&ast);
+
+        let mut validator = FrameValidator::new();
+        let result = validator.validate_with_arcanum(&ast, &arcanum);
+        assert!(result.is_err());
+
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.code == "E402"));
     }
 }
