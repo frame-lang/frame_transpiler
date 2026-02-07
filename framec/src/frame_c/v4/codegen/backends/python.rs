@@ -418,13 +418,14 @@ impl LanguageBackend for PythonBackend {
             // ===== Frame-Specific =====
 
             CodegenNode::Transition { target_state, exit_args, enter_args, state_args, indent } => {
-                // Generate Frame transition call
-                // self._transition(self._s_TargetState, exit_args, enter_args, state_args)
+                // Generate Frame transition call with string-based state dispatch
+                // self._transition("TargetState", exit_args, enter_args)
                 // Add relative indent to context indent (relative indent is how much more
                 // indented this statement is compared to the handler body base)
                 let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
 
-                let mut args = vec![format!("self._s_{}", target_state)];
+                // Use string-based state name for dispatch
+                let mut args = vec![format!("\"{}\"", target_state)];
 
                 if !exit_args.is_empty() {
                     let exit_str: Vec<String> = exit_args.iter().map(|a| self.emit(a, ctx)).collect();
@@ -452,11 +453,12 @@ impl LanguageBackend for PythonBackend {
                 // Add relative indent to context indent
                 let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
 
+                // Use string-based state name for dispatch
                 if state_args.is_empty() {
-                    format!("{}self._change_state(self._s_{})", ind, target_state)
+                    format!("{}self._change_state(\"{}\")", ind, target_state)
                 } else {
                     let args_str: Vec<String> = state_args.iter().map(|a| self.emit(a, ctx)).collect();
-                    format!("{}self._change_state(self._s_{}, [{}])", ind, target_state, args_str.join(", "))
+                    format!("{}self._change_state(\"{}\", [{}])", ind, target_state, args_str.join(", "))
                 }
             }
 
@@ -694,8 +696,9 @@ mod tests {
         let backend = PythonBackend;
         let mut ctx = EmitContext::new();
 
+        // Note: target_state is just the state name, not prefixed with _s_
         let node = CodegenNode::Transition {
-            target_state: "_s_Running".to_string(),
+            target_state: "Running".to_string(),
             exit_args: vec![],
             enter_args: vec![],
             state_args: vec![],
@@ -703,6 +706,7 @@ mod tests {
         };
 
         let result = backend.emit(&node, &mut ctx);
-        assert!(result.contains("self._transition(self._s_Running"));
+        // String-based state dispatch: self._transition("Running", ...)
+        assert!(result.contains("self._transition(\"Running\""));
     }
 }

@@ -252,9 +252,15 @@ impl FrameParser {
         let mut operations = vec![];
         let mut domain = vec![];
         
-        while !self.peek_char('}') {
+        // Loop until we find the closing brace OR hit EOF
+        while self.cursor < self.source.len() && !self.peek_char('}') {
             self.skip_whitespace();
-            
+
+            // Check for EOF after skip_whitespace
+            if self.cursor >= self.source.len() {
+                break;
+            }
+
             if self.peek_keyword("interface:") {
                 interface = self.parse_interface()?;
             } else if self.peek_keyword("machine:") {
@@ -265,8 +271,11 @@ impl FrameParser {
                 operations = self.parse_operations()?;
             } else if self.peek_keyword("domain:") {
                 domain = self.parse_domain()?;
+            } else if self.peek_char('}') {
+                // Found closing brace, exit loop
+                break;
             } else {
-                // Skip unknown sections
+                // Skip unknown content
                 self.skip_to_next_section();
             }
         }
@@ -455,13 +464,13 @@ impl FrameParser {
     /// Parse a state definition
     fn parse_state(&mut self) -> Result<StateAst, ParseError> {
         let start = self.cursor;
-        
+
         // Parse state marker ($)
         self.expect_char('$')?;
-        
+
         // Parse state name
         let name = self.parse_identifier()?;
-        
+
         // Parse optional parameters
         let params = if self.peek_char('(') {
             self.parse_state_params()?
@@ -480,26 +489,26 @@ impl FrameParser {
         } else {
             None
         };
-        
+
         self.skip_whitespace();
         self.expect_char('{')?;
-        
+
         // Parse state contents
         let mut handlers = vec![];
         let mut enter = None;
         let mut exit = None;
-        
+
         loop {
             self.skip_whitespace();
-            
+
             if self.peek_char('}') {
                 break;
             }
-            
+
             if self.cursor >= self.source.len() {
                 return Err(ParseError::Eof);
             }
-            
+
             if self.peek_string("$>") {
                 // Enter handler
                 enter = Some(self.parse_enter_handler()?);
@@ -1265,16 +1274,20 @@ impl FrameParser {
     fn parse_domain(&mut self) -> Result<Vec<DomainVar>, ParseError> {
         self.expect_keyword("domain:")?;
         self.skip_whitespace();
-        
+
         let mut vars = vec![];
-        
-        while !self.is_section_keyword() && !self.peek_char('}') {
+
+        while self.cursor < self.source.len() {
             self.skip_whitespace();
-            
+
+            // Check termination conditions AFTER skip_whitespace
             if self.cursor >= self.source.len() {
                 break;
             }
-            
+            if self.is_section_keyword() || self.peek_char('}') {
+                break;
+            }
+
             // Check for var keyword or direct identifier
             let is_frame_var = if self.peek_keyword("var") {
                 self.cursor += 3;
@@ -1284,11 +1297,11 @@ impl FrameParser {
                 // Could be a native declaration or Frame var without 'var' keyword
                 true
             } else {
-                // Skip any non-variable content
+                // Skip unknown content to next line
                 self.skip_to_next_line();
                 continue;
             };
-            
+
             if let Ok(var) = self.parse_domain_var(is_frame_var) {
                 vars.push(var);
             } else {
@@ -1296,16 +1309,17 @@ impl FrameParser {
                 self.skip_to_next_line();
             }
         }
-        
+
         Ok(vars)
     }
     
     /// Parse a single domain variable
     fn parse_domain_var(&mut self, is_frame: bool) -> Result<DomainVar, ParseError> {
         let start = self.cursor;
-        
+
         let name = self.parse_identifier()?;
-        
+        self.skip_whitespace();
+
         // Parse type annotation if present
         let var_type = if self.peek_char(':') {
             self.cursor += 1;
@@ -1314,7 +1328,9 @@ impl FrameParser {
         } else {
             Type::Unknown
         };
-        
+
+        self.skip_whitespace();
+
         // Parse initializer if present
         let initializer = if self.peek_char('=') {
             self.cursor += 1;
