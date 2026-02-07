@@ -139,12 +139,12 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
         }
     }
 
-    // Set initial state (first state in machine)
+    // Set initial state as string (first state in machine)
     if let Some(ref machine) = system.machine {
         if let Some(first_state) = machine.states.first() {
             body.push(CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                CodegenNode::field(CodegenNode::self_ref(), &format!("_s_{}", first_state.name)),
+                CodegenNode::string(&first_state.name),
             ));
 
             // Call enter handler on initial state
@@ -171,15 +171,17 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
     }
 }
 
-/// Generate Frame machinery methods (_transition, _change_state, etc.)
+/// Generate Frame machinery methods (_transition, _change_state, _dispatch_event, etc.)
 fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
 
-    // _transition method
+    // _transition method - takes state name as string
     methods.push(CodegenNode::Method {
         name: "_transition".to_string(),
         params: vec![
             Param::new("target_state"),
+            Param::new("exit_args").with_default(CodegenNode::null()),
+            Param::new("enter_args").with_default(CodegenNode::null()),
         ],
         return_type: None,
         body: vec![
@@ -187,7 +189,7 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
             CodegenNode::ExprStmt(Box::new(
                 CodegenNode::method_call(CodegenNode::self_ref(), "_exit", vec![]),
             )),
-            // Change state
+            // Change state (target_state is now a string)
             CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), "_state"),
                 CodegenNode::ident("target_state"),
@@ -220,64 +222,54 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
         decorators: vec![],
     });
 
+    // _dispatch_event method - routes events to current state's handler
+    // Uses Python getattr pattern: handler_name = f"_s_{self._state}_{event}"
+    methods.push(CodegenNode::Method {
+        name: "_dispatch_event".to_string(),
+        params: vec![
+            Param::new("event"),
+            Param::new("*args"),
+        ],
+        return_type: None,
+        body: vec![
+            // handler_name = f"_s_{self._state}_{event}"
+            CodegenNode::NativeBlock {
+                code: "handler_name = f\"_s_{self._state}_{event}\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    return handler(*args)".to_string(),
+                span: None,
+            },
+        ],
+        is_async: false,
+        is_static: false,
+        visibility: Visibility::Private,
+        decorators: vec![],
+    });
+
     // _enter and _exit dispatchers
     methods.push(generate_enter_dispatcher(system));
     methods.push(generate_exit_dispatcher(system));
-
-    // State handler methods (stubs)
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            methods.push(CodegenNode::Method {
-                name: format!("_s_{}", state.name),
-                params: vec![Param::new("event")],
-                return_type: None,
-                body: vec![CodegenNode::comment(&format!("State {} handler", state.name))],
-                is_async: false,
-                is_static: false,
-                visibility: Visibility::Private,
-                decorators: vec![],
-            });
-        }
-    }
 
     methods
 }
 
 /// Generate enter event dispatcher
+/// Uses string-based state matching with getattr pattern
 fn generate_enter_dispatcher(system: &SystemAst) -> CodegenNode {
-    let mut arms = Vec::new();
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            if state.enter.is_some() {
-                arms.push(MatchArm {
-                    pattern: Box::new(CodegenNode::field(
-                        CodegenNode::self_ref(),
-                        &format!("_s_{}", state.name),
-                    )),
-                    guard: None,
-                    body: vec![CodegenNode::ExprStmt(Box::new(
-                        CodegenNode::method_call(
-                            CodegenNode::self_ref(),
-                            &format!("_s_{}_enter", state.name),
-                            vec![],
-                        ),
-                    ))],
-                });
-            }
-        }
-    }
+    // Check if any states have enter handlers
+    let has_enter_handlers = system.machine.as_ref()
+        .map(|m| m.states.iter().any(|s| s.enter.is_some()))
+        .unwrap_or(false);
 
     CodegenNode::Method {
         name: "_enter".to_string(),
         params: vec![],
         return_type: None,
-        body: if arms.is_empty() {
+        body: if !has_enter_handlers {
             vec![CodegenNode::comment("No enter handlers")]
         } else {
-            vec![CodegenNode::Match {
-                scrutinee: Box::new(CodegenNode::field(CodegenNode::self_ref(), "_state")),
-                arms,
+            // Use getattr pattern to dispatch to state-specific enter handler
+            vec![CodegenNode::NativeBlock {
+                code: "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
+                span: None,
             }]
         },
         is_async: false,
@@ -288,40 +280,24 @@ fn generate_enter_dispatcher(system: &SystemAst) -> CodegenNode {
 }
 
 /// Generate exit event dispatcher
+/// Uses string-based state matching with getattr pattern
 fn generate_exit_dispatcher(system: &SystemAst) -> CodegenNode {
-    let mut arms = Vec::new();
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            if state.exit.is_some() {
-                arms.push(MatchArm {
-                    pattern: Box::new(CodegenNode::field(
-                        CodegenNode::self_ref(),
-                        &format!("_s_{}", state.name),
-                    )),
-                    guard: None,
-                    body: vec![CodegenNode::ExprStmt(Box::new(
-                        CodegenNode::method_call(
-                            CodegenNode::self_ref(),
-                            &format!("_s_{}_exit", state.name),
-                            vec![],
-                        ),
-                    ))],
-                });
-            }
-        }
-    }
+    // Check if any states have exit handlers
+    let has_exit_handlers = system.machine.as_ref()
+        .map(|m| m.states.iter().any(|s| s.exit.is_some()))
+        .unwrap_or(false);
 
     CodegenNode::Method {
         name: "_exit".to_string(),
         params: vec![],
         return_type: None,
-        body: if arms.is_empty() {
+        body: if !has_exit_handlers {
             vec![CodegenNode::comment("No exit handlers")]
         } else {
-            vec![CodegenNode::Match {
-                scrutinee: Box::new(CodegenNode::field(CodegenNode::self_ref(), "_state")),
-                arms,
+            // Use getattr pattern to dispatch to state-specific exit handler
+            vec![CodegenNode::NativeBlock {
+                code: "handler_name = f\"_s_{self._state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
+                span: None,
             }]
         },
         is_async: false,
@@ -343,6 +319,10 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
             .map(|p| CodegenNode::ident(&p.name))
             .collect();
 
+        // Generate dispatch: call _dispatch_event(event_name, *args)
+        let mut dispatch_args = vec![CodegenNode::string(&method.name)];
+        dispatch_args.extend(args);
+
         CodegenNode::Method {
             name: method.name.clone(),
             params,
@@ -350,9 +330,9 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
             body: vec![
                 CodegenNode::ExprStmt(Box::new(
                     CodegenNode::method_call(
-                        CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                        &method.name,
-                        args,
+                        CodegenNode::self_ref(),
+                        "_dispatch_event",
+                        dispatch_args,
                     ),
                 )),
             ],
@@ -644,9 +624,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             // Parse transition: -> $State or -> $State(args)
             let target = extract_transition_target(&segment_text);
             match lang {
-                TargetLanguage::Python3 => format!("{}self._transition(self._s_{}, None, None)", indent_str, target),
-                TargetLanguage::TypeScript => format!("{}this._transition(this._s_{});", indent_str, target),
-                _ => format!("{}self._transition(self._s_{})", indent_str, target),
+                TargetLanguage::Python3 => format!("{}self._transition(\"{}\", None, None)", indent_str, target),
+                TargetLanguage::TypeScript => format!("{}this._transition(\"{}\");", indent_str, target),
+                _ => format!("{}self._transition(\"{}\")", indent_str, target),
             }
         }
         FrameSegmentKindV3::Forward => {

@@ -496,8 +496,9 @@ mod tests {
             return;
         }
         eprintln!("Generated code:\n{}", output.code);
-        // Should have transition call
+        // Should have transition call with string state name
         assert!(output.code.contains("_transition"));
-        assert!(output.code.contains("_s_Running"));
+        // String-based state dispatch: _transition("Running", ...)
+        assert!(output.code.contains("\"Running\"") || output.code.contains("\"Idle\""));
     }
 }

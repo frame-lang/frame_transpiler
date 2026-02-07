@@ -119,8 +119,13 @@ impl LanguageBackend for PythonBackend {
                 // Method signature
                 let params_str = self.emit_params(params, !*is_static);
                 let async_prefix = if *is_async { "async " } else { "" };
+                // Convert return type: void -> None, others as-is
                 let return_str = if let Some(rt) = return_type {
-                    format!(" -> {}", rt)
+                    let py_type = match rt.as_str() {
+                        "void" => "None",
+                        other => other,
+                    };
+                    format!(" -> {}", py_type)
                 } else {
                     String::new()
                 };
@@ -136,8 +141,20 @@ impl LanguageBackend for PythonBackend {
 
                 ctx.push_indent();
 
-                // Method body
-                if body.is_empty() {
+                // Method body - check if it only contains comments/empty nodes
+                let has_executable_code = body.iter().any(|stmt| {
+                    !matches!(stmt, CodegenNode::Comment { .. } | CodegenNode::Empty)
+                });
+
+                if body.is_empty() || !has_executable_code {
+                    // Emit any comments first
+                    for stmt in body {
+                        if matches!(stmt, CodegenNode::Comment { .. }) {
+                            result.push_str(&self.emit(stmt, ctx));
+                            result.push('\n');
+                        }
+                    }
+                    // Then add pass
                     result.push_str(&format!("{}pass\n", ctx.get_indent()));
                 } else {
                     for stmt in body {
