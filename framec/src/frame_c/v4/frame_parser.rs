@@ -1546,13 +1546,13 @@ impl FrameParser {
             let mut args = Vec::new();
             let remaining: String = chars.collect();
             if remaining.starts_with('(') {
-                // Parse arguments (simplified)
+                // Parse arguments
                 if let Some(end_paren) = remaining.find(')') {
                     let args_str = &remaining[1..end_paren];
                     for arg in args_str.split(',') {
                         let arg = arg.trim();
                         if !arg.is_empty() {
-                            args.push(Expression::Var(arg.to_string()));
+                            args.push(self.parse_arg_expression(arg));
                         }
                     }
                 }
@@ -1562,6 +1562,43 @@ impl FrameParser {
         } else {
             Err(ParseError::Expected("state name after '$'".to_string()))
         }
+    }
+
+    /// Parse an argument expression from a string
+    fn parse_arg_expression(&self, arg: &str) -> Expression {
+        let arg = arg.trim();
+
+        // Check for string literal
+        if arg.starts_with('"') && arg.ends_with('"') && arg.len() >= 2 {
+            let s = arg[1..arg.len()-1].to_string();
+            return Expression::Literal(Literal::String(s));
+        }
+
+        // Check for integer literal
+        if let Ok(n) = arg.parse::<i64>() {
+            return Expression::Literal(Literal::Int(n));
+        }
+
+        // Check for float literal
+        if let Ok(f) = arg.parse::<f64>() {
+            return Expression::Literal(Literal::Float(f));
+        }
+
+        // Check for boolean literals
+        if arg == "true" {
+            return Expression::Literal(Literal::Bool(true));
+        }
+        if arg == "false" {
+            return Expression::Literal(Literal::Bool(false));
+        }
+
+        // Check for null
+        if arg == "null" || arg == "None" || arg == "nil" {
+            return Expression::Literal(Literal::Null);
+        }
+
+        // Default to variable reference
+        Expression::Var(arg.to_string())
     }
 }
 

@@ -169,33 +169,34 @@ mod tests {
     machine:
         $Child => $Parent {
             unhandled() {
-                => unhandled()
+                => $^
             }
         }
         $Parent {
             unhandled() { }
         }
 }"#;
-        
+
         let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
         let result = parser.parse_module();
-        
-        assert!(result.is_ok());
-        
+
+        assert!(result.is_ok(), "Parse failed: {:?}", result.err());
+
         if let Ok(FrameAst::System(system)) = result {
             let machine = system.machine.unwrap();
             let child = &machine.states[0];
-            
+
             assert_eq!(child.name, "Child");
             assert_eq!(child.parent, Some("Parent".to_string()));
-            
-            // Check forward statement
+
+            // Check forward statement - V4 uses => $^ syntax
             let handler = &child.handlers[0];
+            assert!(!handler.body.statements.is_empty(), "Expected forward statement in handler body");
             match &handler.body.statements[0] {
-                Statement::Forward(f) => {
-                    assert_eq!(f.event, "unhandled");
+                Statement::Forward(_) => {
+                    // Forward detected correctly
                 }
-                _ => panic!("Expected forward statement"),
+                _ => panic!("Expected forward statement, got {:?}", handler.body.statements[0]),
             }
         }
     }
@@ -246,56 +247,45 @@ mod tests {
     
     #[test]
     fn test_parse_return_and_continue() {
+        // Note: V4 parser with native region scanner treats return (^) and continue (^>)
+        // as native code preserved by the splicer, not as Frame statements stored in AST.
+        // This test verifies the handler bodies can be parsed without errors.
         let source = r#"
 @@system Test {
     interface:
         getValue(): int
-        
+
     machine:
         $Active {
             getValue() {
                 ^ 42
             }
-            
+
             skip() {
                 ^>
             }
         }
 }"#;
-        
+
         let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
         let result = parser.parse_module();
-        
-        assert!(result.is_ok());
-        
+
+        assert!(result.is_ok(), "Parse failed: {:?}", result.err());
+
         if let Ok(FrameAst::System(system)) = result {
             // Check interface
             assert_eq!(system.interface.len(), 1);
             assert_eq!(system.interface[0].name, "getValue");
             assert_eq!(system.interface[0].return_type, Some(Type::Int));
-            
+
             let machine = system.machine.unwrap();
             let active = &machine.states[0];
-            
-            // Check return statement
-            let get_value = &active.handlers[0];
-            match &get_value.body.statements[0] {
-                Statement::Return(r) => {
-                    assert!(r.value.is_some());
-                    match r.value.as_ref().unwrap() {
-                        Expression::Literal(Literal::Int(n)) => assert_eq!(*n, 42),
-                        _ => panic!("Expected int literal"),
-                    }
-                }
-                _ => panic!("Expected return statement"),
-            }
-            
-            // Check continue statement
-            let skip = &active.handlers[1];
-            match &skip.body.statements[0] {
-                Statement::Continue(_) => {},
-                _ => panic!("Expected continue statement"),
-            }
+
+            // In V4, return/continue are preserved as native code, not stored in statements
+            // Verify handlers were parsed successfully
+            assert_eq!(active.handlers.len(), 2);
+            assert_eq!(active.handlers[0].event, "getValue");
+            assert_eq!(active.handlers[1].event, "skip");
         }
     }
     
@@ -614,10 +604,19 @@ mod tests {
             let idle_state = &system.machine.as_ref().unwrap().states[0];
             assert_eq!(idle_state.handlers.len(), 1);
             assert_eq!(idle_state.handlers[0].event, "start");
-            
-            // Check that handler calls action
+
+            // In V4, only Frame statements (transitions) are stored in AST.
+            // Native calls (doStartup()) are preserved by splicer, not stored in statements.
             let handler_body = &idle_state.handlers[0].body;
-            assert!(handler_body.statements.len() >= 2); // Native call + transition
+            assert!(!handler_body.statements.is_empty(), "Expected transition in handler");
+
+            // Verify the transition is captured
+            match &handler_body.statements[0] {
+                Statement::Transition(t) => {
+                    assert_eq!(t.target, "Running");
+                }
+                _ => panic!("Expected transition statement"),
+            }
         }
     }
 }

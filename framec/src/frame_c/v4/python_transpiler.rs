@@ -496,8 +496,21 @@ mod tests {
     #[test]
     fn test_closing_braces_removed() {
         let transpiler = PythonTranspilerV3;
-        assert_eq!(transpiler.transpile_line("}"), "");
-        assert_eq!(transpiler.transpile_line("    }"), "");
+
+        // Block closing braces are removed by transpile_function_body, not transpile_line
+        // transpile_line returns braces as-is because it can't distinguish block vs dict braces
+        // The caller (transpile_function_body) tracks context and removes block braces
+
+        // Test that block closing braces are removed in function body context
+        let input = "if x > 0 {\n    print(\"yes\")\n}";
+        let result = transpiler.transpile_function_body_unchecked(input);
+        assert!(!result.contains("}"), "Block closing brace should be removed");
+        assert!(result.contains("if x > 0:"), "If statement should be converted to Python");
+
+        // Test that dict literal braces are preserved
+        let dict_input = "data = {\n    \"key\": \"value\"\n}";
+        let dict_result = transpiler.transpile_function_body_unchecked(dict_input);
+        assert!(dict_result.contains("}"), "Dict closing brace should be preserved");
     }
     
     #[test]
