@@ -806,12 +806,24 @@ impl FrameParser {
 
         self.skip_whitespace();
 
+        // Parse optional return type
+        let return_type = if self.peek_char(':') {
+            self.cursor += 1;
+            self.skip_whitespace();
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        self.skip_whitespace();
+
         // Parse handler body using native region scanner for proper Frame detection
         let body = self.parse_handler_body_with_scanner()?;
 
         Ok(HandlerAst {
             event,
             params,
+            return_type,
             body,
             span: Span::new(start, self.cursor),
         })

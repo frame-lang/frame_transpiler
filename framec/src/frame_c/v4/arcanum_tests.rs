@@ -295,6 +295,7 @@ mod tests {
                     span: FrameSpan::new(60, 70),
                 },
             ],
+            return_type: None,
             body: HandlerBody {
                 statements: vec![],
                 span: FrameSpan::new(70, 100),
@@ -306,6 +307,7 @@ mod tests {
         state.handlers.push(HandlerAst {
             event: "reset".to_string(),
             params: vec![],
+            return_type: None,
             body: HandlerBody {
                 statements: vec![],
                 span: FrameSpan::new(110, 140),
@@ -378,6 +380,7 @@ mod tests {
                     span: FrameSpan::new(80, 90),
                 },
             ],
+            return_type: None,
             body: HandlerBody {
                 statements: vec![],
                 span: FrameSpan::new(90, 150),
@@ -442,6 +445,7 @@ mod tests {
                     span: FrameSpan::new(80, 85),
                 },
             ],
+            return_type: None,
             body: HandlerBody {
                 statements: vec![],
                 span: FrameSpan::new(90, 150),

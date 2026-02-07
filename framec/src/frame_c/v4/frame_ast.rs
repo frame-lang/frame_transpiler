@@ -181,6 +181,7 @@ pub struct StateParam {
 pub struct HandlerAst {
     pub event: String,
     pub params: Vec<EventParam>,
+    pub return_type: Option<Type>,
     pub body: HandlerBody,
     pub span: Span,
 }
