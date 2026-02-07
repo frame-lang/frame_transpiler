@@ -361,14 +361,22 @@ impl FrameValidator {
         _operations: &HashSet<String>,
     ) {
         // E406: Check if handler corresponds to interface method
-        if interface_methods.contains_key(&handler.event) {
-            // This is an interface method implementation
-            let _method = interface_methods.get(&handler.event).unwrap();
-            
-            // Could validate parameter compatibility here
-            // For now, just note it's a valid interface method
+        if let Some(method) = interface_methods.get(&handler.event) {
+            // Validate parameter count matches
+            if handler.params.len() != method.params.len() {
+                self.errors.push(ValidationError::new(
+                    "E406",
+                    format!(
+                        "Handler '{}' in state '{}' has {} parameters but interface method expects {}",
+                        handler.event,
+                        state.name,
+                        handler.params.len(),
+                        method.params.len()
+                    )
+                ).with_span(handler.span.clone()));
+            }
         }
-        
+
         self.validate_handler_body(&handler.body, state, state_map);
     }
     
@@ -753,6 +761,47 @@ mod tests {
 
         let mut validator = FrameValidator::new();
         let result = validator.validate_with_arcanum(&ast, &arcanum);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_e406_interface_handler_arity_mismatch() {
+        let source = r#"
+@@system Test {
+    interface:
+        process(data: string, count: int): bool
+
+    machine:
+        $Active {
+            process(data: string) {
+                ^ true
+            }
+        }
+}"#;
+
+        let result = validate_frame_source(source, TargetLanguage::Python3);
+        assert!(result.is_err());
+
+        let errors = result.unwrap_err();
+        assert!(errors.iter().any(|e| e.code == "E406" && e.message.contains("has 1 parameters but interface method expects 2")));
+    }
+
+    #[test]
+    fn test_e406_valid_interface_handler() {
+        let source = r#"
+@@system Test {
+    interface:
+        process(data: string): bool
+
+    machine:
+        $Active {
+            process(data: string) {
+                ^ true
+            }
+        }
+}"#;
+
+        let result = validate_frame_source(source, TargetLanguage::Python3);
         assert!(result.is_ok());
     }
 
