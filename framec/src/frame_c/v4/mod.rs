@@ -465,15 +465,16 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
         record_v3_compile, record_v4_compile, record_v3_fallback,
     };
 
-    // Check backend preference from environment (V4 is now default)
+    // Check backend preference from environment (V4WithV3Fallback is default for compatibility)
     let backend = match std::env::var("FRAME_USE_V3").ok().as_deref() {
         Some("1") | Some("true") | Some("yes") => CodegenBackend::V3Legacy,
         _ => {
-            // Check for fallback mode
-            if std::env::var("FRAME_USE_V4").ok().as_deref() == Some("fallback") {
-                CodegenBackend::V4WithV3Fallback
-            } else {
+            // Check for V4-only mode (no fallback)
+            if std::env::var("FRAME_USE_V4").ok().as_deref() == Some("strict") {
                 CodegenBackend::V4Ast
+            } else {
+                // Default: try V4 first, fall back to V3 for compatibility
+                CodegenBackend::V4WithV3Fallback
             }
         }
     };

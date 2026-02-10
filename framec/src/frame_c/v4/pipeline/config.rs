@@ -17,10 +17,10 @@ static V3_FALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
 pub enum CodegenBackend {
     /// Legacy V3 string-template backend (deprecated)
     V3Legacy,
-    /// V4 AST-based backend (default)
-    #[default]
+    /// V4 AST-based backend only (no fallback)
     V4Ast,
-    /// Try V4 first, fall back to V3 on failure
+    /// Try V4 first, fall back to V3 on failure (default for compatibility)
+    #[default]
     V4WithV3Fallback,
 }
 
