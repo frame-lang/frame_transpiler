@@ -141,9 +141,13 @@ impl LanguageBackend for PythonBackend {
 
                 ctx.push_indent();
 
-                // Method body - check if it only contains comments/empty nodes
+                // Method body - check if it only contains comments/empty nodes/empty native blocks
                 let has_executable_code = body.iter().any(|stmt| {
-                    !matches!(stmt, CodegenNode::Comment { .. } | CodegenNode::Empty)
+                    match stmt {
+                        CodegenNode::Comment { .. } | CodegenNode::Empty => false,
+                        CodegenNode::NativeBlock { code, .. } => !code.trim().is_empty(),
+                        _ => true,
+                    }
                 });
 
                 if body.is_empty() || !has_executable_code {

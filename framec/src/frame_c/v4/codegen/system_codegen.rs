@@ -48,7 +48,7 @@ pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLangua
     methods.push(generate_constructor(system, &syntax));
 
     // Frame machinery (transition, state management)
-    methods.extend(generate_frame_machinery(system, &syntax));
+    methods.extend(generate_frame_machinery(system, &syntax, lang));
 
     // Interface wrappers
     methods.extend(generate_interface_wrappers(system, &syntax));
@@ -81,17 +81,20 @@ pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLangua
 fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<Field> {
     let mut fields = Vec::new();
 
-    // State field
+    // State field - stores current state name as string
     fields.push(Field::new("_state")
-        .with_visibility(Visibility::Private));
+        .with_visibility(Visibility::Private)
+        .with_type("str"));
 
-    // State stack (if needed)
+    // State stack - for push/pop state operations
     fields.push(Field::new("_state_stack")
-        .with_visibility(Visibility::Private));
+        .with_visibility(Visibility::Private)
+        .with_type("List"));
 
     // State context (for state parameters)
     fields.push(Field::new("_state_context")
-        .with_visibility(Visibility::Private));
+        .with_visibility(Visibility::Private)
+        .with_type("Dict"));
 
     // Domain variables
     for domain_var in &system.domain {
@@ -172,27 +175,48 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
 }
 
 /// Generate Frame machinery methods (_transition, _change_state, _dispatch_event, etc.)
-fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<CodegenNode> {
+fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSyntax, lang: TargetLanguage) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
 
     // _transition method - takes state name as string
-    methods.push(CodegenNode::Method {
-        name: "_transition".to_string(),
-        params: vec![
+    // Language-specific parameter types
+    let transition_params = match lang {
+        TargetLanguage::Rust => vec![
+            Param::new("target_state").with_type("&str"),
+        ],
+        TargetLanguage::TypeScript => vec![
+            Param::new("target_state").with_type("string"),
+            Param::new("exit_args").with_type("any").with_default(CodegenNode::null()),
+            Param::new("enter_args").with_type("any").with_default(CodegenNode::null()),
+        ],
+        _ => vec![
             Param::new("target_state"),
             Param::new("exit_args").with_default(CodegenNode::null()),
             Param::new("enter_args").with_default(CodegenNode::null()),
         ],
+    };
+    // Language-specific state assignment (Rust needs .to_string())
+    let state_value = match lang {
+        TargetLanguage::Rust => CodegenNode::method_call(
+            CodegenNode::ident("target_state"),
+            "to_string",
+            vec![],
+        ),
+        _ => CodegenNode::ident("target_state"),
+    };
+    methods.push(CodegenNode::Method {
+        name: "_transition".to_string(),
+        params: transition_params,
         return_type: None,
         body: vec![
             // Call exit handler
             CodegenNode::ExprStmt(Box::new(
                 CodegenNode::method_call(CodegenNode::self_ref(), "_exit", vec![]),
             )),
-            // Change state (target_state is now a string)
+            // Change state
             CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                CodegenNode::ident("target_state"),
+                state_value.clone(),
             ),
             // Call enter handler
             CodegenNode::ExprStmt(Box::new(
@@ -206,14 +230,28 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
     });
 
     // _change_state method (no enter/exit)
+    let change_state_params = match lang {
+        TargetLanguage::Rust => vec![Param::new("target_state").with_type("&str")],
+        TargetLanguage::TypeScript => vec![Param::new("target_state").with_type("string")],
+        _ => vec![Param::new("target_state")],
+    };
+    // Reuse state_value for _change_state (Rust needs .to_string())
+    let change_state_value = match lang {
+        TargetLanguage::Rust => CodegenNode::method_call(
+            CodegenNode::ident("target_state"),
+            "to_string",
+            vec![],
+        ),
+        _ => CodegenNode::ident("target_state"),
+    };
     methods.push(CodegenNode::Method {
         name: "_change_state".to_string(),
-        params: vec![Param::new("target_state")],
+        params: change_state_params,
         return_type: None,
         body: vec![
             CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                CodegenNode::ident("target_state"),
+                change_state_value,
             ),
         ],
         is_async: false,
@@ -223,21 +261,52 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
     });
 
     // _dispatch_event method - routes events to current state's handler
-    // Uses Python getattr pattern: handler_name = f"_s_{self._state}_{event}"
+    // Language-specific dynamic dispatch implementation
+    let (dispatch_params, dispatch_body) = match lang {
+        TargetLanguage::Python3 => {
+            (
+                vec![Param::new("event"), Param::new("*args")],
+                vec![CodegenNode::NativeBlock {
+                    code: "handler_name = f\"_s_{self._state}_{event}\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    return handler(*args)".to_string(),
+                    span: None,
+                }],
+            )
+        }
+        TargetLanguage::TypeScript => {
+            (
+                vec![
+                    Param::new("event").with_type("string"),
+                    Param::new("...args").with_type("any[]"),
+                ],
+                vec![CodegenNode::NativeBlock {
+                    code: "const handler_name = `_s_${this._state}_${event}`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    return handler.apply(this, args);\n}".to_string(),
+                    span: None,
+                }],
+            )
+        }
+        TargetLanguage::Rust => {
+            (
+                vec![Param::new("event").with_type("&str")],
+                vec![CodegenNode::NativeBlock {
+                    code: "let handler_name = format!(\"_s_{}_{}\", self._state, event);\n// Rust requires match-based dispatch or a handler registry\n// For now, use explicit match in caller".to_string(),
+                    span: None,
+                }],
+            )
+        }
+        _ => {
+            // Default fallback for other languages
+            (
+                vec![Param::new("event"), Param::new("args")],
+                vec![CodegenNode::comment("Dispatch implementation needed for this language")],
+            )
+        }
+    };
+
     methods.push(CodegenNode::Method {
         name: "_dispatch_event".to_string(),
-        params: vec![
-            Param::new("event"),
-            Param::new("*args"),
-        ],
+        params: dispatch_params,
         return_type: None,
-        body: vec![
-            // handler_name = f"_s_{self._state}_{event}"
-            CodegenNode::NativeBlock {
-                code: "handler_name = f\"_s_{self._state}_{event}\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    return handler(*args)".to_string(),
-                span: None,
-            },
-        ],
+        body: dispatch_body,
         is_async: false,
         is_static: false,
         visibility: Visibility::Private,
@@ -245,33 +314,53 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
     });
 
     // _enter and _exit dispatchers
-    methods.push(generate_enter_dispatcher(system));
-    methods.push(generate_exit_dispatcher(system));
+    methods.push(generate_enter_dispatcher(system, lang));
+    methods.push(generate_exit_dispatcher(system, lang));
 
     methods
 }
 
 /// Generate enter event dispatcher
-/// Uses string-based state matching with getattr pattern
-fn generate_enter_dispatcher(system: &SystemAst) -> CodegenNode {
+/// Uses language-specific dynamic dispatch pattern
+fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> CodegenNode {
     // Check if any states have enter handlers
     let has_enter_handlers = system.machine.as_ref()
         .map(|m| m.states.iter().any(|s| s.enter.is_some()))
         .unwrap_or(false);
 
+    let body = if !has_enter_handlers {
+        vec![CodegenNode::comment("No enter handlers")]
+    } else {
+        match lang {
+            TargetLanguage::Python3 => {
+                vec![CodegenNode::NativeBlock {
+                    code: "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
+                    span: None,
+                }]
+            }
+            TargetLanguage::TypeScript => {
+                vec![CodegenNode::NativeBlock {
+                    code: "const handler_name = `_s_${this._state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this);\n}".to_string(),
+                    span: None,
+                }]
+            }
+            TargetLanguage::Rust => {
+                vec![CodegenNode::NativeBlock {
+                    code: "let handler_name = format!(\"_s_{}_enter\", self._state);\n// Rust: dispatch via match or registry".to_string(),
+                    span: None,
+                }]
+            }
+            _ => {
+                vec![CodegenNode::comment("Enter dispatch needed for this language")]
+            }
+        }
+    };
+
     CodegenNode::Method {
         name: "_enter".to_string(),
         params: vec![],
         return_type: None,
-        body: if !has_enter_handlers {
-            vec![CodegenNode::comment("No enter handlers")]
-        } else {
-            // Use getattr pattern to dispatch to state-specific enter handler
-            vec![CodegenNode::NativeBlock {
-                code: "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
-                span: None,
-            }]
-        },
+        body,
         is_async: false,
         is_static: false,
         visibility: Visibility::Private,
@@ -280,26 +369,46 @@ fn generate_enter_dispatcher(system: &SystemAst) -> CodegenNode {
 }
 
 /// Generate exit event dispatcher
-/// Uses string-based state matching with getattr pattern
-fn generate_exit_dispatcher(system: &SystemAst) -> CodegenNode {
+/// Uses language-specific dynamic dispatch pattern
+fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> CodegenNode {
     // Check if any states have exit handlers
     let has_exit_handlers = system.machine.as_ref()
         .map(|m| m.states.iter().any(|s| s.exit.is_some()))
         .unwrap_or(false);
 
+    let body = if !has_exit_handlers {
+        vec![CodegenNode::comment("No exit handlers")]
+    } else {
+        match lang {
+            TargetLanguage::Python3 => {
+                vec![CodegenNode::NativeBlock {
+                    code: "handler_name = f\"_s_{self._state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
+                    span: None,
+                }]
+            }
+            TargetLanguage::TypeScript => {
+                vec![CodegenNode::NativeBlock {
+                    code: "const handler_name = `_s_${this._state}_exit`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this);\n}".to_string(),
+                    span: None,
+                }]
+            }
+            TargetLanguage::Rust => {
+                vec![CodegenNode::NativeBlock {
+                    code: "let handler_name = format!(\"_s_{}_exit\", self._state);\n// Rust: dispatch via match or registry".to_string(),
+                    span: None,
+                }]
+            }
+            _ => {
+                vec![CodegenNode::comment("Exit dispatch needed for this language")]
+            }
+        }
+    };
+
     CodegenNode::Method {
         name: "_exit".to_string(),
         params: vec![],
         return_type: None,
-        body: if !has_exit_handlers {
-            vec![CodegenNode::comment("No exit handlers")]
-        } else {
-            // Use getattr pattern to dispatch to state-specific exit handler
-            vec![CodegenNode::NativeBlock {
-                code: "handler_name = f\"_s_{self._state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
-                span: None,
-            }]
-        },
+        body,
         is_async: false,
         is_static: false,
         visibility: Visibility::Private,

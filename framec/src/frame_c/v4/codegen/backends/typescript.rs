@@ -69,7 +69,7 @@ impl LanguageBackend for TypeScriptBackend {
                     };
                     let static_kw = if field.is_static { "static " } else { "" };
                     let type_ann = field.type_annotation.as_ref()
-                        .map(|t| format!(": {}", t))
+                        .map(|t| format!(": {}", self.convert_type(t)))
                         .unwrap_or_default();
                     let init = field.initializer.as_ref()
                         .map(|i| format!(" = {}", self.emit(i, ctx)))
@@ -190,7 +190,7 @@ impl LanguageBackend for TypeScriptBackend {
             CodegenNode::VarDecl { name, type_annotation, init, is_const } => {
                 let keyword = if *is_const { "const" } else { "let" };
                 let type_ann = type_annotation.as_ref()
-                    .map(|t| format!(": {}", t))
+                    .map(|t| format!(": {}", self.convert_type(t)))
                     .unwrap_or_default();
 
                 if let Some(init_expr) = init {
@@ -496,11 +496,26 @@ impl LanguageBackend for TypeScriptBackend {
 }
 
 impl TypeScriptBackend {
+    /// Convert type annotation from generic/Python types to TypeScript types
+    fn convert_type(&self, type_str: &str) -> String {
+        match type_str {
+            "Any" => "any".to_string(),
+            "int" => "number".to_string(),
+            "float" => "number".to_string(),
+            "str" => "string".to_string(),
+            "bool" => "boolean".to_string(),
+            "None" => "void".to_string(),
+            "List" => "Array".to_string(),
+            "Dict" => "Record<string, any>".to_string(),
+            other => other.to_string(),
+        }
+    }
+
     fn emit_params(&self, params: &[Param]) -> String {
         params.iter().map(|p| {
             let mut s = p.name.clone();
             if let Some(ref t) = p.type_annotation {
-                s.push_str(&format!(": {}", t));
+                s.push_str(&format!(": {}", self.convert_type(t)));
             }
             if let Some(ref d) = p.default_value {
                 let mut ctx = EmitContext::new();

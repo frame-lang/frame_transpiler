@@ -44,7 +44,9 @@ impl LanguageBackend for RustBackend {
                 ctx.push_indent();
                 for field in fields {
                     let vis = if matches!(field.visibility, Visibility::Public) { "pub " } else { "" };
-                    let type_ann = field.type_annotation.as_ref().unwrap_or(&"()".to_string()).clone();
+                    let type_ann = field.type_annotation.as_ref()
+                        .map(|t| self.convert_type(t))
+                        .unwrap_or_else(|| "()".to_string());
                     result.push_str(&format!("{}{}{}: {},\n", ctx.get_indent(), vis, field.name, type_ann));
                 }
                 ctx.pop_indent();
@@ -106,16 +108,68 @@ impl LanguageBackend for RustBackend {
             CodegenNode::Constructor { params, body, super_call } => {
                 let params_str = self.emit_params(params, false);
                 let mut result = format!("{}pub fn new({}) -> Self {{\n", ctx.get_indent(), params_str);
-
                 ctx.push_indent();
+
+                // Rust needs struct initialization. Separate field assignments from other statements.
+                let mut field_inits: Vec<(String, String)> = Vec::new();
+                let mut post_init_stmts: Vec<&CodegenNode> = Vec::new();
+
                 for stmt in body {
-                    result.push_str(&self.emit(stmt, ctx));
-                    if self.needs_semicolon(stmt) {
-                        result.push_str(";\n");
-                    } else {
-                        result.push('\n');
+                    // Check if this is a field assignment: self.field = value
+                    if let CodegenNode::Assignment { target, value } = stmt {
+                        if let CodegenNode::FieldAccess { object, field } = target.as_ref() {
+                            if matches!(object.as_ref(), CodegenNode::SelfRef) {
+                                // This is self.field = value - collect for struct init
+                                // For Rust: wrap string literals in String::from() for String fields
+                                let value_str = if let CodegenNode::Literal(Literal::String(s)) = value.as_ref() {
+                                    // String literal needs conversion for String fields
+                                    format!("String::from(\"{}\")", s.replace("\\", "\\\\").replace("\"", "\\\""))
+                                } else {
+                                    self.emit(value, ctx)
+                                };
+                                field_inits.push((field.clone(), value_str));
+                                continue;
+                            }
+                        }
                     }
+                    // Everything else is a post-init statement
+                    post_init_stmts.push(stmt);
                 }
+
+                if post_init_stmts.is_empty() {
+                    // Simple case: just struct initialization
+                    result.push_str(&format!("{}Self {{\n", ctx.get_indent()));
+                    ctx.push_indent();
+                    for (field, value) in &field_inits {
+                        result.push_str(&format!("{}{}: {},\n", ctx.get_indent(), field, value));
+                    }
+                    ctx.pop_indent();
+                    result.push_str(&format!("{}}}\n", ctx.get_indent()));
+                } else {
+                    // Complex case: need mutable binding for post-init calls
+                    result.push_str(&format!("{}let mut this = Self {{\n", ctx.get_indent()));
+                    ctx.push_indent();
+                    for (field, value) in &field_inits {
+                        result.push_str(&format!("{}{}: {},\n", ctx.get_indent(), field, value));
+                    }
+                    ctx.pop_indent();
+                    result.push_str(&format!("{}}};\n", ctx.get_indent()));
+
+                    // Emit post-init statements, replacing self with this
+                    for stmt in post_init_stmts {
+                        let stmt_str = self.emit(stmt, ctx);
+                        // Replace "self." with "this." for post-init code
+                        let stmt_str = stmt_str.replace("self.", "this.");
+                        result.push_str(&stmt_str);
+                        if self.needs_semicolon(stmt) {
+                            result.push_str(";\n");
+                        } else {
+                            result.push('\n');
+                        }
+                    }
+                    result.push_str(&format!("{}this\n", ctx.get_indent()));
+                }
+
                 ctx.pop_indent();
                 result.push_str(&format!("{}}}\n", ctx.get_indent()));
                 result
@@ -123,7 +177,9 @@ impl LanguageBackend for RustBackend {
 
             CodegenNode::VarDecl { name, type_annotation, init, is_const } => {
                 let kw = if *is_const { "let" } else { "let mut" };
-                let type_ann = type_annotation.as_ref().map(|t| format!(": {}", t)).unwrap_or_default();
+                let type_ann = type_annotation.as_ref()
+                    .map(|t| format!(": {}", self.convert_type(t)))
+                    .unwrap_or_default();
                 if let Some(init_expr) = init {
                     format!("{}{} {}{} = {}", ctx.get_indent(), kw, name, type_ann, self.emit(init_expr, ctx))
                 } else {
@@ -348,16 +404,36 @@ impl LanguageBackend for RustBackend {
     fn target_language(&self) -> TargetLanguage {
         TargetLanguage::Rust
     }
+
 }
 
 impl RustBackend {
+    /// Convert type annotation from generic/Python types to Rust types
+    fn convert_type(&self, type_str: &str) -> String {
+        match type_str {
+            "Any" => "Box<dyn std::any::Any>".to_string(),
+            "int" => "i64".to_string(),
+            "float" => "f64".to_string(),
+            "str" | "string" | "String" => "String".to_string(),
+            "bool" => "bool".to_string(),
+            "None" => "()".to_string(),
+            "List" => "Vec<Box<dyn std::any::Any>>".to_string(),
+            "Dict" => "HashMap<String, Box<dyn std::any::Any>>".to_string(),
+            // Keep Rust types as-is
+            t if t.starts_with("Vec<") || t.starts_with("HashMap<") || t.starts_with("&") => t.to_string(),
+            other => other.to_string(),
+        }
+    }
+
     fn emit_params(&self, params: &[Param], include_self: bool) -> String {
         let mut all_params = Vec::new();
         if include_self {
             all_params.push("&mut self".to_string());
         }
         for param in params {
-            let type_ann = param.type_annotation.as_ref().unwrap_or(&"()".to_string()).clone();
+            let type_ann = param.type_annotation.as_ref()
+                .map(|t| self.convert_type(t))
+                .unwrap_or_else(|| "()".to_string());
             all_params.push(format!("{}: {}", param.name, type_ann));
         }
         all_params.join(", ")

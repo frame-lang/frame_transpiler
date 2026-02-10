@@ -15,10 +15,10 @@ static V3_FALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// Codegen backend selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CodegenBackend {
-    /// Legacy V3 string-template backend (default for now)
-    #[default]
+    /// Legacy V3 string-template backend (deprecated)
     V3Legacy,
-    /// New V4 AST-based backend
+    /// V4 AST-based backend (default)
+    #[default]
     V4Ast,
     /// Try V4 first, fall back to V3 on failure
     V4WithV3Fallback,
@@ -238,19 +238,21 @@ impl PipelineConfig {
             config.debug = true;
         }
 
-        // V4 backend selection
-        // FRAME_USE_V4=1 - Force V4 (fail if not supported)
-        // FRAME_USE_V4=fallback - Try V4, fall back to V3
-        // FRAME_USE_V4=0 or unset - Use V3 (default during transition)
-        match std::env::var("FRAME_USE_V4").ok().as_deref() {
+        // V4 backend selection (V4 is now the default)
+        // FRAME_USE_V3=1 - Force legacy V3 backend
+        // FRAME_USE_V4=fallback - Try V4, fall back to V3 on failure
+        // Default (unset) - Use V4
+        match std::env::var("FRAME_USE_V3").ok().as_deref() {
             Some("1") | Some("true") | Some("yes") => {
-                config.backend = CodegenBackend::V4Ast;
-            }
-            Some("fallback") | Some("try") => {
-                config.backend = CodegenBackend::V4WithV3Fallback;
+                config.backend = CodegenBackend::V3Legacy;
             }
             _ => {
-                config.backend = CodegenBackend::V3Legacy;
+                // Check for fallback mode
+                if std::env::var("FRAME_USE_V4").ok().as_deref() == Some("fallback") {
+                    config.backend = CodegenBackend::V4WithV3Fallback;
+                } else {
+                    config.backend = CodegenBackend::V4Ast;
+                }
             }
         }
 
@@ -303,7 +305,7 @@ mod tests {
         let config = PipelineConfig::production(TargetLanguage::Python3);
         assert_eq!(config.mode, CompileMode::Production);
         assert_eq!(config.target, TargetLanguage::Python3);
-        assert_eq!(config.backend, CodegenBackend::V3Legacy);
+        assert_eq!(config.backend, CodegenBackend::V4Ast);
     }
 
     #[test]
@@ -323,7 +325,7 @@ mod tests {
     fn test_default_config() {
         let config = PipelineConfig::default();
         assert_eq!(config.mode, CompileMode::Production);
-        assert_eq!(config.backend, CodegenBackend::V3Legacy);
+        assert_eq!(config.backend, CodegenBackend::V4Ast);
     }
 
     #[test]
