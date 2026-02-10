@@ -378,6 +378,7 @@ fn generate_handler_from_arcanum(
     lang: TargetLanguage,
 ) -> CodegenNode {
     // Build params from handler's parameter symbols
+    // V4 uses native types, so we just pass them through as-is
     let params: Vec<Param> = handler.params.iter().map(|p| {
         let type_str = p.symbol_type.as_deref().unwrap_or("Any");
         // Clean up the type string (remove "Some(" prefix if present from debug format)
@@ -455,23 +456,15 @@ fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &
     let splicer = SplicerV3;
     let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
 
-    // Strip only the outer braces, preserve internal whitespace structure
-    let text = &spliced.text;
-
-    // Find opening brace
-    let open = text.find('{');
-    // Find closing brace (last one)
-    let close = text.rfind('}');
-
-    match (open, close) {
-        (Some(o), Some(c)) if o < c => {
-            // Get content between braces
-            let inner = &text[o + 1..c];
-            // Trim only the first newline after { and trailing whitespace before }
-            inner.trim_start_matches('\n').trim_end().to_string()
-        }
-        _ => text.to_string()
+    if std::env::var("FRAME_DEBUG_SPLICER").is_ok() {
+        eprintln!("[splice_handler_body_from_span] Spliced result: {:?}", spliced.text);
     }
+
+    // The splicer already produces content WITHOUT the outer braces
+    // (since regions start after { and end before })
+    // Just trim leading newline and trailing whitespace
+    // V4 uses native syntax, so no transpilation needed - just return as-is
+    spliced.text.trim_start_matches('\n').trim_end().to_string()
 }
 
 /// Generate state handler methods (legacy - kept for reference)

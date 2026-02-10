@@ -4,8 +4,20 @@ use super::ast::{SystemDecl, MachineDecl, StateDecl, ModuleAst, Span};
 use super::frame_ast::{
     FrameAst, SystemAst as FrameSystemAst, StateAst as FrameStateAst,
     ModuleAst as FrameModuleAst, MachineAst as FrameMachineAst,
-    HandlerAst as FrameHandlerAst, Span as FrameSpan,
+    HandlerAst as FrameHandlerAst, Span as FrameSpan, Type,
 };
+
+/// Convert a Type to its string representation (preserving native type names for V4)
+fn type_to_string(t: &Type) -> String {
+    match t {
+        Type::Custom(name) => name.clone(),
+        Type::Int => "int".to_string(),
+        Type::Float => "float".to_string(),
+        Type::String => "string".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::Unknown => "Any".to_string(),
+    }
+}
 
 /// Variable type information for Frame validation
 #[derive(Debug, Clone, PartialEq)]
@@ -662,7 +674,7 @@ fn build_enhanced_state_from_frame_ast(state: &FrameStateAst) -> EnhancedStateEn
             name: p.name.clone(),
             kind: FrameSymbolKind::StateParam,
             declared_at: convert_span(&p.span),
-            symbol_type: Some(format!("{:?}", p.param_type)),
+            symbol_type: Some(type_to_string(&p.param_type)),
         }
     }).collect();
 
@@ -681,7 +693,7 @@ fn build_enhanced_state_from_frame_ast(state: &FrameStateAst) -> EnhancedStateEn
                     name: p.name.clone(),
                     kind: FrameSymbolKind::HandlerParam,
                     declared_at: convert_span(&p.span),
-                    symbol_type: Some(format!("{:?}", p.param_type)),
+                    symbol_type: Some(type_to_string(&p.param_type)),
                 }
             }).collect(),
             body_span: convert_span(&enter.body.span),
@@ -724,7 +736,7 @@ fn build_handler_entry_from_ast(handler: &FrameHandlerAst) -> HandlerEntry {
             name: p.name.clone(),
             kind: FrameSymbolKind::HandlerParam,
             declared_at: convert_span(&p.span),
-            symbol_type: Some(format!("{:?}", p.param_type)),
+            symbol_type: Some(type_to_string(&p.param_type)),
         }
     }).collect();
 

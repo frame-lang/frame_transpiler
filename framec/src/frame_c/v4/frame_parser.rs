@@ -681,16 +681,11 @@ impl FrameParser {
     }
     
     /// Parse a type
+    /// V4 uses native language types, so we preserve the type name as-is
     fn parse_type(&mut self) -> Result<Type, ParseError> {
         let type_name = self.parse_identifier()?;
-        
-        Ok(match type_name.as_str() {
-            "int" => Type::Int,
-            "float" => Type::Float,
-            "string" | "str" => Type::String,
-            "bool" | "boolean" => Type::Bool,
-            _ => Type::Custom(type_name),
-        })
+        // For V4, always use Custom to preserve the native type name
+        Ok(Type::Custom(type_name))
     }
     
     /// Parse until one of the given characters

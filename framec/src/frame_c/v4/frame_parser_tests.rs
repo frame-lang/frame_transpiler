@@ -120,9 +120,9 @@ mod tests {
             assert_eq!(target.name, "Target");
             assert_eq!(target.params.len(), 2);
             assert_eq!(target.params[0].name, "x");
-            assert_eq!(target.params[0].param_type, Type::Int);
+            assert_eq!(target.params[0].param_type, Type::Custom("int".to_string()));
             assert_eq!(target.params[1].name, "y");
-            assert_eq!(target.params[1].param_type, Type::String);
+            assert_eq!(target.params[1].param_type, Type::Custom("string".to_string()));
         }
     }
     
@@ -276,7 +276,7 @@ mod tests {
             // Check interface
             assert_eq!(system.interface.len(), 1);
             assert_eq!(system.interface[0].name, "getValue");
-            assert_eq!(system.interface[0].return_type, Some(Type::Int));
+            assert_eq!(system.interface[0].return_type, Some(Type::Custom("int".to_string())));
 
             let machine = system.machine.unwrap();
             let active = &machine.states[0];
@@ -357,22 +357,22 @@ mod tests {
             assert_eq!(add.name, "add");
             assert_eq!(add.params.len(), 2);
             assert_eq!(add.params[0].name, "x");
-            assert_eq!(add.params[0].param_type, Type::Int);
+            assert_eq!(add.params[0].param_type, Type::Custom("int".to_string()));
             assert_eq!(add.params[1].name, "y");
-            assert_eq!(add.params[1].param_type, Type::Int);
-            assert_eq!(add.return_type, Some(Type::Int));
+            assert_eq!(add.params[1].param_type, Type::Custom("int".to_string()));
+            assert_eq!(add.return_type, Some(Type::Custom("int".to_string())));
             
             // Check subtract method
             let subtract = &system.interface[1];
             assert_eq!(subtract.name, "subtract");
             assert_eq!(subtract.params.len(), 2);
-            assert_eq!(subtract.return_type, Some(Type::Float));
+            assert_eq!(subtract.return_type, Some(Type::Custom("float".to_string())));
             
             // Check getName method
             let get_name = &system.interface[2];
             assert_eq!(get_name.name, "getName");
             assert_eq!(get_name.params.len(), 0);
-            assert_eq!(get_name.return_type, Some(Type::String));
+            assert_eq!(get_name.return_type, Some(Type::Custom("string".to_string())));
             
             // Check process method (no return type)
             let process = &system.interface[3];
@@ -419,7 +419,7 @@ mod tests {
             assert_eq!(move_forward.name, "moveForward");
             assert_eq!(move_forward.params.len(), 1);
             assert_eq!(move_forward.params[0].name, "distance");
-            assert_eq!(move_forward.params[0].param_type, Type::Float);
+            assert_eq!(move_forward.params[0].param_type, Type::Custom("float".to_string()));
             // Action body stores span only - content is extracted by codegen from source
             assert!(move_forward.body.span.start < move_forward.body.span.end);
             
@@ -432,7 +432,7 @@ mod tests {
             let log = &system.actions[2];
             assert_eq!(log.name, "log");
             assert_eq!(log.params.len(), 1);
-            assert_eq!(log.params[0].param_type, Type::String);
+            assert_eq!(log.params[0].param_type, Type::Custom("string".to_string()));
         }
     }
     
@@ -470,19 +470,19 @@ mod tests {
             let calc = &system.operations[0];
             assert_eq!(calc.name, "calculate");
             assert_eq!(calc.params.len(), 2);
-            assert_eq!(calc.return_type, Type::Int);
+            assert_eq!(calc.return_type, Type::Custom("int".to_string()));
             // Operation body stores span only - content is extracted by codegen from source
             assert!(calc.body.span.start < calc.body.span.end);
             
             // Check isValid operation
             let is_valid = &system.operations[1];
             assert_eq!(is_valid.name, "isValid");
-            assert_eq!(is_valid.return_type, Type::Bool);
+            assert_eq!(is_valid.return_type, Type::Custom("bool".to_string()));
             
             // Check format operation
             let format = &system.operations[2];
             assert_eq!(format.name, "format");
-            assert_eq!(format.return_type, Type::String);
+            assert_eq!(format.return_type, Type::Custom("string".to_string()));
         }
     }
     
@@ -524,12 +524,12 @@ mod tests {
             // Check threshold variable with type
             let threshold = &system.domain[2];
             assert_eq!(threshold.name, "threshold");
-            assert_eq!(threshold.var_type, Type::Int);
+            assert_eq!(threshold.var_type, Type::Custom("int".to_string()));
             
             // Check rate variable
             let rate = &system.domain[3];
             assert_eq!(rate.name, "rate");
-            assert_eq!(rate.var_type, Type::Float);
+            assert_eq!(rate.var_type, Type::Custom("float".to_string()));
             
             // Check active variable
             let active = &system.domain[4];
