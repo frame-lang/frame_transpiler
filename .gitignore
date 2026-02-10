@@ -40,3 +40,4 @@ framec_tests_backup_*.tar.gz
 
 # Miscellaneous test files and debugging artifacts
 .misc/
+framepiler_test_env
