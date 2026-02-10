@@ -10,18 +10,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// These help us measure progress toward V3 sunset
 static V3_COMPILE_COUNT: AtomicUsize = AtomicUsize::new(0);
 static V4_COMPILE_COUNT: AtomicUsize = AtomicUsize::new(0);
-static V3_FALLBACK_COUNT: AtomicUsize = AtomicUsize::new(0);
 
 /// Codegen backend selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CodegenBackend {
-    /// Legacy V3 string-template backend (deprecated)
+    /// Legacy V3 string-template backend (deprecated, will be removed)
     V3Legacy,
-    /// V4 AST-based backend only (no fallback)
-    V4Ast,
-    /// Try V4 first, fall back to V3 on failure (default for compatibility)
+    /// V4 AST-based backend (default - standalone, no fallback)
     #[default]
-    V4WithV3Fallback,
+    V4Ast,
 }
 
 /// Compilation mode
@@ -110,7 +107,6 @@ pub struct PipelineConfig {
 pub struct UsageStats {
     pub v3_compiles: usize,
     pub v4_compiles: usize,
-    pub v3_fallbacks: usize,
 }
 
 impl UsageStats {
@@ -126,7 +122,7 @@ impl UsageStats {
 
     /// Check if we're ready to sunset V3 (100% V4 usage)
     pub fn ready_for_v3_sunset(&self) -> bool {
-        self.v3_compiles == 0 && self.v3_fallbacks == 0 && self.v4_compiles > 0
+        self.v3_compiles == 0 && self.v4_compiles > 0
     }
 }
 
@@ -140,17 +136,11 @@ pub fn record_v4_compile() {
     V4_COMPILE_COUNT.fetch_add(1, Ordering::Relaxed);
 }
 
-/// Record a V3 fallback (V4 failed, fell back to V3)
-pub fn record_v3_fallback() {
-    V3_FALLBACK_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-
 /// Get current usage statistics
 pub fn get_usage_stats() -> UsageStats {
     UsageStats {
         v3_compiles: V3_COMPILE_COUNT.load(Ordering::Relaxed),
         v4_compiles: V4_COMPILE_COUNT.load(Ordering::Relaxed),
-        v3_fallbacks: V3_FALLBACK_COUNT.load(Ordering::Relaxed),
     }
 }
 
@@ -158,7 +148,6 @@ pub fn get_usage_stats() -> UsageStats {
 pub fn reset_usage_stats() {
     V3_COMPILE_COUNT.store(0, Ordering::Relaxed);
     V4_COMPILE_COUNT.store(0, Ordering::Relaxed);
-    V3_FALLBACK_COUNT.store(0, Ordering::Relaxed);
 }
 
 /// Print usage report to stderr
@@ -167,13 +156,11 @@ pub fn print_usage_report() {
     eprintln!("=== Frame V3/V4 Usage Report ===");
     eprintln!("V3 compilations: {}", stats.v3_compiles);
     eprintln!("V4 compilations: {}", stats.v4_compiles);
-    eprintln!("V3 fallbacks:    {}", stats.v3_fallbacks);
     eprintln!("V4 percentage:   {:.1}%", stats.v4_percentage());
     if stats.ready_for_v3_sunset() {
         eprintln!("Status: READY for V3 sunset!");
-    } else if stats.v3_compiles > 0 || stats.v3_fallbacks > 0 {
-        eprintln!("Status: V3 still in use - {} direct + {} fallbacks",
-            stats.v3_compiles, stats.v3_fallbacks);
+    } else if stats.v3_compiles > 0 {
+        eprintln!("Status: V3 still in use - {} compilations", stats.v3_compiles);
     }
     eprintln!("================================");
 }
@@ -239,54 +226,23 @@ impl PipelineConfig {
         }
 
         // V4 backend selection (V4 is now the default)
-        // FRAME_USE_V3=1 - Force legacy V3 backend
-        // FRAME_USE_V4=fallback - Try V4, fall back to V3 on failure
-        // Default (unset) - Use V4
+        // FRAME_USE_V3=1 - Force legacy V3 backend (deprecated)
+        // Default - Use V4 (standalone, no fallback)
         match std::env::var("FRAME_USE_V3").ok().as_deref() {
             Some("1") | Some("true") | Some("yes") => {
                 config.backend = CodegenBackend::V3Legacy;
             }
             _ => {
-                // Check for fallback mode
-                if std::env::var("FRAME_USE_V4").ok().as_deref() == Some("fallback") {
-                    config.backend = CodegenBackend::V4WithV3Fallback;
-                } else {
-                    config.backend = CodegenBackend::V4Ast;
-                }
+                config.backend = CodegenBackend::V4Ast;
             }
         }
 
         config
     }
 
-    /// Create a V4-only configuration (for testing new backend)
-    pub fn v4_production(target: TargetLanguage) -> Self {
-        Self {
-            target,
-            mode: CompileMode::Production,
-            backend: CodegenBackend::V4Ast,
-            ..Default::default()
-        }
-    }
-
-    /// Create a V4-with-fallback configuration (for gradual migration)
-    pub fn v4_with_fallback(target: TargetLanguage) -> Self {
-        Self {
-            target,
-            mode: CompileMode::Production,
-            backend: CodegenBackend::V4WithV3Fallback,
-            ..Default::default()
-        }
-    }
-
     /// Check if this config uses V4 backend
     pub fn uses_v4(&self) -> bool {
-        matches!(self.backend, CodegenBackend::V4Ast | CodegenBackend::V4WithV3Fallback)
-    }
-
-    /// Check if this config allows V3 fallback
-    pub fn allows_v3_fallback(&self) -> bool {
-        matches!(self.backend, CodegenBackend::V3Legacy | CodegenBackend::V4WithV3Fallback)
+        matches!(self.backend, CodegenBackend::V4Ast)
     }
 }
 
@@ -329,22 +285,6 @@ mod tests {
     }
 
     #[test]
-    fn test_v4_production_config() {
-        let config = PipelineConfig::v4_production(TargetLanguage::Python3);
-        assert_eq!(config.backend, CodegenBackend::V4Ast);
-        assert!(config.uses_v4());
-        assert!(!config.allows_v3_fallback());
-    }
-
-    #[test]
-    fn test_v4_with_fallback_config() {
-        let config = PipelineConfig::v4_with_fallback(TargetLanguage::Python3);
-        assert_eq!(config.backend, CodegenBackend::V4WithV3Fallback);
-        assert!(config.uses_v4());
-        assert!(config.allows_v3_fallback());
-    }
-
-    #[test]
     fn test_usage_stats() {
         // Reset counters first
         reset_usage_stats();
@@ -357,13 +297,12 @@ mod tests {
         let stats = get_usage_stats();
         assert_eq!(stats.v3_compiles, 2);
         assert_eq!(stats.v4_compiles, 1);
-        assert_eq!(stats.v3_fallbacks, 0);
 
         // V4 percentage should be 33.3%
         let pct = stats.v4_percentage();
         assert!(pct > 33.0 && pct < 34.0);
 
-        // Not ready for sunset
+        // Not ready for sunset (V3 still used)
         assert!(!stats.ready_for_v3_sunset());
 
         // Clean up
@@ -381,19 +320,6 @@ mod tests {
         let stats = get_usage_stats();
         assert!(stats.ready_for_v3_sunset());
         assert_eq!(stats.v4_percentage(), 100.0);
-
-        reset_usage_stats();
-    }
-
-    #[test]
-    fn test_fallback_prevents_sunset() {
-        reset_usage_stats();
-
-        record_v4_compile();
-        record_v3_fallback();
-
-        let stats = get_usage_stats();
-        assert!(!stats.ready_for_v3_sunset());
 
         reset_usage_stats();
     }

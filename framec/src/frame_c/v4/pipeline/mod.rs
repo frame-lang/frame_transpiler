@@ -15,7 +15,7 @@ pub use traits::{get_region_scanner, RegionScannerTrait};
 pub use config::{
     PipelineConfig, CompileMode, TrailerConfig, ValidationConfig,
     CodegenBackend, UsageStats,
-    record_v3_compile, record_v4_compile, record_v3_fallback,
+    record_v3_compile, record_v4_compile,
     get_usage_stats, reset_usage_stats, print_usage_report,
 };
 pub use compiler::{compile_module, compile_ast_based, CompileResult, CompileError};

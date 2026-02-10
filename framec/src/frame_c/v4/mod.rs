@@ -52,7 +52,7 @@ pub mod codegen;
 pub use pipeline::{
     PipelineConfig, CompileMode, compile_ast_based, CompileResult, CompileError,
     CodegenBackend, UsageStats,
-    record_v3_compile, record_v4_compile, record_v3_fallback,
+    record_v3_compile, record_v4_compile,
     get_usage_stats, reset_usage_stats, print_usage_report,
 };
 pub use codegen::{CodegenNode, LanguageBackend, get_backend, generate_system};
@@ -462,25 +462,17 @@ fn find_start_state_name(
 pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String, RunError> {
     use crate::frame_c::v4::pipeline::config::{
         CodegenBackend, PipelineConfig,
-        record_v3_compile, record_v4_compile, record_v3_fallback,
+        record_v3_compile, record_v4_compile,
     };
 
-    // Check backend preference from environment (V4WithV3Fallback is default for compatibility)
+    // Check backend preference from environment (V4Ast is default - standalone, no fallback)
     let backend = match std::env::var("FRAME_USE_V3").ok().as_deref() {
         Some("1") | Some("true") | Some("yes") => CodegenBackend::V3Legacy,
-        _ => {
-            // Check for V4-only mode (no fallback)
-            if std::env::var("FRAME_USE_V4").ok().as_deref() == Some("strict") {
-                CodegenBackend::V4Ast
-            } else {
-                // Default: try V4 first, fall back to V3 for compatibility
-                CodegenBackend::V4WithV3Fallback
-            }
-        }
+        _ => CodegenBackend::V4Ast,
     };
 
-    // V4 AST-based compilation path
-    if matches!(backend, CodegenBackend::V4Ast | CodegenBackend::V4WithV3Fallback) {
+    // V4 AST-based compilation path (default - standalone, no fallback)
+    if matches!(backend, CodegenBackend::V4Ast) {
         let config = PipelineConfig {
             target: lang,
             backend,
@@ -494,37 +486,18 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
                 return Ok(result.code);
             }
             Ok(result) => {
-                // V4 had errors
-                if matches!(backend, CodegenBackend::V4WithV3Fallback) {
-                    // Fall through to V3
-                    record_v3_fallback();
-                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("[compile_module] V4 had {} errors, falling back to V3", result.errors.len());
-                        for err in &result.errors {
-                            eprintln!("  {}: {}", err.code, err.message);
-                        }
-                    }
-                } else {
-                    // V4 only - return error
-                    let error_msgs: Vec<String> = result.errors
-                        .iter()
-                        .map(|e| format!("{}: {}", e.code, e.message))
-                        .collect();
-                    return Err(RunError::new(
-                        frame_exitcode::CONFIG_ERR,
-                        &format!("V4 compilation failed:\n{}", error_msgs.join("\n"))
-                    ));
-                }
+                // V4 had errors - return them (no fallback)
+                let error_msgs: Vec<String> = result.errors
+                    .iter()
+                    .map(|e| format!("{}: {}", e.code, e.message))
+                    .collect();
+                return Err(RunError::new(
+                    frame_exitcode::CONFIG_ERR,
+                    &format!("V4 compilation failed:\n{}", error_msgs.join("\n"))
+                ));
             }
             Err(e) => {
-                if matches!(backend, CodegenBackend::V4WithV3Fallback) {
-                    record_v3_fallback();
-                    if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-                        eprintln!("[compile_module] V4 failed: {:?}, falling back to V3", e);
-                    }
-                } else {
-                    return Err(e);
-                }
+                return Err(e);
             }
         }
     } else {

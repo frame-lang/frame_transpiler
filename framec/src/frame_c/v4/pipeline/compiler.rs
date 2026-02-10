@@ -61,7 +61,7 @@ impl CompileError {
 /// # Returns
 /// A CompileResult containing the generated code (or validation results)
 pub fn compile_module(source: &[u8], config: &PipelineConfig) -> Result<CompileResult, RunError> {
-    use super::config::{CodegenBackend, record_v3_compile, record_v4_compile, record_v3_fallback};
+    use super::config::{CodegenBackend, record_v3_compile, record_v4_compile};
 
     // Debug output if enabled
     if config.debug {
@@ -84,47 +84,6 @@ pub fn compile_module(source: &[u8], config: &PipelineConfig) -> Result<CompileR
             let result = compile_ast_based(source, config)?;
             record_v4_compile();
             Ok(result)
-        }
-        CodegenBackend::V4WithV3Fallback => {
-            // Try V4 first, fall back to V3 on failure
-            if config.debug {
-                eprintln!("[compile_module] Trying V4 with V3 fallback");
-            }
-            match compile_ast_based(source, config) {
-                Ok(result) if result.errors.is_empty() => {
-                    record_v4_compile();
-                    Ok(result)
-                }
-                Ok(result) => {
-                    // V4 had errors, fall back to V3
-                    if config.debug {
-                        eprintln!("[compile_module] V4 had {} errors, falling back to V3",
-                            result.errors.len());
-                    }
-                    record_v3_fallback();
-                    let code = compile_with_v3_pipeline(source, config)?;
-                    Ok(CompileResult {
-                        code,
-                        errors: vec![],
-                        warnings: vec![],
-                        source_map: None,
-                    })
-                }
-                Err(e) => {
-                    // V4 failed completely, fall back to V3
-                    if config.debug {
-                        eprintln!("[compile_module] V4 failed: {:?}, falling back to V3", e);
-                    }
-                    record_v3_fallback();
-                    let code = compile_with_v3_pipeline(source, config)?;
-                    Ok(CompileResult {
-                        code,
-                        errors: vec![],
-                        warnings: vec![],
-                        source_map: None,
-                    })
-                }
-            }
         }
         CodegenBackend::V3Legacy => {
             // Pure V3 legacy path
