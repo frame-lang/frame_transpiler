@@ -47,6 +47,14 @@ impl FrameParser {
         // This handles @@target, @@run-expect, @@skip-if, and any future pragmas
         self.skip_pragmas();
 
+        // Skip any native preamble (imports, def, fn, etc.) until we find
+        // @@system, @@module, or module keyword. This handles files like:
+        //   @@target python
+        //   import math
+        //   def helper(): pass
+        //   @@system Foo { ... }
+        self.skip_native_preamble();
+
         // Check if this is a module or a single system
         if self.is_module() {
             self.parse_module_ast()
@@ -55,6 +63,93 @@ impl FrameParser {
             let system = self.parse_system()?;
             Ok(FrameAst::System(system))
         }
+    }
+
+    /// Skip native code preamble until we reach a Frame structural element
+    ///
+    /// This skips everything (native code, comments, etc.) until we find
+    /// @@system, @@module, or module keyword at the start of a line.
+    fn skip_native_preamble(&mut self) {
+        let debug = std::env::var("FRAME_PARSER_DEBUG").is_ok();
+
+        while self.cursor < self.source.len() {
+            self.skip_whitespace();
+
+            if debug {
+                let preview: String = self.source[self.cursor..].iter()
+                    .take(40)
+                    .map(|&b| b as char)
+                    .collect();
+                eprintln!("[skip_native_preamble] cursor={}, preview={:?}", self.cursor, preview);
+            }
+
+            // Stop if we're at @@system, @@module, or module keyword
+            if self.peek_string("@@system") || self.peek_string("@@module") || self.peek_string("module ") {
+                if debug { eprintln!("[skip_native_preamble] Found Frame keyword, stopping"); }
+                break;
+            }
+
+            // Stop if we're at EOF
+            if self.cursor >= self.source.len() {
+                break;
+            }
+
+            // Skip this line (whatever it is - native code, comment, etc.)
+            while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
+                self.cursor += 1;
+            }
+            if self.cursor < self.source.len() {
+                self.cursor += 1; // Skip newline
+            }
+        }
+    }
+
+    /// Check if current position looks like native code (not Frame)
+    fn is_native_line(&self) -> bool {
+        if self.cursor >= self.source.len() {
+            return false;
+        }
+
+        // Common native code patterns
+        let native_prefixes = [
+            b"import ".as_slice(),
+            b"from ".as_slice(),
+            b"def ".as_slice(),
+            b"class ".as_slice(),
+            b"fn ".as_slice(),
+            b"pub ".as_slice(),
+            b"async ".as_slice(),
+            b"const ".as_slice(),
+            b"let ".as_slice(),
+            b"var ".as_slice(),
+            b"function ".as_slice(),
+            b"export ".as_slice(),
+            b"use ".as_slice(),
+            b"#[".as_slice(),  // Rust attribute
+            b"#include".as_slice(),
+            b"#define".as_slice(),
+            b"using ".as_slice(),
+            b"namespace ".as_slice(),
+            b"package ".as_slice(),
+        ];
+
+        let remaining = &self.source[self.cursor..];
+        for prefix in native_prefixes {
+            if remaining.starts_with(prefix) {
+                return true;
+            }
+        }
+
+        // Also treat empty lines and comments as "native" (to skip)
+        if remaining.starts_with(b"#") && !remaining.starts_with(b"#[") {
+            // Python/shell comment (but not Rust attribute)
+            return true;
+        }
+        if remaining.starts_with(b"//") || remaining.starts_with(b"/*") {
+            return true;
+        }
+
+        false
     }
 
     /// Skip unknown @@ pragmas (@@target, @@run-expect, etc.)
@@ -96,11 +191,31 @@ impl FrameParser {
         }
     }
     
-    /// Check if the source defines a module
+    /// Check if the source defines a module (vs single system)
     fn is_module(&self) -> bool {
-        // Look for module keyword or multiple systems
         let content = String::from_utf8_lossy(&self.source);
-        content.contains("module ") || content.matches("system ").count() > 1
+
+        // Explicit module declaration
+        if content.contains("module ") {
+            return true;
+        }
+
+        // Multiple systems
+        if content.matches("@@system ").count() > 1 || content.matches("system ").count() > 1 {
+            return true;
+        }
+
+        // Top-level fn definitions without @@system (pure fn module)
+        if content.contains("\nfn ") && !content.contains("@@system") {
+            return true;
+        }
+
+        // Has no @@system at all - treat as native module
+        if !content.contains("@@system") {
+            return true;
+        }
+
+        false
     }
     
     /// Parse a module with multiple systems
