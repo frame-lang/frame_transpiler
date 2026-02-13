@@ -277,7 +277,7 @@ impl FrameBuild {
                     let path_clone = input_path_str.clone();
                     let framec_result = std::panic::catch_unwind(move || {
                         if content_clone.contains("@target ") {
-                            framec::frame_c::v3::compile_module(&content_clone, target)
+                            framec::frame_c::v4::compile_module(&content_clone, target)
                         } else {
                             Err(RunError::new(70, "Frame files must specify @target language. Demo mode has been removed."))
                         }

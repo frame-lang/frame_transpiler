@@ -13,7 +13,7 @@ pub fn run(frame_code: &str, format: &str) -> String {
     match TargetLanguage::try_from(format) {
         Ok(target) => {
             if frame_code.contains("@target ") {
-                let result = crate::frame_c::v3::compile_module(frame_code, target);
+                let result = crate::frame_c::v4::compile_module(frame_code, target);
                 match result {
                     Ok(code) => code,
                     Err(run_error) => {

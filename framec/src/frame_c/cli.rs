@@ -310,11 +310,6 @@ impl Default for Cli {
 
 pub fn run() {
     run_with(Cli::new());
-
-    // Print V3/V4 usage report if requested
-    if std::env::var("FRAME_USAGE_REPORT").ok().as_deref() == Some("1") {
-        crate::frame_c::v4::print_usage_report();
-    }
 }
 
 pub fn run_with(args: Cli) {
@@ -359,7 +354,7 @@ pub fn run_with(args: Cli) {
                 .to_path_buf();
 
             // Create test configuration from CLI options
-            let test_config = crate::frame_c::v3::test_harness_rs::TestConfig {
+            let test_config = crate::frame_c::v4::test_harness_rs::TestConfig {
                 parallel_workers: parallel,
                 test_timeout: timeout,
                 verbose: false,
@@ -368,14 +363,14 @@ pub fn run_with(args: Cli) {
             // Exec-smoke mode
             if exec_smoke {
                 let summary = match harness_lang.as_str() {
-                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_exec_smoke_with_config(
+                    "rust" => crate::frame_c::v4::test_harness_rs::run_rust_exec_smoke_with_config(
                         &repo_root,
                         &framec_path,
                         &category,
                         metadata_filter.as_deref(),
                         &test_config,
                     ),
-                    "python" => crate::frame_c::v3::test_harness_rs::run_python_exec_smoke_with_config(
+                    "python" => crate::frame_c::v4::test_harness_rs::run_python_exec_smoke_with_config(
                         &repo_root,
                         &framec_path,
                         &category,
@@ -383,7 +378,7 @@ pub fn run_with(args: Cli) {
                         &test_config,
                     ),
                     "typescript" => {
-                        crate::frame_c::v3::test_harness_rs::run_typescript_exec_smoke_with_config(
+                        crate::frame_c::v4::test_harness_rs::run_typescript_exec_smoke_with_config(
                             &repo_root,
                             &framec_path,
                             &category,
@@ -418,17 +413,17 @@ pub fn run_with(args: Cli) {
             // Exec-curated mode
             if exec_curated {
                 let summary = match harness_lang.as_str() {
-                    "rust" => crate::frame_c::v3::test_harness_rs::run_rust_curated_exec_for_category(
+                    "rust" => crate::frame_c::v4::test_harness_rs::run_rust_curated_exec_for_category(
                         &repo_root,
                         &framec_path,
                         &category,
                     ),
-                    "python" => crate::frame_c::v3::test_harness_rs::run_python_curated_exec_for_category(
+                    "python" => crate::frame_c::v4::test_harness_rs::run_python_curated_exec_for_category(
                         &repo_root,
                         &framec_path,
                         &category,
                     ),
-                    "typescript" => crate::frame_c::v3::test_harness_rs::run_typescript_curated_exec_for_category(
+                    "typescript" => crate::frame_c::v4::test_harness_rs::run_typescript_curated_exec_for_category(
                         &repo_root,
                         &framec_path,
                         &category,
@@ -459,7 +454,7 @@ pub fn run_with(args: Cli) {
 
             // Default: validation-only mode.
             // Pass Docker flag through test config
-            let summary = match crate::frame_c::v3::test_harness_rs::run_validation_for_category_with_config(
+            let summary = match crate::frame_c::v4::test_harness_rs::run_validation_for_category_with_config(
                 &repo_root,
                 &framec_path,
                 &harness_lang,
@@ -714,12 +709,12 @@ pub fn run_with(args: Cli) {
                     continue;
                 }
                 // Check for duplicate system names across modules (best-effort)
-                if let Some(sys_name) = crate::frame_c::v3::find_system_name(content.as_bytes(), 0) {
+                if let Some(sys_name) = crate::frame_c::v4::find_system_name(content.as_bytes(), 0) {
                     let entry = dup_systems.entry(sys_name).or_insert_with(Vec::new);
                     entry.push(f.clone());
                 }
                 if args.validate || args.validate_only {
-                    match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
+                    match crate::frame_c::v4::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                         Ok(res) => {
                             let mut had_any = false;
                             for issue in &res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); had_any = true; }
@@ -733,7 +728,7 @@ pub fn run_with(args: Cli) {
                     }
                 }
                 if args.validate_only { continue; }
-                match crate::frame_c::v3::compile_module(&content, lang) {
+                match crate::frame_c::v4::compile_module(&content, lang) {
                     Ok(code) => {
                         let ext = match lang { TargetLanguage::Python3 => ".py", TargetLanguage::TypeScript => ".ts", TargetLanguage::CSharp => ".cs", TargetLanguage::C => ".c", TargetLanguage::Cpp => ".cpp", TargetLanguage::Java => ".java", TargetLanguage::Rust => ".rs", _ => ".txt" };
                         let _stem = f.file_stem().and_then(|s| s.to_str()).unwrap_or("out");
@@ -989,18 +984,18 @@ pub fn run_with(args: Cli) {
                             }
                         }
                         // Build Arcanum by merging AST-based symbol tables from each module file
-                        let mut arc = crate::frame_c::v3::arcanum::Arcanum::new();
+                        let mut arc = crate::frame_c::v4::arcanum::Arcanum::new();
                         for (_p, content) in &module_files {
                             let bytes = content.as_bytes();
-                            let module_ast = crate::frame_c::v3::system_parser::SystemParserV3::parse_module(bytes, lang);
-                            let a = crate::frame_c::v3::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
+                            let module_ast = crate::frame_c::v4::system_parser::SystemParserV3::parse_module(bytes, lang);
+                            let a = crate::frame_c::v4::arcanum::build_arcanum_from_module_ast(bytes, &module_ast);
                             // merge into arc (simple overlay keyed by system name)
                             for (k, v) in a.systems.into_iter() { arc.systems.entry(k).or_insert(v); }
                         }
                         for f in files {
                             if let Ok(content) = std::fs::read_to_string(&f) {
                                 if content.contains("@target ") {
-                                    match super::v3::validate_module_with_arcanum(&content, lang, &arc, false) {
+                                    match super::v4::validate_module_with_arcanum(&content, lang, &arc, false) {
                                         Ok(res) => {
                                             let mut had_any = false;
                                             for issue in &res.issues { eprintln!("{}: validation: {}", f.display(), issue.message); had_any = true; }
@@ -1048,7 +1043,7 @@ pub fn run_with(args: Cli) {
                         std::env::set_var("FRAME_DEBUG_MANIFEST", "1");
                     }
                     if args.validate || args.validate_only {
-                        match crate::frame_c::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
+                        match crate::frame_c::v4::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                             Ok(res) => {
                                 for issue in res.issues { eprintln!("{}: validation: {}", file.display(), issue.message); }
                                 if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }
@@ -1058,7 +1053,7 @@ pub fn run_with(args: Cli) {
                             Err(e) => { eprintln!("{}: validation error: {}", file.display(), e.error); if args.validate_only || args.validate_native { std::process::exit(e.code); } }
                         }
                     }
-                    match crate::frame_c::v3::compile_module(&content, lang) {
+                    match crate::frame_c::v4::compile_module(&content, lang) {
                         Ok(code) => { println!("{}", code); }
                         Err(e) => { eprintln!("{}", e.error); std::process::exit(e.code); }
                     }
@@ -1091,7 +1086,7 @@ pub fn run_with(args: Cli) {
             if is_module {
                 // Require target language
                 let lang = target_language.unwrap_or(TargetLanguage::Python3);
-                match super::v3::validate_module_demo_with_mode(&content, lang, args.validate_native) {
+                match super::v4::validate_module_demo_with_mode(&content, lang, args.validate_native) {
                     Ok(res) => {
                         for issue in res.issues { eprintln!("validation: {}", issue.message); }
                         if args.validate_only { std::process::exit(if res.ok { 0 } else { exitcode::DATAERR }); }

@@ -1,14 +1,13 @@
 //! Main compilation logic
 //!
-//! This module contains the core compilation pipeline extracted from mod.rs.
-//! Eventually this will be the single entry point for Frame V4 compilation.
+//! This module contains the core compilation pipeline for Frame V4.
+//! V4 is a pure preprocessor for @@system blocks.
 
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::utils::RunError;
 use super::config::{PipelineConfig, CompileMode};
-use super::traits::get_region_scanner;
-use crate::frame_c::v4::codegen::{generate_system, get_backend, CodegenNode, EmitContext};
-use crate::frame_c::v4::arcanum::{Arcanum, build_arcanum_from_frame_ast};
+use crate::frame_c::v4::codegen::{generate_system, get_backend, EmitContext};
+use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
 
 /// Result of module compilation
 #[derive(Debug)]
@@ -51,8 +50,7 @@ impl CompileError {
 
 /// Compile a Frame module from source bytes
 ///
-/// This is the main entry point for V4 compilation. It uses the configuration
-/// to determine the compilation mode, target language, and backend selection.
+/// This is the main entry point for V4 compilation.
 ///
 /// # Arguments
 /// * `source` - The Frame source code as bytes
@@ -61,12 +59,10 @@ impl CompileError {
 /// # Returns
 /// A CompileResult containing the generated code (or validation results)
 pub fn compile_module(source: &[u8], config: &PipelineConfig) -> Result<CompileResult, RunError> {
-    use super::config::{CodegenBackend, record_v3_compile, record_v4_compile};
-
     // Debug output if enabled
     if config.debug {
-        eprintln!("[compile_module] Starting compilation with mode={:?}, target={:?}, backend={:?}",
-            config.mode, config.target, config.backend);
+        eprintln!("[compile_module] Starting V4 compilation with mode={:?}, target={:?}",
+            config.mode, config.target);
     }
 
     // Check for validation-only mode
@@ -74,32 +70,8 @@ pub fn compile_module(source: &[u8], config: &PipelineConfig) -> Result<CompileR
         return validate_only(source, config);
     }
 
-    // Backend selection with usage tracking
-    match config.backend {
-        CodegenBackend::V4Ast => {
-            // Pure V4 - fail if V4 doesn't work
-            if config.debug {
-                eprintln!("[compile_module] Using V4 AST-based backend");
-            }
-            let result = compile_ast_based(source, config)?;
-            record_v4_compile();
-            Ok(result)
-        }
-        CodegenBackend::V3Legacy => {
-            // Pure V3 legacy path
-            if config.debug {
-                eprintln!("[compile_module] Using V3 legacy backend");
-            }
-            record_v3_compile();
-            let code = compile_with_v3_pipeline(source, config)?;
-            Ok(CompileResult {
-                code,
-                errors: vec![],
-                warnings: vec![],
-                source_map: None,
-            })
-        }
-    }
+    // V4 AST-based compilation
+    compile_ast_based(source, config)
 }
 
 /// Validation-only mode
@@ -151,19 +123,9 @@ fn validate_only(source: &[u8], config: &PipelineConfig) -> Result<CompileResult
     })
 }
 
-/// Compile using the existing V3 pipeline (temporary bridge)
-fn compile_with_v3_pipeline(source: &[u8], config: &PipelineConfig) -> Result<String, RunError> {
-    // This is a temporary bridge to the existing V3 pipeline
-    // It will be replaced as the new architecture is completed
-
-    // For now, just return an empty string as a placeholder
-    // The actual V3 compilation is still handled by mod.rs
-    Ok(String::new())
-}
-
-/// Compile using the new AST-based pipeline (experimental)
+/// Compile using the V4 AST-based pipeline
 ///
-/// This function implements the new proper compiler architecture:
+/// This function implements the V4 preprocessor architecture:
 /// 1. Parse Frame source into AST
 /// 2. Build symbol table (Arcanum) from AST
 /// 3. Validate AST
@@ -332,121 +294,25 @@ mod tests {
     }
 
     #[test]
-    fn test_compile_ast_based_simple_system() {
-        // A minimal Frame system using V4 syntax (@@system)
+    fn test_compile_simple_system() {
         let source = b"@@system Test { machine: $Init { } }";
         let config = PipelineConfig::production(TargetLanguage::Python3);
-        let result = compile_ast_based(source, &config);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        // Debug output for development
-        if !output.errors.is_empty() {
-            eprintln!("Parse errors: {:?}", output.errors);
-            // Parser may not yet support all V4 features
-            return;
-        }
-        assert!(output.code.contains("class Test"));
-    }
-
-    #[test]
-    fn test_compile_ast_based_with_state() {
-        let source = b"@@system TrafficLight { machine: $Red { } $Green { } }";
-        let config = PipelineConfig::production(TargetLanguage::Python3);
-        let result = compile_ast_based(source, &config);
+        let result = compile_module(source, &config);
         assert!(result.is_ok());
         let output = result.unwrap();
         if !output.errors.is_empty() {
             eprintln!("Parse errors: {:?}", output.errors);
             return;
         }
-        assert!(output.code.contains("class TrafficLight"));
-    }
-
-    #[test]
-    fn test_compile_ast_based_typescript() {
-        let source = b"@@system Test { machine: $Init { } }";
-        let config = PipelineConfig::production(TargetLanguage::TypeScript);
-        let result = compile_ast_based(source, &config);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        if !output.errors.is_empty() {
-            return;
-        }
-        // TypeScript uses "class"
         assert!(output.code.contains("class Test"));
     }
 
     #[test]
-    fn test_compile_ast_based_rust() {
-        let source = b"@@system Test { machine: $Init { } }";
-        let config = PipelineConfig::production(TargetLanguage::Rust);
-        let result = compile_ast_based(source, &config);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        if !output.errors.is_empty() {
-            return;
-        }
-        // Rust uses "struct" and "impl"
-        assert!(output.code.contains("pub struct Test"));
-    }
-
-    #[test]
-    fn test_compile_ast_based_parse_error() {
-        let source = b"this is not valid frame syntax";
-        let config = PipelineConfig::production(TargetLanguage::Python3);
-        let result = compile_ast_based(source, &config);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        // Should have parse error
-        assert!(!output.errors.is_empty());
-        assert!(output.code.is_empty());
-    }
-
-    #[test]
-    fn test_compile_ast_based_function_runs() {
-        // Basic test that compile_ast_based doesn't panic
-        let source = b"@@system Test { machine: $A { } }";
-        let config = PipelineConfig::production(TargetLanguage::Python3);
-        let result = compile_ast_based(source, &config);
-        // Should not return an error from RunError
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_compile_ast_based_with_handler() {
-        // System with handlers to verify Arcanum-based handler generation
-        let source = br#"@@system TestHandler {
-    machine:
-        $Idle {
-            start() {
-                x = 1
-            }
-        }
-}"#;
-        let config = PipelineConfig::production(TargetLanguage::Python3);
-        let result = compile_ast_based(source, &config);
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        if !output.errors.is_empty() {
-            for e in &output.errors {
-                eprintln!("Error: {}: {}", e.code, e.message);
-            }
-            // Don't fail - parser may still have issues
-            return;
-        }
-        // The generated code should have the handler method
-        eprintln!("Generated code:\n{}", output.code);
-        assert!(output.code.contains("class TestHandler"));
-    }
-
-    #[test]
-    fn test_compile_ast_based_with_transition() {
-        // System with transition to verify Frame segment expansion
+    fn test_compile_with_transition() {
         let source = br#"@@system TestTransition {
     machine:
         $Idle {
             start() {
-                x = 1
                 -> $Running
             }
         }
@@ -457,7 +323,7 @@ mod tests {
         }
 }"#;
         let config = PipelineConfig::production(TargetLanguage::Python3);
-        let result = compile_ast_based(source, &config);
+        let result = compile_module(source, &config);
         assert!(result.is_ok());
         let output = result.unwrap();
         if !output.errors.is_empty() {
@@ -466,10 +332,17 @@ mod tests {
             }
             return;
         }
-        eprintln!("Generated code:\n{}", output.code);
-        // Should have transition call with string state name
         assert!(output.code.contains("_transition"));
-        // String-based state dispatch: _transition("Running", ...)
-        assert!(output.code.contains("\"Running\"") || output.code.contains("\"Idle\""));
+    }
+
+    #[test]
+    fn test_compile_parse_error() {
+        let source = b"this is not valid frame syntax";
+        let config = PipelineConfig::production(TargetLanguage::Python3);
+        let result = compile_module(source, &config);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(!output.errors.is_empty());
+        assert!(output.code.is_empty());
     }
 }

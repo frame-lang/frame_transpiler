@@ -1,5 +1,4 @@
 use crate::frame_c::utils::RunError;
-use crate::frame_c::v3::CompilerV3;
 pub use crate::frame_c::visitors::TargetLanguage;
 use exitcode;
 use std::fs;
@@ -73,7 +72,7 @@ impl Exe {
         _target_language: Option<TargetLanguage>,
         _output_dir: Option<PathBuf>,
     ) -> Result<String, RunError> {
-        CompilerV3::compile_multifile_unsupported()
+        Err(RunError::new(exitcode::USAGE, "Multi-file compilation not supported in V4"))
     }
 
     pub fn run_stdin(&self, target_language: Option<TargetLanguage>) -> Result<String, RunError> {
