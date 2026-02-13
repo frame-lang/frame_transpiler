@@ -835,7 +835,8 @@ fn generate_operation(operation: &OperationAst, syntax: &super::backend::ClassSy
 
 /// Extract body content from source using span
 ///
-/// Strips the outer braces and extracts the inner content
+/// Strips the outer braces and extracts the inner content while preserving
+/// consistent line-by-line indentation for proper re-indentation by backends.
 fn extract_body_content(source: &[u8], span: &crate::frame_c::v4::frame_ast::Span) -> String {
     let bytes = &source[span.start..span.end];
     let content = String::from_utf8_lossy(bytes).to_string();
@@ -843,7 +844,22 @@ fn extract_body_content(source: &[u8], span: &crate::frame_c::v4::frame_ast::Spa
     // Strip outer braces if present
     let trimmed = content.trim();
     if trimmed.starts_with('{') && trimmed.ends_with('}') {
-        trimmed[1..trimmed.len()-1].trim().to_string()
+        // Extract content between braces
+        let inner = &trimmed[1..trimmed.len()-1];
+
+        // Split into lines, preserving structure
+        let lines: Vec<&str> = inner.lines().collect();
+
+        // Skip leading and trailing empty lines, but preserve internal structure
+        let start = lines.iter().position(|l| !l.trim().is_empty()).unwrap_or(0);
+        let end = lines.iter().rposition(|l| !l.trim().is_empty()).map(|i| i + 1).unwrap_or(lines.len());
+
+        if start >= end {
+            return String::new();
+        }
+
+        // Return lines with preserved indentation - let NativeBlock emitter normalize
+        lines[start..end].join("\n")
     } else {
         trimmed.to_string()
     }

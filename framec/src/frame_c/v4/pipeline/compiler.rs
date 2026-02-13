@@ -244,9 +244,21 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
 
     let code = match &ast {
         FrameAst::System(system) => {
+            let mut result = String::new();
+
+            // Add runtime imports
+            for import in backend.runtime_imports() {
+                result.push_str(&import);
+                result.push('\n');
+            }
+            if !backend.runtime_imports().is_empty() {
+                result.push('\n');
+            }
+
             ctx = ctx.with_system(&system.name);
             let codegen_node = generate_system(system, &arcanum, config.target, source);
-            backend.emit(&codegen_node, &mut ctx)
+            result.push_str(&backend.emit(&codegen_node, &mut ctx));
+            result
         }
         FrameAst::Module(module) => {
             // Generate code for each system in the module

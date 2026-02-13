@@ -1,165 +1,190 @@
-# Frame V4 Implementation - Critical Context for Claude
+# Frame V4 Implementation - Claude Context
 
-## 🚨 CRITICAL: V4 Implementation Approach 🚨
+## Architecture Summary
 
-### NEVER DO THIS:
-```python
-# ❌ WRONG - String manipulation
-if line.startswith("@@system"):
-    rest = line[8:].strip()
-if trimmed.starts_with("-> $"):
-    state = trimmed[4:]
+**Frame V4 is a preprocessor.** It:
+- Parses Frame syntax (@@system, states, transitions)
+- Validates Frame semantics (Arcanum symbol table)
+- Generates target language code
+- Preserves native code exactly as written
+
+**Frame does NOT parse native code.** That's the target compiler's job.
+
+## Key Documents
+
+Read these for complete understanding:
+
+1. **[docs/framelang_design/architecture_v4/README.md](docs/framelang_design/architecture_v4/README.md)** - V4 architecture overview
+2. **[docs/framelang_design/architecture_v4/TWO_PASS_ARCHITECTURE.md](docs/framelang_design/architecture_v4/TWO_PASS_ARCHITECTURE.md)** - Two-pass validation model
+3. **[docs/plans/VALIDATION_EXPANSION_PLAN.md](docs/plans/VALIDATION_EXPANSION_PLAN.md)** - Planned validation improvements
+4. **[docs/architecture_v5/PLAN.md](docs/architecture_v5/PLAN.md)** - Future native compiler integration (V5)
+
+## Two-Pass Validation Model
+
+| Pass | When | What | Who |
+|------|------|------|-----|
+| **Pass 1** | Transpile-time | Frame semantics | Frame compiler |
+| **Pass 2** | Compile/Run-time | Native semantics | Target compiler (pyc/tsc/rustc) |
+
+**Frame validates:**
+- State existence (`-> $Unknown` → E402)
+- Parent existence for forward
+- Parameter arity
+- Terminal statement position
+- Section ordering
+
+**Native compiler validates:**
+- Variable existence
+- Type compatibility
+- Import resolution
+- Syntax correctness
+
+## The Oceans Model
+
+Native code is the "ocean". Frame constructs are "islands".
+
+```
+Handler Body:
+┌─────────────────────────────────────────────┐
+│ x = compute_value()        ← Ocean (native) │
+│ if x > threshold:          ← Ocean (native) │
+│     -> $Exceeded           ← Island (Frame) │
+└─────────────────────────────────────────────┘
 ```
 
-### ALWAYS DO THIS:
-```rust
-// ✅ RIGHT - State machine scanning
-// Use v3's proven components:
-// - module_partitioner (DPDA-based)
-// - native_region_scanner (state machine)
-// - frame_statement_parser (proper parsing)
-// - expander (MIR → target code)
+- **NativeRegionScanner** finds Frame islands
+- **Splicer** replaces islands with generated code
+- Native code passes through unchanged
+
+## Pipeline
+
+```
+Source (.frm)
+     │
+     ├──→ Frame Parser ──→ Frame AST
+     │                         │
+     │                         ▼
+     │                     Arcanum (symbol table)
+     │                         │
+     │                         ▼
+     │                     Validator (E4xx errors)
+     │                         │
+     │                         ▼
+     │                     Codegen (CodegenNode IR)
+     │                         │
+     │                         ▼
+     │                     Backend (Python/Rust/TS)
+     │                         │
+     ▼                         ▼
+Native code ─────────────→ Target code
+(preserved)                (generated + native)
 ```
 
-## V4 Architecture Philosophy
+## V4 Syntax
 
-**V4 builds on V3's solid foundation - NOT a rewrite!**
+```frame
+@@target python_3
 
-1. **V3 Pipeline is PROVEN and SOLID**
-   - Module Partitioner → Native Region Scanner → MIR Assembler → Expander → Splicer
-   - This pipeline works! 75% tests passing, clean separation of concerns
-   - The "oceans model" (native code ocean, Frame statement islands) is correct
+# Native imports (preserved)
+import math
+from typing import List
 
-2. **V4 Extensions to V3**
-   - Add `@@system` support to module partitioner
-   - Add `@@persist` annotation handling
-   - Add `@@target` (double @) support
-   - Everything else stays the same!
+@@system Calculator {
+    interface:
+        add(a: int, b: int): int
 
-3. **Implementation Strategy**
-   - Extend v3 components, don't replace them
-   - Use state machines for scanning, not string manipulation
-   - Preserve the MixedBody/MIR architecture (it works!)
+    machine:
+        $Ready {
+            add(a: int, b: int) {
+                # Native code (preserved)
+                result = a + b
+                print(f"Result: {result}")
 
-## V4 Current Status
+                # Frame statement (expanded)
+                -> $Done
+            }
+        }
 
-### ✅ Working in V4:
-- `@@target` pragma recognition
-- `@@system` and `system` keyword parsing  
-- `@@persist` annotation support
-- Correct state name detection (no "A" fallback)
-- Single system compilation with proper state detection
-- Native code before/after system preserved
+        $Done { }
 
-### ⚠️ Known Limitations:
-- **Multi-system files**: V4 currently only compiles the FIRST system in a file
-- **Interleaved native code**: Native code between multiple systems not yet supported
-- Full "oceans model" (multiple Frame islands in native ocean) planned but not implemented
-
-## V4 Syntax Additions
-
-### New in V4:
-```python
-@@target python_3      # Double @ for v4
-@@persist             # Persistence annotation
-@@system Calculator { # Double @ for system declaration
-    # ... rest is same as v3
+    domain:
+        var history: List = []
 }
-```
 
-### V3 Syntax (still supported):
-```python
-@target python_3      # Single @ for v3
-system Calculator {   # No @@ prefix
-    # ... 
-}
-```
-
-## Current V4 Implementation Status
-
-### What We're Working On:
-1. **Phase 1**: Extend v3 module partitioner for @@system (IN PROGRESS)
-2. **Phase 2**: Add @@persist support to expander
-3. **Phase 3**: Test with Docker runner
-
-### Key Files:
-- `framec/src/frame_c/v4/module_partitioner_v4_proper.rs` - Proper state machine scanner
-- `framec/src/frame_c/v4/v4_clean_compiler.rs` - V4 compiler facade
-- `docs/framepiler_design/architecture_v4/PLAN_v4.md` - Implementation plan
-
-### Test Command:
-```bash
-USE_V4_STATE_MACHINE=1 ./target/release/framec compile test.fpy -l python_3
+# Native code (preserved)
+if __name__ == '__main__':
+    calc = Calculator()
+    calc.add(1, 2)
 ```
 
 ## Implementation Rules
 
-### 1. Always Use State Machines
-- **module_partitioner**: DPDA-based parsing
-- **native_region_scanner**: State machine for Frame regions
-- **frame_statement_parser**: Proper tokenization
-- **NO string.startswith(), NO string slicing, NO split()**
+### DO:
+- Parse Frame constructs fully (AST)
+- Store native code as byte spans
+- Validate Frame semantics via Arcanum
+- Use NativeRegionScanner to find Frame islands
+- Use Splicer to combine native + generated code
+- Preserve native code formatting exactly
 
-### 2. Extend, Don't Replace
-- V3 works! Don't throw it away
-- Add v4 features as extensions
-- Maintain backward compatibility
+### DON'T:
+- Parse native code syntax
+- Validate native code semantics
+- Build native symbol tables
+- Do cross-language type checking
+- Reformat or modify native code
 
-### 3. The Oceans Model
-- Native code = ocean
-- Frame statements = islands
-- Scanner identifies islands
-- Parser processes islands into MIR
-- Expander converts MIR to target code
-- Splicer merges everything back
+## Target Languages
 
-### 4. Testing
-- Use frame-docker-runner for all tests
-- Target: 91/94 tests passing (where we were)
-- Test files use .fpy, .frts, .frs extensions
+**PRT (Priority):**
+- Python 3 - Active
+- Rust - Active
+- TypeScript - Active
+
+**Deferred:**
+- C#, Java, C, C++ - Not actively maintained
+
+## What's in V5 (Future)
+
+V5 adds **optional** native code analysis for enhanced IDE support:
+- Extract symbols from native code (using language parsers)
+- Cross-reference Frame and native symbols
+- "Did you mean?" suggestions for typos
+
+This is opt-in and non-blocking. See `docs/architecture_v5/PLAN.md`.
 
 ## Common Mistakes to Avoid
 
-1. **String Manipulation** - NEVER parse with startswith/split/trim
-2. **Ignoring V3** - V3 pipeline is good, use it!
-3. **Rewriting Everything** - Extend v3, don't replace
-4. **Not Using State Machines** - Always use proper scanning
-5. **Forgetting the Oceans Model** - Frame statements are islands
+1. **Parsing native code** - Don't. It's opaque bytes.
+2. **Multiple approaches** - There is ONE pipeline. No V3 fallback.
+3. **Native validation** - Leave it to the target compiler.
+4. **Cross-language types** - V5 scope, not V4.
 
 ## Quick Reference
 
-### Check These Documents:
-- `docs/framepiler_design/architecture_v4/PLAN_v4.md` - Implementation plan
-- `docs/framepiler_design/architecture_v4/PREPROCESSING_ARCHITECTURE.md` - V4 philosophy
-- `framec/src/frame_c/v3/mod.rs` - V3 pipeline to understand
+### Key Files
 
-### Key V3 Components to Reuse:
-- `module_partitioner` - Splits file into bodies
-- `native_region_scanner` - Finds Frame statements
-- `frame_statement_parser` - Parses Frame statements
-- `mir_assembler` - Creates MIR
-- `expander` - MIR → target code
-- `splicer` - Merges results
+| File | Purpose |
+|------|---------|
+| `v4/frame_parser.rs` | Parse Frame syntax |
+| `v4/frame_ast.rs` | Frame AST types |
+| `v4/arcanum.rs` | Symbol table |
+| `v4/frame_validator.rs` | Frame validation |
+| `v4/native_region_scanner.rs` | Find Frame islands |
+| `v4/codegen/system_codegen.rs` | AST → CodegenNode |
+| `v4/codegen/backends/*.rs` | CodegenNode → target code |
+| `v4/pipeline/compiler.rs` | Main pipeline |
 
-### Success Criteria:
-```bash
-# This should work:
-cat > test.fpy << 'EOF'
-@@target python_3
-@@persist
-@@system Calculator {
-    interface:
-        add(a, b)
-    machine:
-        $Ready {
-            add(a, b) { return a + b }
-        }
-}
-EOF
+### Error Codes
 
-USE_V4_STATE_MACHINE=1 framec compile test.fpy -l python_3 -o test.py
-python3 test.py  # Should run without errors
-```
+| Code | Description |
+|------|-------------|
+| E001 | Parse error |
+| E402 | Unknown state reference |
+| E403 | Duplicate state definition |
+| E405 | Parameter mismatch |
+| E4xx | (More planned - see VALIDATION_EXPANSION_PLAN.md) |
 
-## Remember:
-**V3's architecture is solid. V4 is just adding @@system, @@persist, and @@target. Use state machines, extend v3 components, don't do string manipulation!**
+---
+
+**Remember: Frame V4 is a preprocessor. Parse Frame, preserve native, validate Frame only.**
