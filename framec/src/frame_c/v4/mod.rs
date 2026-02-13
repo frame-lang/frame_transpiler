@@ -47,6 +47,8 @@ pub mod parser_debug;
 pub mod pipeline;
 // Phase 4: Code generation infrastructure
 pub mod codegen;
+// Phase 5: Modular validation infrastructure
+pub mod validation;
 
 // Re-export new architecture types for easier access
 pub use pipeline::{
