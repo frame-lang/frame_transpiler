@@ -48,6 +48,44 @@ impl CompileError {
     }
 }
 
+/// Skip @@ pragma lines (like @@target, @@run-expect) but keep native code
+fn skip_pragmas_keep_native(text: &str) -> String {
+    let mut result = String::new();
+    let mut in_comment = false;
+
+    for line in text.lines() {
+        let trimmed = line.trim();
+
+        // Track multi-line comments
+        if trimmed.contains("/*") {
+            in_comment = true;
+        }
+        if trimmed.contains("*/") {
+            in_comment = false;
+        }
+
+        // Skip @@ pragma lines but keep everything else
+        if trimmed.starts_with("@@") {
+            continue;
+        }
+
+        // Skip # comments at the start (Frame comments in prolog)
+        if trimmed.starts_with('#') && !in_comment {
+            // Keep Python comments that look like shebangs or pragmas
+            if trimmed.starts_with("#!") || trimmed.starts_with("# -*-") {
+                result.push_str(line);
+                result.push('\n');
+            }
+            continue;
+        }
+
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    result
+}
+
 /// Compile a Frame module from source bytes
 ///
 /// This is the main entry point for V4 compilation.
@@ -200,15 +238,33 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
         eprintln!("[compile_ast_based] Validation passed");
     }
 
-    // Step 5: Generate code from AST using codegen
+    // Step 5: Generate code using "oceans model"
+    // Native code is preserved verbatim, @@system blocks are replaced with generated code
     let backend = get_backend(config.target);
     let mut ctx = EmitContext::new();
+    let source_str = String::from_utf8_lossy(source);
 
     let code = match &ast {
         FrameAst::System(system) => {
             let mut result = String::new();
 
-            // Add runtime imports
+            // Native code before @@system (prolog)
+            let system_start = system.span.start;
+            if system_start > 0 {
+                // Find where native prolog starts (skip @@target line)
+                let prolog = &source_str[..system_start];
+                // Skip @@target and other @@ pragmas, keep native code
+                let native_prolog = skip_pragmas_keep_native(prolog);
+                if !native_prolog.trim().is_empty() {
+                    result.push_str(&native_prolog);
+                    if !native_prolog.ends_with('\n') {
+                        result.push('\n');
+                    }
+                    result.push('\n');
+                }
+            }
+
+            // Add runtime imports (after native imports)
             for import in backend.runtime_imports() {
                 result.push_str(&import);
                 result.push('\n');
@@ -217,16 +273,29 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                 result.push('\n');
             }
 
+            // Generated system code
             ctx = ctx.with_system(&system.name);
             let codegen_node = generate_system(system, &arcanum, config.target, source);
             result.push_str(&backend.emit(&codegen_node, &mut ctx));
+
+            // Native code after @@system (epilog)
+            let system_end = system.span.end;
+            if system_end < source.len() {
+                let epilog = &source_str[system_end..];
+                let native_epilog = epilog.trim_start_matches(|c: char| c == '}' || c.is_whitespace());
+                if !native_epilog.trim().is_empty() {
+                    result.push_str("\n\n");
+                    result.push_str(native_epilog.trim_start());
+                }
+            }
+
             result
         }
         FrameAst::Module(module) => {
-            // Generate code for each system in the module
             let mut result = String::new();
+            let mut cursor = 0usize;
 
-            // Add runtime imports
+            // Add runtime imports first
             for import in backend.runtime_imports() {
                 result.push_str(&import);
                 result.push('\n');
@@ -235,14 +304,42 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                 result.push('\n');
             }
 
-            // Generate each system
-            for (i, system) in module.systems.iter().enumerate() {
-                if i > 0 {
-                    result.push_str("\n\n");
+            // Process each system with native code between them
+            for system in &module.systems {
+                // Native code before this system
+                let system_start = system.span.start;
+                if system_start > cursor {
+                    let native = &source_str[cursor..system_start];
+                    let native_clean = if cursor == 0 {
+                        skip_pragmas_keep_native(native)
+                    } else {
+                        native.to_string()
+                    };
+                    if !native_clean.trim().is_empty() {
+                        result.push_str(&native_clean);
+                        if !native_clean.ends_with('\n') {
+                            result.push('\n');
+                        }
+                    }
                 }
+
+                // Generated system code
                 ctx = ctx.with_system(&system.name);
                 let codegen_node = generate_system(system, &arcanum, config.target, source);
                 result.push_str(&backend.emit(&codegen_node, &mut ctx));
+                result.push('\n');
+
+                cursor = system.span.end;
+            }
+
+            // Native code after last system
+            if cursor < source.len() {
+                let epilog = &source_str[cursor..];
+                let native_epilog = epilog.trim_start_matches(|c: char| c == '}' || c.is_whitespace());
+                if !native_epilog.trim().is_empty() {
+                    result.push_str("\n");
+                    result.push_str(native_epilog.trim_start());
+                }
             }
 
             result
