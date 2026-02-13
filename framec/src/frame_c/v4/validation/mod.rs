@@ -62,5 +62,8 @@ pub use report::{ValidationReport, ValidationSummary};
 pub use runner::{ValidationRunner, ValidationRunnerBuilder};
 pub use types::{Severity, ValidationConfig, ValidationIssue};
 
-// Validation passes will be added as separate modules:
-// pub mod passes;
+// Validation passes
+pub mod passes;
+
+// Re-export passes for convenience
+pub use passes::{default_runner, SemanticPass, StructuralPass};
