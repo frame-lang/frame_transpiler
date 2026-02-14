@@ -7,35 +7,140 @@ This document captures every process, tool, and workflow used in the Frame Trans
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
-2. [Architecture](#architecture)
-3. [Development Environment](#development-environment)
-4. [Testing Framework](#testing-framework)
-5. [Version Management](#version-management)
-6. [Code Patterns](#code-patterns)
-7. [Bug Fixing Process](#bug-fixing-process)
-8. [File Organization](#file-organization)
-9. [Common Commands](#common-commands)
-10. [Critical Rules](#critical-rules)
+2. [V4 Architecture (Current)](#v4-architecture-current)
+3. [V3 Architecture (Reference)](#v3-architecture-reference)
+4. [Development Environment](#development-environment)
+5. [Testing Framework](#testing-framework)
+6. [Version Management](#version-management)
+7. [Code Patterns](#code-patterns)
+8. [Bug Fixing Process](#bug-fixing-process)
+9. [File Organization](#file-organization)
+10. [Common Commands](#common-commands)
+11. [Critical Rules](#critical-rules)
 
 ## Project Overview
 
-Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, C#, etc.). The project is currently in v0.86.72 and in the "Going Native" phase (native bodies with SOL‑anchored Frame statements in handlers).
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, Rust, etc.).
 
 ### Current Status
-- **Version**: v0.86.72
-- **Branch**: `going_native` 
-- **Supported Targets (V3 work focus)**: Python 3, TypeScript, C#, C, C++, Java, Rust. (GraphViz remains available but is not V3‑gated.)
-- **LLVM**: on indefinite hold — do not develop or maintain LLVM until further notice.
-- **Shared Test Environment**: Active - using `framepiler_test_env` for isolated transpiler/debugger team development
-- **Test Migration**: Moved from embedded testing to shared environment approach via `FRAMEPILER_TEST_ENV` environment variable
-- **Docker Test Infrastructure**: Pure Rust implementation in shared environment for containerized test execution
-- **Core policies**:
-  - Native bodies by default; MixedBody permitted only in event handlers (actions/operations are native‑only).
-  - SOL‑anchored Frame statements (`-> $State(args)`, `=> $^`, `$$+/-`) recognized at start‑of‑line (indentation allowed), ignored in strings/comments/templates.
-  - Transitions are terminal: a terminal MIR statement must be the last statement in a handler body (validator enforced).
-  - Per‑language boundary detection uses DPDA scanners/closers (e.g., TS template/backtick‑aware; Py triple‑quote/f‑string‑aware; C# verbatim/interpolated/raw strings and preprocessor lines).
+- **Version**: v0.87.2
+- **Branch**: `v4_pure` (V4 pipeline development)
+- **Active Work**: V4 pure preprocessor architecture
+- **PRT Languages**: Python 3, TypeScript, Rust (priority targets)
+- **V4 Test Status**: Python 9/9, Rust 9/9, TypeScript 2/9
+- **Shared Test Environment**: Active - using `framepiler_test_env`
+- **LLVM**: on indefinite hold
 
-## Architecture (V3)
+### V4 vs V3
+- **V4** (current): Pure preprocessor for `@@system` blocks. Native code passes through verbatim.
+- **V3** (reference): Full module compilation with MIR assembly and splicer.
+
+## V4 Architecture (Current)
+
+V4 is a **pure preprocessor** for `@@system` blocks. All native code passes through verbatim.
+
+### "Oceans Model"
+- **Native code is the ocean** - imports, helper functions, test harnesses pass through unchanged
+- **`@@system` blocks are islands** - expanded to target language classes
+- Frame statements inside handlers (`->`, `=>`, `$$[+]`, `$$[-]`) are expanded to method calls
+
+### V4 Pipeline
+```
+Source file with @@target and @@system blocks
+    ↓
+FrameParser (frame_parser.rs)
+    - Skip @@target, @@run-expect pragmas
+    - Skip native preamble (imports, functions)
+    - Parse @@system into FrameAst
+    ↓
+Arcanum (arcanum.rs)
+    - Build symbol table from AST
+    - Track states, handlers, interface methods, domain vars
+    ↓
+FrameValidator (frame_validator.rs)
+    - Validate transitions target existing states
+    - Check state parameter arity
+    ↓
+SystemCodegen (system_codegen.rs)
+    - Generate CodegenNode AST for class structure
+    - Extract handler bodies with native region scanner
+    - Expand Frame statements (-> becomes _transition())
+    ↓
+Language Backend (backends/{python,typescript,rust}.rs)
+    - Convert CodegenNode to target language text
+    - Convert types (str→string, int→number for TS)
+    ↓
+Compiler (pipeline/compiler.rs)
+    - Prepend native prolog (imports, helpers)
+    - Add runtime imports
+    - Append generated class
+    - Append native epilog (test harness)
+```
+
+### V4 Key Files
+| File | Purpose |
+|------|---------|
+| `framec/src/frame_c/v4/frame_parser.rs` | Parse `@@system` blocks into FrameAst |
+| `framec/src/frame_c/v4/arcanum.rs` | Build symbol table from AST |
+| `framec/src/frame_c/v4/frame_validator.rs` | Validate AST (E402, E403, E405) |
+| `framec/src/frame_c/v4/codegen/system_codegen.rs` | Generate CodegenNode from AST |
+| `framec/src/frame_c/v4/codegen/backends/python.rs` | Python code emitter |
+| `framec/src/frame_c/v4/codegen/backends/typescript.rs` | TypeScript code emitter |
+| `framec/src/frame_c/v4/codegen/backends/rust.rs` | Rust code emitter |
+| `framec/src/frame_c/v4/pipeline/compiler.rs` | Main compilation pipeline |
+
+### V4 Syntax Example
+```frame
+@@target python_3
+
+import math  # Native import - passed through
+
+def helper(x):  # Native function - passed through
+    return x * 2
+
+@@system Calculator {
+    interface:
+        compute(value: int): int
+
+    machine:
+        $Ready {
+            compute(value: int): int {
+                # Native code in handler
+                result = helper(value)
+                print(f"Result: {result}")
+                return result
+            }
+        }
+
+    domain:
+        var total = 0
+}
+
+def main():  # Native test harness - passed through
+    c = Calculator()
+    print(c.compute(5))
+
+if __name__ == '__main__':
+    main()
+```
+
+### V4 Testing
+```bash
+# Run all V4 PRT tests
+cd framepiler_test_env/common/test-frames/v4/prt
+./run_tests.sh
+
+# Output location
+ls /tmp/v4_prt_tests/  # Generated .py, .ts, .rs files
+
+# Manual single-file test
+./target/release/framec path/to/test.frm -l python_3 > out.py
+python3 out.py
+```
+
+## V3 Architecture (Reference)
+
+V3 is the full module compilation pipeline used for `@target` (single @) syntax.
 
 ```
 Frame module file (.frm with @target <lang>)
@@ -118,11 +223,33 @@ cargo update
 
 ### Test Organization
 
-**Shared Environment Structure (Primary - via FRAMEPILER_TEST_ENV):**
+**V4 Tests (Current Development):**
+```
+framepiler_test_env/common/test-frames/v4/prt/
+├── 01_minimal.frm          # Minimal system, no handlers
+├── 02_interface.frm        # Interface methods with return values
+├── 03_transition.frm       # State transitions
+├── 04_native_code.frm      # Native code preservation (imports, helpers)
+├── 05_enter_exit.frm       # Enter/exit handlers
+├── 06_domain_vars.frm      # Domain variable initialization
+├── 07_params.frm           # Handler parameters
+├── 08_hsm.frm              # Hierarchical state machine (parent forwarding)
+├── 09_stack.frm            # Stack push/pop operations
+└── run_tests.sh            # Test runner script
+```
+
+**Run V4 tests:**
+```bash
+cd framepiler_test_env/common/test-frames/v4/prt
+./run_tests.sh              # All tests, all languages
+# Output: /tmp/v4_prt_tests/
+```
+
+**V3 Tests (Shared Environment - via FRAMEPILER_TEST_ENV):**
 ```
 framepiler_test_env/common/test-frames/v3/
 ├── data_types/positive/        # Data type operations and collections
-├── imports/positive/           # Import statement validation  
+├── imports/positive/           # Import statement validation
 ├── operators/positive/         # Arithmetic, comparison, logical operators
 ├── scoping/positive/           # Variable and function scoping
 ├── systems/positive/           # State machine systems and transitions
@@ -1044,9 +1171,9 @@ export namespace AsyncCapabilities {
 
 ---
 
-**Last Updated**: 2025-12-11  
-**Version**: v0.86.71  
-**Status**: Shared test environment operational · TypeScript transpilation 87.5% success · Python-style imports properly handled across languages
+**Last Updated**: 2026-02-14
+**Version**: v0.87.2
+**Status**: V4 pipeline operational · Python 9/9, Rust 9/9, TypeScript 2/9 · Shared test environment active
 
 **Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.
 # V3 Python Transpiler Function Body Issue (PARTIALLY FIXED)

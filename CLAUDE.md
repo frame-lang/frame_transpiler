@@ -1,9 +1,14 @@
 # Frame Transpiler - Claude Context
 
-🚨 **MANDATORY FIRST STEPS** 🚨
-1. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide
-2. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
-3. **FOR V4 WORK**: **READ** [`CLAUDE_V4.md`](CLAUDE_V4.md) - V4 implementation approach
+🚨 **MANDATORY FIRST STEPS - READ THESE DOCS** 🚨
+
+**This file (CLAUDE.md) is read at conversation startup and survives context compaction.**
+**The referenced docs below are NOT automatically loaded - you MUST read them.**
+
+1. **READ** [`docs/README.md`](docs/README.md) - Documentation index and entry point
+2. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide (V3 + V4)
+3. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
+4. **FOR V4 WORK**: **READ** [`CLAUDE_V4.md`](CLAUDE_V4.md) - V4 implementation approach
 
 📖 **ALWAYS CHECK CLI HELP**: Run `./target/release/framec --help` to see all available command-line options and parameters.
 
@@ -65,24 +70,31 @@ system SystemName {
 - Always check actual test files in `framepiler_test_env/common/test-frames/v3/` for examples
 
 ## Current State
-- **Version**: v0.86.72 (branch `going_native`)
+- **Version**: v0.87.2 (branch `v4_pure`)
+- **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
+- **V4 Test Status**: Python 9/9, Rust 9/9, TypeScript 2/9 (TS failures due to Python syntax in test native code)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
-- **Test Status**: 100% success for all PRT languages (Python, Rust, TypeScript)
-- **Latest Achievements**: All test infrastructure moved to shared environment, 100% PRT test success
-- **Recent Focus**: Completed Stage 4 of V3 migration - full architectural separation
 
 ## Test Infrastructure (IMPORTANT - READ GETTING_STARTED.md)
-- **All tests moved to shared environment** - No test infrastructure in transpiler
-- **Docker Test Runner**: Pure Rust binary at `framepiler_test_env/framepiler/docker/target/release/frame-docker-runner`
-- **Test location**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
-- **Quick test run**:
-  ```bash
-  export FRAMEPILER_TEST_ENV=$(pwd)/framepiler_test_env
-  framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
-    python_3 v3_data_types --framec ./target/release/framec
-  ```
-- **No scripts needed** - The Docker runner is a self-contained Rust binary
+- **All tests in shared environment** - No test infrastructure in transpiler repo
+- **V3 tests**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
+- **V4 tests**: `framepiler_test_env/common/test-frames/v4/prt/` (9 tests per language)
+
+### V4 Test Runner (Primary for V4 work)
+```bash
+cd framepiler_test_env/common/test-frames/v4/prt
+./run_tests.sh   # Runs all 9 tests for Python, TypeScript, Rust
+```
+Output: `/tmp/v4_prt_tests/` - Generated code for inspection
+
+### V3 Docker Test Runner
+```bash
+export FRAMEPILER_TEST_ENV=$(pwd)/framepiler_test_env
+framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
+  python_3 v3_data_types --framec ./target/release/framec
+```
+
 - **Module separator**: `::` (NOT `.` - dot is for member access)
 - **Check before starting**: Read `docs/HOW_TO.md` for complete current processes
 
@@ -107,17 +119,61 @@ This ensures tests exit with proper failure codes for automated testing systems.
 
 ## Architecture
 
-### V3 Pipeline (PROVEN - USE FOR V4!):
+### V4 Pipeline (CURRENT - Pure Preprocessor)
+V4 is a preprocessor for `@@system` blocks. Native code passes through verbatim.
+
+```
+Source file with @@system blocks
+    ↓
+FrameParser (frame_parser.rs) - Parse @@system into FrameAst
+    ↓
+Arcanum (arcanum.rs) - Build symbol table from AST
+    ↓
+FrameValidator (frame_validator.rs) - Validate transitions, states
+    ↓
+SystemCodegen (system_codegen.rs) - Generate CodegenNode AST
+    ↓
+Language Backend (backends/*.rs) - Emit target language code
+    ↓
+Output: Native prolog + Generated class + Native epilog
+```
+
+**"Oceans Model"**: Native code is the ocean (passed through verbatim), `@@system` blocks are islands (expanded to classes).
+
+**Key V4 Files**:
+- `framec/src/frame_c/v4/frame_parser.rs` - Parse `@@system` blocks
+- `framec/src/frame_c/v4/arcanum.rs` - Symbol table
+- `framec/src/frame_c/v4/codegen/system_codegen.rs` - Generate CodegenNode
+- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust}.rs` - Emit code
+
+### V3 Pipeline (For reference)
 - Module Partitioner → Native Region Scanner → MIR Assembler → Expander → Splicer
 - Uses state machine-based scanning (NO string manipulation)
-- "Oceans model": Native code (ocean) with Frame statements (islands)
 
-### V4 Strategy:
-- **BUILD ON V3** - Don't replace it!
-- Extend v3 components for @@system, @@persist, @@target
-- See [`CLAUDE_V4.md`](CLAUDE_V4.md) for implementation approach
-- See [`docs/framepiler_design/architecture_v4/PLAN_v4.md`](docs/framepiler_design/architecture_v4/PLAN_v4.md) for plan
+### V4 Syntax
+```frame
+@@target python_3
 
-### Old V2 Architecture (deprecated):
-- Scanner → Parser (2-pass) → AST → Visitor → Target Code
-- Key files: `scanner.rs`, `parser.rs`, `ast.rs`, `python_visitor_v2.rs`
+# Native imports (passed through)
+import math
+
+@@system MySystem {
+    interface:
+        method(param: type): returnType
+
+    machine:
+        $State {
+            handler(params) {
+                # Native code with Frame statements
+                -> $OtherState   # Transition
+            }
+        }
+
+    domain:
+        var x = 0
+}
+
+# Native test harness (passed through)
+def main():
+    s = MySystem()
+```
