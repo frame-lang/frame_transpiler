@@ -38,37 +38,84 @@ impl FrameParser {
         }
     }
     
-    /// Parse a complete Frame module
+    /// Parse a complete Frame file (V4 syntax)
+    ///
+    /// V4 supports:
+    /// - `@@target <lang>` pragma
+    /// - `@@persist` annotation (before @@system)
+    /// - `@@system Name { }` blocks (one or more)
+    /// - Native code passes through (imports, functions, etc.)
+    ///
+    /// V4 does NOT support:
+    /// - `module` keyword (V3)
+    /// - `@@module` (V3)
+    /// - Frame imports (native imports pass through)
     pub fn parse_module(&mut self) -> Result<FrameAst, ParseError> {
         // Skip any leading whitespace or comments
         self.skip_whitespace();
 
-        // Skip all @@ pragmas until we hit @@system or @@module
-        // This handles @@target, @@run-expect, @@skip-if, and any future pragmas
+        // Skip all @@ pragmas until we hit @@system
+        // This handles @@target, @@run-expect, @@skip-if, @@persist, etc.
         self.skip_pragmas();
 
-        // Skip any native preamble (imports, def, fn, etc.) until we find
-        // @@system, @@module, or module keyword. This handles files like:
-        //   @@target python
-        //   import math
-        //   def helper(): pass
-        //   @@system Foo { ... }
+        // Skip native preamble (imports, functions, etc.) until @@system
         self.skip_native_preamble();
 
-        // Check if this is a module or a single system
-        if self.is_module() {
-            self.parse_module_ast()
-        } else {
+        // Count @@system blocks to determine single vs multi-system
+        let system_count = self.count_systems();
+
+        if system_count == 0 {
+            return Err(ParseError::Expected("@@system block".to_string()));
+        } else if system_count == 1 {
             // Single system file
             let system = self.parse_system()?;
             Ok(FrameAst::System(system))
+        } else {
+            // Multiple systems - parse as module
+            self.parse_multi_system_file()
         }
     }
 
-    /// Skip native code preamble until we reach a Frame structural element
+    /// Count the number of @@system blocks in the source
+    fn count_systems(&self) -> usize {
+        let content = String::from_utf8_lossy(&self.source);
+        content.matches("@@system ").count()
+    }
+
+    /// Parse a file with multiple @@system blocks
+    fn parse_multi_system_file(&mut self) -> Result<FrameAst, ParseError> {
+        let start = self.cursor;
+
+        // Parse all systems
+        let mut systems = Vec::new();
+        loop {
+            self.skip_whitespace();
+            self.skip_pragmas();
+            self.skip_native_preamble();
+
+            if self.cursor >= self.source.len() {
+                break;
+            }
+
+            if self.peek_keyword("@@system") {
+                systems.push(self.parse_system()?);
+            } else {
+                break;
+            }
+        }
+
+        Ok(FrameAst::Module(ModuleAst {
+            name: "unnamed".to_string(),
+            systems,
+            imports: vec![], // V4: native imports pass through, not parsed
+            span: Span::new(start, self.cursor),
+        }))
+    }
+
+    /// Skip native code preamble until we reach @@system
     ///
-    /// This skips everything (native code, comments, etc.) until we find
-    /// @@system, @@module, or module keyword at the start of a line.
+    /// V4: Native code (imports, functions, etc.) passes through.
+    /// This just advances the cursor to the first @@system block.
     fn skip_native_preamble(&mut self) {
         let debug = std::env::var("FRAME_PARSER_DEBUG").is_ok();
 
@@ -83,9 +130,9 @@ impl FrameParser {
                 eprintln!("[skip_native_preamble] cursor={}, preview={:?}", self.cursor, preview);
             }
 
-            // Stop if we're at @@system, @@module, or module keyword
-            if self.peek_string("@@system") || self.peek_string("@@module") || self.peek_string("module ") {
-                if debug { eprintln!("[skip_native_preamble] Found Frame keyword, stopping"); }
+            // Stop if we're at @@system (V4 only recognizes @@system, not module)
+            if self.peek_string("@@system") {
+                if debug { eprintln!("[skip_native_preamble] Found @@system, stopping"); }
                 break;
             }
 
@@ -94,7 +141,7 @@ impl FrameParser {
                 break;
             }
 
-            // Skip this line (whatever it is - native code, comment, etc.)
+            // Skip this line (native code, comment, etc.)
             while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
                 self.cursor += 1;
             }
@@ -104,69 +151,13 @@ impl FrameParser {
         }
     }
 
-    /// Check if current position looks like native code (not Frame)
-    fn is_native_line(&self) -> bool {
-        if self.cursor >= self.source.len() {
-            return false;
-        }
-
-        // Common native code patterns
-        let native_prefixes = [
-            b"import ".as_slice(),
-            b"from ".as_slice(),
-            b"def ".as_slice(),
-            b"class ".as_slice(),
-            b"fn ".as_slice(),
-            b"pub ".as_slice(),
-            b"async ".as_slice(),
-            b"const ".as_slice(),
-            b"let ".as_slice(),
-            b"var ".as_slice(),
-            b"function ".as_slice(),
-            b"export ".as_slice(),
-            b"use ".as_slice(),
-            b"#[".as_slice(),  // Rust attribute
-            b"#include".as_slice(),
-            b"#define".as_slice(),
-            b"using ".as_slice(),
-            b"namespace ".as_slice(),
-            b"package ".as_slice(),
-        ];
-
-        let remaining = &self.source[self.cursor..];
-        for prefix in native_prefixes {
-            if remaining.starts_with(prefix) {
-                return true;
-            }
-        }
-
-        // Also treat empty lines and comments as "native" (to skip)
-        if remaining.starts_with(b"#") && !remaining.starts_with(b"#[") {
-            // Python/shell comment (but not Rust attribute)
-            return true;
-        }
-        if remaining.starts_with(b"//") || remaining.starts_with(b"/*") {
-            return true;
-        }
-
-        false
-    }
-
-    /// Skip unknown @@ pragmas (@@target, @@run-expect, etc.)
+    /// Skip @@ pragmas (@@target, @@run-expect, @@persist, etc.)
     ///
-    /// Frame uses @@ for all directives/pragmas. Known structural pragmas:
-    /// - @@target <lang>     - Target language
-    /// - @@system <name>     - System definition (not skipped - parsed)
-    /// - @@module <name>     - Module definition (not skipped - parsed)
-    /// - @@persist           - Persistence attribute
-    ///
-    /// Unknown pragmas (like test metadata) are skipped:
-    /// - @@run-expect: <value>
-    /// - @@skip-if: <condition>
-    /// - @@timeout: <ms>
-    ///
-    /// This allows forward compatibility - new pragmas can be added without
-    /// breaking the parser.
+    /// V4 pragmas:
+    /// - @@target <lang>     - Target language (skipped)
+    /// - @@system <name>     - System definition (NOT skipped - parsed)
+    /// - @@persist           - Persistence attribute (skipped, handled separately)
+    /// - @@run-expect, @@skip-if, @@timeout - Test metadata (skipped)
     fn skip_pragmas(&mut self) {
         loop {
             self.skip_whitespace();
@@ -176,12 +167,12 @@ impl FrameParser {
                 break;
             }
 
-            // Don't skip @@system or @@module - those are structural
-            if self.peek_string("@@system") || self.peek_string("@@module") {
+            // Don't skip @@system - that's what we're looking for
+            if self.peek_string("@@system") {
                 break;
             }
 
-            // Skip this pragma line (@@target, @@run-expect, etc.)
+            // Skip this pragma line (@@target, @@persist, @@run-expect, etc.)
             while self.cursor < self.source.len() && self.source[self.cursor] != b'\n' {
                 self.cursor += 1;
             }
@@ -190,144 +181,18 @@ impl FrameParser {
             }
         }
     }
-    
-    /// Check if the source defines a module (vs single system)
-    fn is_module(&self) -> bool {
-        let content = String::from_utf8_lossy(&self.source);
 
-        // Explicit module declaration (must be at start of line, not in comments/strings)
-        // Look for "module " as a Frame keyword, not just anywhere in the content
-        for line in content.lines() {
-            let trimmed = line.trim();
-            // Skip @@ pragmas and native code
-            if trimmed.starts_with("@@") || trimmed.starts_with("#") ||
-               trimmed.starts_with("//") || trimmed.starts_with("/*") {
-                continue;
-            }
-            // Check for module keyword at start of line
-            if trimmed.starts_with("module ") {
-                return true;
-            }
-        }
+    // =========================================================================
+    // V3 SYNTAX REMOVED
+    // =========================================================================
+    // The following V3 constructs are NOT supported in V4:
+    // - `module` keyword
+    // - `@@module`
+    // - Frame `import` statements (native imports pass through)
+    //
+    // V4 only supports: @@target, @@system, @@persist
+    // =========================================================================
 
-        // Multiple systems
-        if content.matches("@@system ").count() > 1 {
-            return true;
-        }
-
-        // Has no @@system at all - treat as native module
-        if !content.contains("@@system") {
-            return true;
-        }
-
-        false
-    }
-    
-    /// Parse a module with multiple systems
-    fn parse_module_ast(&mut self) -> Result<FrameAst, ParseError> {
-        let start = self.cursor;
-        
-        // Parse module name if present
-        let name = self.parse_module_name().unwrap_or_else(|| "unnamed".to_string());
-        
-        // Parse imports
-        let imports = self.parse_imports()?;
-        
-        // Parse all systems
-        let mut systems = Vec::new();
-        while let Some(system) = self.try_parse_system()? {
-            systems.push(system);
-        }
-        
-        Ok(FrameAst::Module(ModuleAst {
-            name,
-            systems,
-            imports,
-            span: Span::new(start, self.cursor),
-        }))
-    }
-    
-    /// Parse module name
-    fn parse_module_name(&mut self) -> Option<String> {
-        // Look for "module ModuleName" pattern
-        let content = String::from_utf8_lossy(&self.source[self.cursor..]);
-        if let Some(idx) = content.find("module ") {
-            self.cursor += idx + 7; // Skip "module "
-            self.skip_whitespace();
-            let name_start = self.cursor;
-            while self.cursor < self.source.len() {
-                let ch = self.source[self.cursor] as char;
-                if !ch.is_alphanumeric() && ch != '_' {
-                    break;
-                }
-                self.cursor += 1;
-            }
-            let name = String::from_utf8_lossy(&self.source[name_start..self.cursor]).to_string();
-            Some(name)
-        } else {
-            None
-        }
-    }
-    
-    /// Parse import statements
-    fn parse_imports(&mut self) -> Result<Vec<Import>, ParseError> {
-        let mut imports = Vec::new();
-        
-        // Look for import statements
-        while self.peek_keyword("import") {
-            imports.push(self.parse_import()?);
-        }
-        
-        Ok(imports)
-    }
-    
-    /// Parse a single import statement
-    fn parse_import(&mut self) -> Result<Import, ParseError> {
-        let start = self.cursor;
-        
-        // Skip "import"
-        self.expect_keyword("import")?;
-        self.skip_whitespace();
-        
-        // Parse module path
-        let module = self.parse_identifier()?;
-        
-        // Parse optional symbols
-        let mut symbols = Vec::new();
-        if self.peek_char('{') {
-            self.cursor += 1; // Skip '{'
-            self.skip_whitespace();
-            
-            while !self.peek_char('}') {
-                symbols.push(self.parse_identifier()?);
-                self.skip_whitespace();
-                
-                if self.peek_char(',') {
-                    self.cursor += 1;
-                    self.skip_whitespace();
-                }
-            }
-            
-            self.expect_char('}')?;
-        }
-        
-        // Parse optional alias
-        let alias = if self.peek_keyword("as") {
-            self.expect_keyword("as")?;
-            self.skip_whitespace();
-            Some(self.parse_identifier()?)
-        } else {
-            None
-        };
-        
-        Ok(Import {
-            module,
-            symbols,
-            alias,
-            span: Span::new(start, self.cursor),
-        })
-    }
-    
     /// Try to parse a system
     fn try_parse_system(&mut self) -> Result<Option<SystemAst>, ParseError> {
         self.skip_whitespace();
