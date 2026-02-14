@@ -135,7 +135,7 @@ impl LanguageBackend for TypeScriptBackend {
                 let async_kw = if *is_async { "async " } else { "" };
                 let params_str = self.emit_params(params);
                 let return_str = return_type.as_ref()
-                    .map(|rt| format!(": {}", rt))
+                    .map(|rt| format!(": {}", self.convert_type(rt)))
                     .unwrap_or_default();
 
                 result.push_str(&format!(

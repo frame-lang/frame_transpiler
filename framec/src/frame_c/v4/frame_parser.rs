@@ -195,18 +195,23 @@ impl FrameParser {
     fn is_module(&self) -> bool {
         let content = String::from_utf8_lossy(&self.source);
 
-        // Explicit module declaration
-        if content.contains("module ") {
-            return true;
+        // Explicit module declaration (must be at start of line, not in comments/strings)
+        // Look for "module " as a Frame keyword, not just anywhere in the content
+        for line in content.lines() {
+            let trimmed = line.trim();
+            // Skip @@ pragmas and native code
+            if trimmed.starts_with("@@") || trimmed.starts_with("#") ||
+               trimmed.starts_with("//") || trimmed.starts_with("/*") {
+                continue;
+            }
+            // Check for module keyword at start of line
+            if trimmed.starts_with("module ") {
+                return true;
+            }
         }
 
         // Multiple systems
-        if content.matches("@@system ").count() > 1 || content.matches("system ").count() > 1 {
-            return true;
-        }
-
-        // Top-level fn definitions without @@system (pure fn module)
-        if content.contains("\nfn ") && !content.contains("@@system") {
+        if content.matches("@@system ").count() > 1 {
             return true;
         }
 

@@ -432,19 +432,24 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
         let mut dispatch_args = vec![CodegenNode::string(&method.name)];
         dispatch_args.extend(args);
 
+        let dispatch_call = CodegenNode::method_call(
+            CodegenNode::self_ref(),
+            "_dispatch_event",
+            dispatch_args,
+        );
+
+        // If method has return type, wrap in Return; otherwise just call
+        let body_stmt = if method.return_type.is_some() {
+            CodegenNode::Return { value: Some(Box::new(dispatch_call)) }
+        } else {
+            CodegenNode::ExprStmt(Box::new(dispatch_call))
+        };
+
         CodegenNode::Method {
             name: method.name.clone(),
             params,
             return_type: method.return_type.as_ref().map(|t| type_to_string(t)),
-            body: vec![
-                CodegenNode::ExprStmt(Box::new(
-                    CodegenNode::method_call(
-                        CodegenNode::self_ref(),
-                        "_dispatch_event",
-                        dispatch_args,
-                    ),
-                )),
-            ],
+            body: vec![body_stmt],
             is_async: false,
             is_static: false,
             visibility: Visibility::Public,
@@ -742,11 +747,11 @@ fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) 
 /// NOTE: The scanner leaves a gap between NativeText and FrameSegment where leading
 /// whitespace lives. Since the splicer doesn't copy this gap, we MUST include the
 /// indentation in the expansion to preserve proper code structure.
-fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, _indent: usize, lang: TargetLanguage) -> String {
+fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, indent: usize, lang: TargetLanguage) -> String {
     let segment_text = String::from_utf8_lossy(&body_bytes[span.start..span.end]);
-    // No extra indentation - the source already has proper whitespace
-    // The splicer preserves the leading whitespace from the original position
-    let indent_str = "";
+    // Use scanner's indent value to match native code indentation
+    // This ensures Frame expansions align with surrounding native code
+    let indent_str = " ".repeat(indent);
 
     match kind {
         FrameSegmentKindV3::Transition => {
