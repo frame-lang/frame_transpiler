@@ -8,7 +8,7 @@ This document captures every process, tool, and workflow used in the Frame Trans
 
 1. [Project Overview](#project-overview)
 2. [V4 Architecture (Current)](#v4-architecture-current)
-3. [V3 Architecture (Reference)](#v3-architecture-reference)
+3. [V3 Architecture (Legacy)](#v3-architecture-legacy---reference-only)
 4. [Development Environment](#development-environment)
 5. [Testing Framework](#testing-framework)
 6. [Version Management](#version-management)
@@ -32,8 +32,8 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **LLVM**: on indefinite hold
 
 ### V4 vs V3
-- **V4** (current): Pure preprocessor for `@@system` blocks. Native code passes through verbatim.
-- **V3** (reference): Full module compilation with MIR assembly and splicer.
+- **V4** (CURRENT - active development): Pure preprocessor for `@@system` blocks. Native code passes through verbatim.
+- **V3** (LEGACY - reference only): Full module compilation with MIR assembly and splicer. No longer under active development.
 
 ## V4 Architecture (Current)
 
@@ -138,9 +138,12 @@ ls /tmp/v4_prt_tests/  # Generated .py, .ts, .rs files
 python3 out.py
 ```
 
-## V3 Architecture (Reference)
+## V3 Architecture (LEGACY - Reference Only)
 
-V3 is the full module compilation pipeline used for `@target` (single @) syntax.
+> **NOTE**: V3 is no longer under active development. This section is kept for reference only.
+> All new development uses the V4 pipeline with `@@system` syntax.
+
+V3 was the full module compilation pipeline used for `@target` (single @) syntax.
 
 ```
 Frame module file (.frm with @target <lang>)
@@ -245,7 +248,7 @@ cd framepiler_test_env/common/test-frames/v4/prt
 # Output: /tmp/v4_prt_tests/
 ```
 
-**V3 Tests (Shared Environment - via FRAMEPILER_TEST_ENV):**
+**V3 Tests (LEGACY - Shared Environment):**
 ```
 framepiler_test_env/common/test-frames/v3/
 ├── data_types/positive/        # Data type operations and collections
@@ -257,6 +260,7 @@ framepiler_test_env/common/test-frames/v3/
 ├── persistence/positive/       # State persistence and snapshots
 └── async/positive/             # Async/await functionality
 ```
+> **NOTE**: V3 tests are legacy. New tests should be added to V4 (`v4/prt/`).
 
 **Legacy Local Structure (Secondary):**
 ```

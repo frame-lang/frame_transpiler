@@ -6,7 +6,7 @@
 **The referenced docs below are NOT automatically loaded - you MUST read them.**
 
 1. **READ** [`docs/README.md`](docs/README.md) - Documentation index and entry point
-2. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide (V3 + V4)
+2. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide (V4 current, V3 legacy)
 3. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
 4. **FOR V4 WORK**: **READ** [`CLAUDE_V4.md`](CLAUDE_V4.md) - V4 implementation approach
 
@@ -67,7 +67,8 @@ system SystemName {
 - Event handlers are `eventName(params) { }` NOT `|eventName|`
 - Enter/exit handlers are `$>()` and `$<()`
 - Interface methods have signatures like `method(param: type): returnType`
-- Always check actual test files in `framepiler_test_env/common/test-frames/v3/` for examples
+- For V4 examples: `framepiler_test_env/common/test-frames/v4/prt/`
+- For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
 - **Version**: v0.87.2 (branch `v4_pure`)
@@ -78,7 +79,7 @@ system SystemName {
 
 ## Test Infrastructure (IMPORTANT - READ GETTING_STARTED.md)
 - **All tests in shared environment** - No test infrastructure in transpiler repo
-- **V3 tests**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
+- **V3 tests (legacy)**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
 - **V4 tests**: `framepiler_test_env/common/test-frames/v4/prt/` (9 tests per language)
 
 ### V4 Test Runner (Primary for V4 work)
@@ -88,7 +89,7 @@ cd framepiler_test_env/common/test-frames/v4/prt
 ```
 Output: `/tmp/v4_prt_tests/` - Generated code for inspection
 
-### V3 Docker Test Runner
+### V3 Docker Test Runner (Legacy)
 ```bash
 export FRAMEPILER_TEST_ENV=$(pwd)/framepiler_test_env
 framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
@@ -146,9 +147,10 @@ Output: Native prolog + Generated class + Native epilog
 - `framec/src/frame_c/v4/codegen/system_codegen.rs` - Generate CodegenNode
 - `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust}.rs` - Emit code
 
-### V3 Pipeline (For reference)
+### V3 Pipeline (Legacy - for reference only)
 - Module Partitioner → Native Region Scanner → MIR Assembler → Expander → Splicer
 - Uses state machine-based scanning (NO string manipulation)
+- No longer under active development
 
 ### V4 Syntax
 ```frame
