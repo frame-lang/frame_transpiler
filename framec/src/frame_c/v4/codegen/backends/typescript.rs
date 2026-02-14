@@ -473,7 +473,18 @@ impl LanguageBackend for TypeScriptBackend {
             // ===== Native Code Preservation =====
 
             CodegenNode::NativeBlock { code, span: _ } => {
-                code.clone()
+                // Apply current indentation to each line of native code
+                let indent = ctx.get_indent();
+                code.lines()
+                    .map(|line| {
+                        if line.trim().is_empty() {
+                            String::new()
+                        } else {
+                            format!("{}{}", indent, line)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
             }
 
             CodegenNode::SplicePoint { id } => {
@@ -505,7 +516,7 @@ impl TypeScriptBackend {
             "str" => "string".to_string(),
             "bool" => "boolean".to_string(),
             "None" => "void".to_string(),
-            "List" => "Array".to_string(),
+            "List" => "Array<any>".to_string(),
             "Dict" => "Record<string, any>".to_string(),
             other => other.to_string(),
         }
@@ -532,6 +543,7 @@ impl TypeScriptBackend {
             CodegenNode::For { .. } |
             CodegenNode::Match { .. } |
             CodegenNode::Comment { .. } |
+            CodegenNode::NativeBlock { .. } |  // Native blocks have their own semicolons
             CodegenNode::Empty
         )
     }

@@ -569,11 +569,37 @@ fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &
         eprintln!("[splice_handler_body_from_span] Spliced result: {:?}", spliced.text);
     }
 
-    // The splicer already produces content WITHOUT the outer braces
-    // (since regions start after { and end before })
-    // Just trim leading newline and trailing whitespace
-    // V4 uses native syntax, so no transpilation needed - just return as-is
-    spliced.text.trim_start_matches('\n').trim_end().to_string()
+    // The splicer produces content WITHOUT the outer braces
+    // Normalize indentation: remove common leading whitespace from all lines
+    let text = spliced.text.trim_start_matches('\n').trim_end();
+    normalize_indentation(text)
+}
+
+/// Normalize indentation by removing common leading whitespace from all lines
+fn normalize_indentation(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return String::new();
+    }
+
+    // Find minimum indentation (ignoring empty lines)
+    let min_indent = lines.iter()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.len() - line.trim_start().len())
+        .min()
+        .unwrap_or(0);
+
+    // Strip the common indentation from all lines
+    lines.iter()
+        .map(|line| {
+            if line.len() >= min_indent {
+                &line[min_indent..]
+            } else {
+                line.trim()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Generate state handler methods (legacy - kept for reference)
@@ -716,10 +742,11 @@ fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) 
 /// NOTE: The scanner leaves a gap between NativeText and FrameSegment where leading
 /// whitespace lives. Since the splicer doesn't copy this gap, we MUST include the
 /// indentation in the expansion to preserve proper code structure.
-fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, indent: usize, lang: TargetLanguage) -> String {
+fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, _indent: usize, lang: TargetLanguage) -> String {
     let segment_text = String::from_utf8_lossy(&body_bytes[span.start..span.end]);
-    // Indentation prefix to replace the gap not covered by scanner
-    let indent_str = " ".repeat(indent);
+    // No extra indentation - the source already has proper whitespace
+    // The splicer preserves the leading whitespace from the original position
+    let indent_str = "";
 
     match kind {
         FrameSegmentKindV3::Transition => {
