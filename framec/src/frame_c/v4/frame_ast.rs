@@ -362,6 +362,9 @@ pub enum Expression {
         target: Box<Expression>,
         value: Box<Expression>,
     },
+    /// Native expression - raw source passed through verbatim
+    /// Used for language-specific expressions the parser doesn't understand
+    NativeExpr(String),
 }
 
 /// Literal values

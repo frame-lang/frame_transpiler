@@ -1049,6 +1049,10 @@ fn convert_expression(expr: &Expression) -> CodegenNode {
                 convert_expression(value),
             )
         }
+        Expression::NativeExpr(code) => {
+            // Pass through native expression verbatim
+            CodegenNode::native(code)
+        }
     }
 }
 

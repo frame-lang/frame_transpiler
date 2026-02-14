@@ -666,11 +666,80 @@ impl FrameParser {
     }
     
     /// Parse a type
-    /// V4 uses native language types, so we preserve the type name as-is
+    /// V4 uses native language types, so we preserve the type name as-is.
+    /// This parser handles complex native types like:
+    /// - string[] (TypeScript arrays)
+    /// - Array<string> (TypeScript/Java generics)
+    /// - Vec<String> (Rust generics)
+    /// - Map<string, number> (nested generics)
+    /// - int* (C pointers)
+    /// - std::vector<int> (C++ namespaced types)
     fn parse_type(&mut self) -> Result<Type, ParseError> {
-        let type_name = self.parse_identifier()?;
+        let start = self.cursor;
+
+        // Track bracket nesting to handle balanced expressions
+        let mut angle_depth = 0;  // < >
+        let mut bracket_depth = 0;  // [ ]
+        let mut paren_depth = 0;  // ( ) - for function types
+
+        while self.cursor < self.source.len() {
+            let ch = self.source[self.cursor] as char;
+
+            match ch {
+                // Opening brackets increase depth
+                '<' => { angle_depth += 1; self.cursor += 1; }
+                '[' => { bracket_depth += 1; self.cursor += 1; }
+                '(' => { paren_depth += 1; self.cursor += 1; }
+
+                // Closing brackets decrease depth
+                '>' => {
+                    if angle_depth > 0 {
+                        angle_depth -= 1;
+                        self.cursor += 1;
+                    } else {
+                        // Unbalanced > is a terminator
+                        break;
+                    }
+                }
+                ']' => {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                        self.cursor += 1;
+                    } else {
+                        // Unbalanced ] is a terminator
+                        break;
+                    }
+                }
+                ')' => {
+                    if paren_depth > 0 {
+                        paren_depth -= 1;
+                        self.cursor += 1;
+                    } else {
+                        // Unbalanced ) means end of parameter list
+                        break;
+                    }
+                }
+
+                // Terminators (only when not nested)
+                ',' | '{' | '=' | '\n' | '\r' if angle_depth == 0 && bracket_depth == 0 && paren_depth == 0 => {
+                    break;
+                }
+
+                // Any other character is part of the type
+                _ => { self.cursor += 1; }
+            }
+        }
+
+        let type_str = String::from_utf8_lossy(&self.source[start..self.cursor])
+            .trim()
+            .to_string();
+
+        if type_str.is_empty() {
+            return Err(ParseError::Expected("type".to_string()));
+        }
+
         // For V4, always use Custom to preserve the native type name
-        Ok(Type::Custom(type_name))
+        Ok(Type::Custom(type_str))
     }
     
     /// Parse until one of the given characters
@@ -981,15 +1050,14 @@ impl FrameParser {
         Ok(args)
     }
     
-    /// Parse expression (simplified for now)
+    /// Parse expression
+    /// Recognizes simple literals and identifiers, falls back to NativeExpr
+    /// for any expression the parser doesn't understand (language-agnostic).
     fn parse_expression(&mut self) -> Result<Expression, ParseError> {
         self.skip_whitespace();
-        
-        // Simple expression parsing - just identifiers and literals for now
-        if self.peek_identifier() {
-            let name = self.parse_identifier()?;
-            Ok(Expression::Var(name))
-        } else if self.peek_char('"') {
+
+        // Try to recognize common literal types first
+        if self.peek_char('"') {
             // String literal
             self.cursor += 1;
             let start = self.cursor;
@@ -1003,18 +1071,110 @@ impl FrameParser {
             let s = String::from_utf8_lossy(&self.source[start..self.cursor]).to_string();
             self.cursor += 1; // Skip closing quote
             Ok(Expression::Literal(Literal::String(s)))
-        } else if self.cursor < self.source.len() && self.source[self.cursor].is_ascii_digit() {
-            // Number literal
+        } else if self.peek_keyword("true") {
+            self.cursor += 4;
+            Ok(Expression::Literal(Literal::Bool(true)))
+        } else if self.peek_keyword("false") {
+            self.cursor += 5;
+            Ok(Expression::Literal(Literal::Bool(false)))
+        } else if self.peek_keyword("True") {
+            // Python boolean
+            self.cursor += 4;
+            Ok(Expression::Literal(Literal::Bool(true)))
+        } else if self.peek_keyword("False") {
+            // Python boolean
+            self.cursor += 5;
+            Ok(Expression::Literal(Literal::Bool(false)))
+        } else if self.cursor < self.source.len() && (self.source[self.cursor].is_ascii_digit() || self.source[self.cursor] == b'-') {
+            // Number literal (possibly negative)
             let start = self.cursor;
+            if self.source[self.cursor] == b'-' {
+                self.cursor += 1;
+            }
             while self.cursor < self.source.len() && self.source[self.cursor].is_ascii_digit() {
                 self.cursor += 1;
             }
-            let num_str = String::from_utf8_lossy(&self.source[start..self.cursor]);
-            let num = num_str.parse::<i64>().unwrap_or(0);
-            Ok(Expression::Literal(Literal::Int(num)))
+            // Check for float
+            if self.cursor < self.source.len() && self.source[self.cursor] == b'.' {
+                self.cursor += 1;
+                while self.cursor < self.source.len() && self.source[self.cursor].is_ascii_digit() {
+                    self.cursor += 1;
+                }
+                let num_str = String::from_utf8_lossy(&self.source[start..self.cursor]);
+                let num = num_str.parse::<f64>().unwrap_or(0.0);
+                Ok(Expression::Literal(Literal::Float(num)))
+            } else {
+                let num_str = String::from_utf8_lossy(&self.source[start..self.cursor]);
+                let num = num_str.parse::<i64>().unwrap_or(0);
+                Ok(Expression::Literal(Literal::Int(num)))
+            }
         } else {
-            // Default to null for now
+            // For anything else (arrays, dicts, complex expressions),
+            // capture as native expression that passes through verbatim
+            self.parse_native_expression()
+        }
+    }
+
+    /// Parse a native expression as raw text
+    /// Handles balanced brackets and stops at newline or end of expression context
+    fn parse_native_expression(&mut self) -> Result<Expression, ParseError> {
+        let start = self.cursor;
+        let mut bracket_depth = 0;  // [ ]
+        let mut paren_depth = 0;    // ( )
+        let mut brace_depth = 0;    // { }
+
+        while self.cursor < self.source.len() {
+            let ch = self.source[self.cursor] as char;
+
+            match ch {
+                '[' => { bracket_depth += 1; self.cursor += 1; }
+                '(' => { paren_depth += 1; self.cursor += 1; }
+                '{' => { brace_depth += 1; self.cursor += 1; }
+                ']' => {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                        self.cursor += 1;
+                    } else {
+                        break;
+                    }
+                }
+                ')' => {
+                    if paren_depth > 0 {
+                        paren_depth -= 1;
+                        self.cursor += 1;
+                    } else {
+                        break;
+                    }
+                }
+                '}' => {
+                    if brace_depth > 0 {
+                        brace_depth -= 1;
+                        self.cursor += 1;
+                    } else {
+                        break;
+                    }
+                }
+                // Stop at newline when not nested
+                '\n' | '\r' if bracket_depth == 0 && paren_depth == 0 && brace_depth == 0 => {
+                    break;
+                }
+                // Stop at comma when not nested (for parameter lists)
+                ',' if bracket_depth == 0 && paren_depth == 0 && brace_depth == 0 => {
+                    break;
+                }
+                _ => { self.cursor += 1; }
+            }
+        }
+
+        let expr_str = String::from_utf8_lossy(&self.source[start..self.cursor])
+            .trim()
+            .to_string();
+
+        if expr_str.is_empty() {
+            // Empty expression defaults to null
             Ok(Expression::Literal(Literal::Null))
+        } else {
+            Ok(Expression::NativeExpr(expr_str))
         }
     }
     
