@@ -154,39 +154,22 @@ impl FrameValidator {
                 self.errors.push(ValidationError::new("E402", msg).with_span(trans.span.clone()));
             }
         } else {
-            // State exists, check transition argument arity
-            // Transition args go to the ENTER HANDLER ($>), not state params
+            // State exists, check transition argument arity against STATE PARAMS
+            // Transition args like -> $State(a, b) go to state params $State(a, b)
             let args_count = trans.args.len();
-
-            if args_count > 0 {
-                // Args provided - check if enter handler exists and can accept them
-                if let Some(enter_param_count) = arcanum.get_enter_handler_param_count(system_name, &trans.target) {
-                    // Enter handler exists - check param count matches
-                    if enter_param_count != args_count {
-                        if !self.errors.iter().any(|e| e.code == "E405" && e.span.as_ref() == Some(&trans.span)) {
-                            self.errors.push(ValidationError::new(
-                                "E405",
-                                format!(
-                                    "State '{}' enter handler expects {} parameters but {} provided",
-                                    trans.target, enter_param_count, args_count
-                                )
-                            ).with_span(trans.span.clone()));
-                        }
-                    }
-                } else if !arcanum.has_enter_handler(system_name, &trans.target) {
-                    // No enter handler but args provided - this is an error
+            if let Some(expected) = arcanum.get_state_param_count(system_name, &trans.target) {
+                if expected != args_count {
                     if !self.errors.iter().any(|e| e.code == "E405" && e.span.as_ref() == Some(&trans.span)) {
                         self.errors.push(ValidationError::new(
                             "E405",
                             format!(
-                                "State '{}' has no enter handler but {} arguments provided",
-                                trans.target, args_count
+                                "State '{}' expects {} parameters but {} provided",
+                                trans.target, expected, args_count
                             )
                         ).with_span(trans.span.clone()));
                     }
                 }
             }
-            // If no args provided, no validation needed - transition to state without args is always valid
         }
     }
     
@@ -484,39 +467,20 @@ impl FrameValidator {
                 )
             ).with_span(transition.span.clone()));
         } else {
-            // E405: Check ENTER HANDLER parameter arity (not state params)
-            // Transition args like -> $State(a, b) are passed to the enter handler $>()
+            // E405: Check STATE PARAMETER arity
+            // Transition args like -> $State(a, b) are passed to state params $State(a, b)
             let target_state = state_map.get(&transition.target).unwrap();
-            let args_count = transition.args.len();
-
-            if args_count > 0 {
-                // Args provided - check if enter handler exists and can accept them
-                if let Some(enter) = &target_state.enter {
-                    // Enter handler exists - check param count matches
-                    if enter.params.len() != args_count {
-                        self.errors.push(ValidationError::new(
-                            "E405",
-                            format!(
-                                "State '{}' enter handler expects {} parameters but {} provided",
-                                transition.target,
-                                enter.params.len(),
-                                args_count
-                            )
-                        ).with_span(transition.span.clone()));
-                    }
-                } else {
-                    // No enter handler but args provided - this is an error
-                    self.errors.push(ValidationError::new(
-                        "E405",
-                        format!(
-                            "State '{}' has no enter handler but {} arguments provided",
-                            transition.target,
-                            args_count
-                        )
-                    ).with_span(transition.span.clone()));
-                }
+            if target_state.params.len() != transition.args.len() {
+                self.errors.push(ValidationError::new(
+                    "E405",
+                    format!(
+                        "State '{}' expects {} parameters but {} provided",
+                        transition.target,
+                        target_state.params.len(),
+                        transition.args.len()
+                    )
+                ).with_span(transition.span.clone()));
             }
-            // If no args provided, no validation needed
         }
     }
     
@@ -642,31 +606,29 @@ mod tests {
     }
     
     #[test]
-    fn test_e405_enter_handler_arity() {
-        // Transition args go to enter handler, not state params
-        // This tests that we check enter handler param count
+    fn test_e405_state_param_mismatch() {
+        // Transition args go to STATE PARAMS, not enter handler
+        // $Target(x: int) has 1 param, but we pass 3 args
         let source = r#"
 @@system Test {
     machine:
         $Start {
             go() { -> $Target(1, 2, 3) }
         }
-        $Target {
-            $>(x: int) { }
-        }
+        $Target(x: int) { }
 }"#;
 
         let result = validate_frame_source(source, TargetLanguage::Python3);
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        // Enter handler expects 1 param but 3 provided
+        // State expects 1 param but 3 provided
         assert!(errors.iter().any(|e| e.code == "E405" && e.message.contains("expects 1 parameters but 3 provided")));
     }
 
     #[test]
-    fn test_e405_no_enter_handler() {
-        // Transition passes args but state has no enter handler
+    fn test_e405_state_no_params() {
+        // Transition passes args but state has no params
         let source = r#"
 @@system Test {
     machine:
@@ -680,8 +642,8 @@ mod tests {
         assert!(result.is_err());
 
         let errors = result.unwrap_err();
-        // State has no enter handler but args provided
-        assert!(errors.iter().any(|e| e.code == "E405" && e.message.contains("no enter handler")));
+        // State expects 0 params but 2 provided
+        assert!(errors.iter().any(|e| e.code == "E405" && e.message.contains("expects 0 parameters but 2 provided")));
     }
     
     #[test]
