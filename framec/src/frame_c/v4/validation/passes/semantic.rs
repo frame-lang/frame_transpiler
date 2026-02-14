@@ -312,31 +312,58 @@ impl SemanticPass {
                     ))
             );
         } else {
-            // E405: Check parameter arity
+            // E405: Check ENTER HANDLER parameter arity (not state params)
+            // Transition args like -> $State(a, b) are passed to the enter handler $>()
             let target_state = state_map.get(&transition.target).unwrap();
-            if target_state.params.len() != transition.args.len() {
-                issues.push(
-                    ValidationIssue::error(
-                        "E405",
-                        format!(
-                            "State '{}' expects {} parameters but {} provided",
-                            transition.target,
-                            target_state.params.len(),
-                            transition.args.len()
+            let args_count = transition.args.len();
+
+            if args_count > 0 {
+                // Args provided - check if enter handler exists and can accept them
+                if let Some(enter) = &target_state.enter {
+                    // Enter handler exists - check param count matches
+                    if enter.params.len() != args_count {
+                        issues.push(
+                            ValidationIssue::error(
+                                "E405",
+                                format!(
+                                    "State '{}' enter handler expects {} parameters but {} provided",
+                                    transition.target,
+                                    enter.params.len(),
+                                    args_count
+                                )
+                            )
+                            .with_span(transition.span.clone())
+                            .with_note(format!(
+                                "Enter handler $>() accepts {} parameter(s)",
+                                enter.params.len()
+                            ))
+                            .with_fix(format!(
+                                "Provide {} argument(s) to the transition",
+                                enter.params.len()
+                            ))
+                        );
+                    }
+                } else {
+                    // No enter handler but args provided - this is an error
+                    issues.push(
+                        ValidationIssue::error(
+                            "E405",
+                            format!(
+                                "State '{}' has no enter handler but {} arguments provided",
+                                transition.target,
+                                args_count
+                            )
                         )
-                    )
-                    .with_span(transition.span.clone())
-                    .with_note(format!(
-                        "State '{}' parameters: {}",
-                        transition.target,
-                        self.format_params(target_state)
-                    ))
-                    .with_fix(format!(
-                        "Provide {} argument(s) to the transition",
-                        target_state.params.len()
-                    ))
-                );
+                        .with_span(transition.span.clone())
+                        .with_note("Transition arguments are passed to the enter handler $>()")
+                        .with_fix(format!(
+                            "Add an enter handler: ${}{{$>(...) {{...}}}}",
+                            transition.target
+                        ))
+                    );
+                }
             }
+            // If no args provided, no validation needed
         }
     }
 
@@ -468,14 +495,18 @@ mod tests {
     }
 
     #[test]
-    fn test_e405_parameter_mismatch() {
+    fn test_e405_enter_handler_mismatch() {
+        // Test: transition args go to enter handler, not state params
+        // $Target has an enter handler that expects 1 param, but we pass 3
         let source = r#"
 @@system Test {
     machine:
         $Start {
             go() { -> $Target(1, 2, 3) }
         }
-        $Target(x: int) { }
+        $Target {
+            $>(x: int) { }
+        }
 }"#;
 
         let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
@@ -486,7 +517,32 @@ mod tests {
         let pass = SemanticPass;
         let issues = pass.run(&ast, &arcanum, &mut ctx);
 
+        // Should report enter handler expects 1 but 3 provided
         assert!(issues.iter().any(|i| i.code == "E405" && i.message.contains("expects 1")));
+    }
+
+    #[test]
+    fn test_e405_no_enter_handler_but_args() {
+        // Test: transition passes args but state has no enter handler
+        let source = r#"
+@@system Test {
+    machine:
+        $Start {
+            go() { -> $Target(1, 2, 3) }
+        }
+        $Target { }
+}"#;
+
+        let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
+        let ast = parser.parse_module().unwrap();
+        let arcanum = build_arcanum_from_frame_ast(&ast);
+        let mut ctx = make_context();
+
+        let pass = SemanticPass;
+        let issues = pass.run(&ast, &arcanum, &mut ctx);
+
+        // Should report state has no enter handler but args provided
+        assert!(issues.iter().any(|i| i.code == "E405" && i.message.contains("no enter handler")));
     }
 
     #[test]

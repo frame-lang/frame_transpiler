@@ -164,7 +164,22 @@ impl Arcanum {
         self.resolve_state(system, state)
             .map(|s| s.params.len())
     }
-    
+
+    /// Get enter handler parameter count for transition arg validation (E405)
+    /// Transition args (-> $State(args)) go to the enter handler ($>), not state params
+    pub fn get_enter_handler_param_count(&self, system: &str, state: &str) -> Option<usize> {
+        self.get_enhanced_state(system, state)
+            .and_then(|s| s.handlers.get("$>"))
+            .map(|h| h.params.len())
+    }
+
+    /// Check if state has an enter handler
+    pub fn has_enter_handler(&self, system: &str, state: &str) -> bool {
+        self.get_enhanced_state(system, state)
+            .map(|s| s.handlers.contains_key("$>"))
+            .unwrap_or(false)
+    }
+
     /// Validate state transition exists (E402)
     pub fn validate_transition(&self, system: &str, target_state: &str) -> Result<(), String> {
         if self.resolve_state(system, target_state).is_some() {

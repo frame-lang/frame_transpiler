@@ -82,19 +82,32 @@ impl ValidatorV3 {
         (ctx, issues)
     }
 
-    // Optional: check that transition state_args arity matches state parameter arity from Arcanum
+    // Check that transition state_args arity matches ENTER HANDLER params (not state params)
+    // Transition args like -> $State(a, b) are passed to the enter handler $>(), not the state
     pub fn validate_transition_state_arity_arcanum(&self, mir: &[MirItemV3], arc: &Arcanum, system: Option<&str>) -> Vec<ValidationIssueV3> {
         let mut issues = Vec::new();
         let sys = system.unwrap_or("_");
         for m in mir {
             if let MirItemV3::Transition{ target, state_args, .. } = m {
-                // Use the enhanced get_state_param_count method
-                if let Some(expected) = arc.get_state_param_count(sys, target) {
-                    let got = state_args.len();
-                    if expected != got {
-                        issues.push(ValidationIssueV3 { message: format!("E405: State '{}' expects {} param(s) but transition supplies {}", target, expected, got) });
+                let got = state_args.len();
+
+                if got > 0 {
+                    // Args provided - check if enter handler exists and can accept them
+                    if let Some(expected) = arc.get_enter_handler_param_count(sys, target) {
+                        // Enter handler exists - check param count matches
+                        if expected != got {
+                            issues.push(ValidationIssueV3 {
+                                message: format!("E405: State '{}' enter handler expects {} param(s) but transition supplies {}", target, expected, got)
+                            });
+                        }
+                    } else if !arc.has_enter_handler(sys, target) {
+                        // No enter handler but args provided - this is an error
+                        issues.push(ValidationIssueV3 {
+                            message: format!("E405: State '{}' has no enter handler but transition supplies {} arg(s)", target, got)
+                        });
                     }
                 }
+                // If no args provided, no validation needed
             }
         }
         issues
