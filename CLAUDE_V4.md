@@ -156,9 +156,8 @@ This is opt-in and non-blocking. See `docs/architecture_v5/PLAN.md`.
 ## Common Mistakes to Avoid
 
 1. **Parsing native code** - Don't. It's opaque bytes.
-2. **Multiple approaches** - There is ONE pipeline. No V3 fallback.
-3. **Native validation** - Leave it to the target compiler.
-4. **Cross-language types** - V5 scope, not V4.
+2. **Native validation** - Leave it to the target compiler.
+3. **Cross-language types** - V5 scope, not V4.
 
 ## Quick Reference
 

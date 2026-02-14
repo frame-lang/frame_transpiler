@@ -37,17 +37,6 @@ Stage 5: Code Generation
 Native Source (.py, .ts, .rs, etc.)
 ```
 
-### Key Differences from v3
-
-| Component | v3 Approach | v4 Approach |
-|-----------|-------------|-------------|
-| **Parsing** | Complex MixedBody/MIR | Simple AST with native blocks as strings |
-| **Native Code** | Deep parsing and validation | Opaque passthrough |
-| **Annotations** | Frame-only | Native + Frame (preserved, not interpreted) |
-| **Runtime** | Frame runtime libraries | No runtime - pure codegen |
-| **File Extensions** | .frm universal | Language-specific only |
-| **Module System** | Frame modules | Native modules |
-
 ## Language Specification
 
 ### File Structure
@@ -312,33 +301,9 @@ pub trait CodeGeneratorV4 {
 }
 ```
 
-## Migration from v3
+## Migration
 
-### Breaking Changes
-
-1. No `.frm` extension support
-2. No MixedBody/MIR concepts
-3. No Frame runtime libraries
-4. No Frame-specific type system
-5. No `:>` change state operator
-6. No Frame constants/enums
-7. No module system (use native)
-
-### Migration Strategy
-
-1. **No automated migration tools**
-2. **No backwards compatibility**
-3. **Hard cutoff with v4 release**
-4. **Manual migration required**
-
-### Migration Checklist
-
-- [ ] Change file extensions from `.frm` to language-specific
-- [ ] Add `@@target` pragma to all files
-- [ ] Convert Frame constants/enums to native
-- [ ] Remove `:>` operators (use `->` only)
-- [ ] Update imports to native syntax
-- [ ] Remove Frame module declarations
+See [MIGRATION_V3_TO_V4.md](MIGRATION_V3_TO_V4.md) for migration guidance from earlier Frame versions.
 
 ## Testing Strategy
 
@@ -362,58 +327,30 @@ typescript --noEmit test.ts
 rustc --crate-type lib test.rs
 ```
 
-## Performance Goals
-
-| Metric | v3 Baseline | v4 Target |
-|--------|------------|-----------|
-| Parser complexity | ~5000 LOC | < 2500 LOC |
-| Compilation speed | Baseline | 2x faster |
-| Memory usage | Baseline | 50% less |
-| Generated code size | Baseline | 10% smaller |
-
 ## Success Criteria
 
-### Phase 1 (Core Implementation)
-- [ ] Parser without MixedBody/MIR
-- [ ] Native annotation preservation
-- [ ] Basic code generation for PRT languages
-- [ ] System parameter validation
+### Phase 1 (Core Implementation) - COMPLETE
+- [x] Frame parser with AST
+- [x] Native annotation preservation
+- [x] Basic code generation for PRT languages
+- [x] System parameter validation
 
-### Phase 2 (Features)
+### Phase 2 (Features) - IN PROGRESS
 - [ ] Persistence generation (`@@persist`)
-- [ ] System tracking (`@@system`)
-- [ ] Async handler support
-- [ ] Full PRT language support
+- [x] Async handler support
+- [x] Full PRT language support (Python, Rust, TypeScript)
 
 ### Phase 3 (Polish)
-- [ ] Performance targets met
+- [ ] Performance optimization
 - [ ] Documentation complete
 - [ ] Test coverage > 90%
-- [ ] No v3 dependencies
-
-## Timeline
-
-| Week | Milestone |
-|------|-----------|
-| 1-2 | Core parser implementation (no MIR/MixedBody) |
-| 3-4 | Code generation for Python |
-| 5-6 | TypeScript and Rust support |
-| 7-8 | Persistence generation (`@@persist`) |
-| 9-10 | System tracking (`@@system`) and validation |
-| 11-12 | Testing and documentation |
-| 13-14 | Debug Phase 1: Source maps |
-| 15-16 | Debug Phase 2: Frame Debug Adapter |
-| 17-18 | Debug Phase 3: Advanced integration |
-| 19-20 | Final polish and release preparation |
 
 ## Risks and Mitigations
 
 | Risk | Mitigation |
 |------|------------|
-| Users resist removing .frm | Clear communication, better tooling |
-| No migration tools | Provide clear migration guide |
-| Missing v3 features | Document alternatives |
 | Native annotation conflicts | Let native compilers handle |
+| Complex native expressions | Pass through as opaque strings |
 
 ## Async Behavior
 

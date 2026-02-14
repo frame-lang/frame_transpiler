@@ -6,23 +6,26 @@ This folder is the primary entry point for documentation. If you're new to the r
 - **HOW_TO (Hands‑on guide)**: [docs/HOW_TO.md](HOW_TO.md) - Complete development guide
 - **Architecture (Big picture)**: [docs/framepiler_design/architecture.md](framepiler_design/architecture.md)
 
-## V4 Architecture (Current Development)
+## V4 Architecture (Current)
 
 V4 is a **pure preprocessor** for `@@system` blocks. Native code passes through verbatim ("oceans model").
 
-**Key V4 Documentation:**
-- V4 Implementation Guide: [`CLAUDE_V4.md`](../CLAUDE_V4.md)
-- V4 Plan: [`docs/framepiler_design/architecture_v4/PLAN_v4.md`](framepiler_design/architecture_v4/PLAN_v4.md)
+**V4 Documentation:**
+- **Syntax Reference**: [`docs/framepiler_design/architecture_v4/FRAME_V4_SYNTAX.md`](framepiler_design/architecture_v4/FRAME_V4_SYNTAX.md)
+- **Specification**: [`docs/framepiler_design/architecture_v4/V4_SPECIFICATION.md`](framepiler_design/architecture_v4/V4_SPECIFICATION.md)
+- **Implementation Guide**: [`CLAUDE_V4.md`](../CLAUDE_V4.md)
+- **Migration Guide**: [`docs/framepiler_design/architecture_v4/MIGRATION_V3_TO_V4.md`](framepiler_design/architecture_v4/MIGRATION_V3_TO_V4.md)
 
 **V4 Test Infrastructure:**
 - Test location: `framepiler_test_env/common/test-frames/v4/prt/`
 - Run tests: `cd framepiler_test_env/common/test-frames/v4/prt && ./run_tests.sh`
-- Output: `/tmp/v4_prt_tests/` - Generated code for all three PRT languages
+- Output: `/tmp/v4_prt_tests/`
 
-**V4 Test Status (v0.87.2):**
+**V4 Test Status (v0.87.3):**
 - Python: 9/9 pass
 - Rust: 9/9 pass
-- TypeScript: 2/9 pass (failures due to Python syntax in test native code)
+- TypeScript: 9/9 pass
+- **Total: 27/27 pass**
 
 Below is the living index of the most relevant specs and plans across `framelang_design` and `framepiler_design`.
 
