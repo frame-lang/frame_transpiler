@@ -13,18 +13,38 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
         while i<end {
             if block_nest>0 { if i+1<end && bytes[i]==b'/' && bytes[i+1]==b'*' { block_nest+=1; i+=2; continue; } if i+1<end && bytes[i]==b'*' && bytes[i+1]==b'/' { block_nest-=1; i+=2; continue; } i+=1; continue; }
             let b=bytes[i]; if at_sol { if b==b' '||b==b'\t' { indent+=1; i+=1; continue; }
-                if b == b'-' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
-                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
-                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
-                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Transition, indent });
-                    i=j; seg_start=i; at_sol=true; indent=0; continue;
+                // V4: -> $State (transition) or -> pop$ (pop transition)
+                if b == b'-' && i+1<end && bytes[i+1]==b'>' {
+                    // Check for -> pop$ (pop transition)
+                    if i+7<end && bytes[i+2]==b' ' && bytes[i+3]==b'p' && bytes[i+4]==b'o' && bytes[i+5]==b'p' && bytes[i+6]==b'$' {
+                        if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                        let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::StackPop, indent });
+                        i=j; seg_start=i; at_sol=true; indent=0; continue;
+                    }
+                    // Regular transition -> $State
+                    if i+3<end && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
+                        if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                        let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Transition, indent });
+                        i=j; seg_start=i; at_sol=true; indent=0; continue;
+                    }
                 }
+                // V4: => $^ (forward)
                 if b == b'=' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
                     if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
                     let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Forward, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
+                // V4: push$ (stack push)
+                if b == b'p' && i+4<end && bytes[i+1]==b'u' && bytes[i+2]==b's' && bytes[i+3]==b'h' && bytes[i+4]==b'$' {
+                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::StackPush, indent });
+                    i=j; seg_start=i; at_sol=true; indent=0; continue;
+                }
+                // V3 compat: $$[+] or $$[-]
                 if b == b'$' && i+2<end && bytes[i+1]==b'$' && bytes[i+2]==b'[' {
                     if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
                     let mut j=i; j = find_frame_line_end_rust(bytes, j, end);

@@ -89,6 +89,8 @@ impl EmitContext {
 /// Class syntax configuration for different languages
 #[derive(Debug, Clone)]
 pub struct ClassSyntax {
+    /// Target language
+    pub language: TargetLanguage,
     /// Keyword for class (e.g., "class", "struct")
     pub class_keyword: String,
     /// How to specify inheritance (e.g., "extends", ":")
@@ -116,6 +118,7 @@ pub struct ClassSyntax {
 impl ClassSyntax {
     pub fn python() -> Self {
         Self {
+            language: TargetLanguage::Python3,
             class_keyword: "class".to_string(),
             extends_keyword: None,
             self_keyword: "self".to_string(),
@@ -132,6 +135,7 @@ impl ClassSyntax {
 
     pub fn typescript() -> Self {
         Self {
+            language: TargetLanguage::TypeScript,
             class_keyword: "class".to_string(),
             extends_keyword: Some("extends".to_string()),
             self_keyword: "this".to_string(),
@@ -148,6 +152,7 @@ impl ClassSyntax {
 
     pub fn rust() -> Self {
         Self {
+            language: TargetLanguage::Rust,
             class_keyword: "struct".to_string(),
             extends_keyword: None,
             self_keyword: "self".to_string(),
@@ -164,6 +169,7 @@ impl ClassSyntax {
 
     pub fn java() -> Self {
         Self {
+            language: TargetLanguage::Java,
             class_keyword: "class".to_string(),
             extends_keyword: Some("extends".to_string()),
             self_keyword: "this".to_string(),
@@ -180,6 +186,7 @@ impl ClassSyntax {
 
     pub fn csharp() -> Self {
         Self {
+            language: TargetLanguage::CSharp,
             class_keyword: "class".to_string(),
             extends_keyword: Some(":".to_string()),
             self_keyword: "this".to_string(),
@@ -196,6 +203,7 @@ impl ClassSyntax {
 
     pub fn c() -> Self {
         Self {
+            language: TargetLanguage::C,
             class_keyword: "struct".to_string(),
             extends_keyword: None,
             self_keyword: "self".to_string(),
@@ -212,6 +220,7 @@ impl ClassSyntax {
 
     pub fn cpp() -> Self {
         Self {
+            language: TargetLanguage::Cpp,
             class_keyword: "class".to_string(),
             extends_keyword: Some(":".to_string()),
             self_keyword: "this".to_string(),

@@ -56,6 +56,7 @@ pub struct FrameSymbol {
 pub struct HandlerEntry {
     pub event: String,
     pub params: Vec<FrameSymbol>,
+    pub return_type: Option<String>,  // Return type annotation if present
     pub body_span: Span,              // For splicer to extract body content
     pub is_enter: bool,               // $>
     pub is_exit: bool,                // $<
@@ -711,6 +712,7 @@ fn build_enhanced_state_from_frame_ast(state: &FrameStateAst) -> EnhancedStateEn
                     symbol_type: Some(type_to_string(&p.param_type)),
                 }
             }).collect(),
+            return_type: None,  // Enter handlers don't have return types
             body_span: convert_span(&enter.body.span),
             is_enter: true,
             is_exit: false,
@@ -723,6 +725,7 @@ fn build_enhanced_state_from_frame_ast(state: &FrameStateAst) -> EnhancedStateEn
         let handler_entry = HandlerEntry {
             event: "$<".to_string(),
             params: Vec::new(),  // Exit handlers don't have params
+            return_type: None,   // Exit handlers don't have return types
             body_span: convert_span(&exit.body.span),
             is_enter: false,
             is_exit: true,
@@ -758,6 +761,7 @@ fn build_handler_entry_from_ast(handler: &FrameHandlerAst) -> HandlerEntry {
     HandlerEntry {
         event: handler.event.clone(),
         params,
+        return_type: handler.return_type.as_ref().map(type_to_string),
         body_span: convert_span(&handler.body.span),
         is_enter: false,
         is_exit: false,

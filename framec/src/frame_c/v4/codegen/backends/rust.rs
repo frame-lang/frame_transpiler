@@ -92,9 +92,16 @@ impl LanguageBackend for RustBackend {
                     ctx.get_indent(), vis, async_kw, name, params_str, return_str));
 
                 ctx.push_indent();
-                for stmt in body {
+                let has_return_type = return_type.is_some();
+                let stmt_count = body.len();
+                for (i, stmt) in body.iter().enumerate() {
+                    let is_last = i == stmt_count - 1;
                     result.push_str(&self.emit(stmt, ctx));
-                    if self.needs_semicolon(stmt) {
+                    // Don't add semicolon to last statement if method has return type
+                    // (the last expression IS the return value in Rust)
+                    if is_last && has_return_type {
+                        result.push('\n');
+                    } else if self.needs_semicolon(stmt) {
                         result.push_str(";\n");
                     } else {
                         result.push('\n');
@@ -440,11 +447,17 @@ impl RustBackend {
     }
 
     fn needs_semicolon(&self, node: &CodegenNode) -> bool {
-        !matches!(node,
+        match node {
             CodegenNode::If { .. } | CodegenNode::While { .. } |
             CodegenNode::For { .. } | CodegenNode::Match { .. } |
-            CodegenNode::Comment { .. } | CodegenNode::Empty
-        )
+            CodegenNode::Comment { .. } | CodegenNode::Empty => false,
+            // NativeBlocks that end with } or ; don't need another semicolon
+            CodegenNode::NativeBlock { code, .. } => {
+                let trimmed = code.trim();
+                !trimmed.ends_with('}') && !trimmed.ends_with(';')
+            }
+            _ => true,
+        }
     }
 }
 

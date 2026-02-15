@@ -345,8 +345,9 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
                 }]
             }
             TargetLanguage::Rust => {
+                // Generate match-based dispatch for Rust
                 vec![CodegenNode::NativeBlock {
-                    code: "let handler_name = format!(\"_s_{}_enter\", self._state);\n// Rust: dispatch via match or registry".to_string(),
+                    code: generate_rust_enter_exit_dispatch(system, "enter"),
                     span: None,
                 }]
             }
@@ -393,8 +394,9 @@ fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codegen
                 }]
             }
             TargetLanguage::Rust => {
+                // Generate match-based dispatch for Rust
                 vec![CodegenNode::NativeBlock {
-                    code: "let handler_name = format!(\"_s_{}_exit\", self._state);\n// Rust: dispatch via match or registry".to_string(),
+                    code: generate_rust_enter_exit_dispatch(system, "exit"),
                     span: None,
                 }]
             }
@@ -416,8 +418,37 @@ fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codegen
     }
 }
 
+/// Generate Rust match-based dispatch for enter/exit handlers
+fn generate_rust_enter_exit_dispatch(system: &SystemAst, handler_type: &str) -> String {
+    let mut match_code = String::new();
+    match_code.push_str("match self._state.as_str() {\n");
+
+    if let Some(ref machine) = system.machine {
+        for state in &machine.states {
+            // Check if this state has the handler type
+            let has_handler = if handler_type == "enter" {
+                state.enter.is_some()
+            } else {
+                state.exit.is_some()
+            };
+
+            if has_handler {
+                let handler_name = format!("_s_{}_{}", state.name, handler_type);
+                match_code.push_str(&format!("            \"{}\" => {{ self.{}(); }}\n", state.name, handler_name));
+            }
+        }
+    }
+
+    match_code.push_str("            _ => {}\n");
+    match_code.push_str("        }");
+    match_code
+}
+
 /// Generate interface wrapper methods
 fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<CodegenNode> {
+    // Get the target language from the syntax
+    let lang = syntax.language;
+
     system.interface.iter().map(|method| {
         let params: Vec<Param> = method.params.iter().map(|p| {
             let type_str = type_to_string(&p.param_type);
@@ -428,21 +459,30 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
             .map(|p| CodegenNode::ident(&p.name))
             .collect();
 
-        // Generate dispatch: call _dispatch_event(event_name, *args)
-        let mut dispatch_args = vec![CodegenNode::string(&method.name)];
-        dispatch_args.extend(args);
+        // Language-specific dispatch
+        let body_stmt = match lang {
+            TargetLanguage::Rust => {
+                // For Rust, generate a match-based dispatch directly in the interface method
+                generate_rust_interface_dispatch(system, &method.name, &args, method.return_type.is_some())
+            }
+            _ => {
+                // For dynamic languages, use _dispatch_event
+                let mut dispatch_args = vec![CodegenNode::string(&method.name)];
+                dispatch_args.extend(args);
 
-        let dispatch_call = CodegenNode::method_call(
-            CodegenNode::self_ref(),
-            "_dispatch_event",
-            dispatch_args,
-        );
+                let dispatch_call = CodegenNode::method_call(
+                    CodegenNode::self_ref(),
+                    "_dispatch_event",
+                    dispatch_args,
+                );
 
-        // If method has return type, wrap in Return; otherwise just call
-        let body_stmt = if method.return_type.is_some() {
-            CodegenNode::Return { value: Some(Box::new(dispatch_call)) }
-        } else {
-            CodegenNode::ExprStmt(Box::new(dispatch_call))
+                // If method has return type, wrap in Return; otherwise just call
+                if method.return_type.is_some() {
+                    CodegenNode::Return { value: Some(Box::new(dispatch_call)) }
+                } else {
+                    CodegenNode::ExprStmt(Box::new(dispatch_call))
+                }
+            }
         };
 
         CodegenNode::Method {
@@ -456,6 +496,54 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
             decorators: vec![],
         }
     }).collect()
+}
+
+/// Generate Rust match-based dispatch for interface methods
+fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[CodegenNode], has_return: bool) -> CodegenNode {
+    // Build match arms for each state that handles this event
+    let mut match_code = String::new();
+    match_code.push_str("match self._state.as_str() {\n");
+
+    if let Some(ref machine) = system.machine {
+        for state in &machine.states {
+            // Check if this state handles the event
+            let handles_event = state.handlers.iter().any(|h| h.event == event);
+            if handles_event {
+                let handler_name = format!("_s_{}_{}", state.name, event);
+                let args_str = if args.is_empty() {
+                    String::new()
+                } else {
+                    args.iter().map(|a| {
+                        // Extract identifier name
+                        if let CodegenNode::Ident(name) = a {
+                            name.clone()
+                        } else {
+                            "arg".to_string()
+                        }
+                    }).collect::<Vec<_>>().join(", ")
+                };
+
+                if has_return {
+                    match_code.push_str(&format!("            \"{}\" => self.{}({}),\n", state.name, handler_name, args_str));
+                } else {
+                    match_code.push_str(&format!("            \"{}\" => {{ self.{}({}); }}\n", state.name, handler_name, args_str));
+                }
+            }
+        }
+    }
+
+    // Default arm
+    if has_return {
+        match_code.push_str("            _ => Default::default(),\n");
+    } else {
+        match_code.push_str("            _ => {}\n");
+    }
+    match_code.push_str("        }");
+
+    CodegenNode::NativeBlock {
+        code: match_code,
+        span: None,
+    }
 }
 
 /// Generate state handler methods using the enhanced Arcanum
@@ -516,10 +604,18 @@ fn generate_handler_from_arcanum(
     // Splice the handler body: preserve native code, expand Frame segments
     let body_code = splice_handler_body_from_span(&handler.body_span, source, lang);
 
+    // For handlers with return types, remove trailing semicolon from the last expression
+    // This is needed for Rust where the last expression is the return value
+    let body_code = if handler.return_type.is_some() && matches!(lang, TargetLanguage::Rust) {
+        strip_trailing_semicolon(&body_code)
+    } else {
+        body_code
+    };
+
     CodegenNode::Method {
         name: method_name,
         params,
-        return_type: None,
+        return_type: handler.return_type.clone(),
         body: vec![CodegenNode::NativeBlock {
             code: body_code,
             span: Some(crate::frame_c::v4::frame_ast::Span {
@@ -605,6 +701,27 @@ fn normalize_indentation(text: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Strip trailing semicolon from the last line of code
+/// Used for Rust handlers with return types where the last expression is the return value
+fn strip_trailing_semicolon(code: &str) -> String {
+    let mut lines: Vec<&str> = code.lines().collect();
+    if lines.is_empty() {
+        return code.to_string();
+    }
+
+    // Find the last non-empty line
+    let last_idx = lines.iter().rposition(|l| !l.trim().is_empty());
+    if let Some(idx) = last_idx {
+        // Strip trailing semicolon from the last line
+        let last_line = lines[idx].trim_end();
+        if last_line.ends_with(';') {
+            lines[idx] = &last_line[..last_line.len()-1];
+        }
+    }
+
+    lines.join("\n")
 }
 
 /// Generate state handler methods (legacy - kept for reference)
@@ -772,12 +889,16 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
         FrameSegmentKindV3::StackPush => {
             match lang {
                 TargetLanguage::Python3 => format!("{}self._state_stack.append(self._state)", indent_str),
+                TargetLanguage::Rust => format!("{}self._state_stack.push(Box::new(self._state.clone()));", indent_str),
+                TargetLanguage::TypeScript => format!("{}this._state_stack.push(this._state);", indent_str),
                 _ => format!("{}this._state_stack.push(this._state);", indent_str),
             }
         }
         FrameSegmentKindV3::StackPop => {
             match lang {
                 TargetLanguage::Python3 => format!("{}self._transition(self._state_stack.pop())", indent_str),
+                TargetLanguage::Rust => format!("{}let __popped_state = *self._state_stack.pop().unwrap().downcast::<String>().unwrap();\n{}self._transition(&__popped_state)", indent_str, indent_str),
+                TargetLanguage::TypeScript => format!("{}this._transition(this._state_stack.pop());", indent_str),
                 _ => format!("{}this._transition(this._state_stack.pop());", indent_str),
             }
         }
