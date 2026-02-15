@@ -129,12 +129,13 @@ from dataclasses import dataclass
 
 **V4:**
 
-The `:>` operator is not supported. Use `->` (transition) or `->>` (change state without exit/enter).
+The `:>` operator is not supported. Use `->` (transition).
 
 ```
--> $NewState     # With exit/enter handlers
-->> $NewState    # Without exit/enter handlers
+-> $NewState     # Transition with exit/enter handlers
 ```
+
+Note: V4 does not have a "change state without lifecycle" operator. All transitions invoke exit/enter handlers.
 
 ### Event Handler Syntax
 
@@ -183,7 +184,7 @@ event(x: type, y: type) {
 | Frame modules (`module`) | Use `@@system` |
 | Frame imports | Use native imports |
 | Standalone `fn` | Native functions |
-| `:>` change state | Use `->>` |
+| `:>` change state | Use `->` (V4 has no lifecycle-free change) |
 | Frame constants | Native constants |
 | Frame enums | Native enums |
 | Pipe event syntax | Method syntax |
@@ -195,7 +196,7 @@ event(x: type, y: type) {
 | `@@persist` | Persistence code generation |
 | Native type passthrough | Any native type syntax works |
 | HSM `=> $^` | Forward to parent state |
-| State stack `$$[+]` / `$$[-]` | Push/pop state |
+| State stack `push$` / `pop$` | Push/pop state |
 
 ## Migration Process
 
@@ -233,7 +234,7 @@ Convert Frame module imports to native imports or inline the functionality.
 
 ```diff
 - :> $NewState
-+ ->> $NewState
++ -> $NewState
 ```
 
 ### Step 7: Test Compilation
@@ -319,7 +320,7 @@ def validate(data):
             process(data) {
                 validation = validate(data)
                 if validation["ok"]:
-                    ->> $Processing
+                    -> $Processing
                 else:
                     print("Validation failed")
             }

@@ -38,7 +38,7 @@ V4 represents a fundamental simplification of the Frame compilation pipeline, em
   - Parse Frame structural elements (system, states, blocks)
   - Preserve native annotations as opaque strings
   - Identify Frame annotations (`@@persist`, `@@system`)
-  - Extract Frame statements (`->`, `=>`, `$$[+]`, etc.) from native code
+  - Extract Frame statements (`->`, `=>`, `push$`, `pop$`, etc.) from native code
 - **Output**: Frame AST with attached native annotations and code blocks
 
 ### Stage 3: Semantic Analysis

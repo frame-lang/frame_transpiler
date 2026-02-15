@@ -198,7 +198,7 @@ When Frame systems reference other Frame systems, the compiler:
 import TrafficLight from './traffic_light.frts'  // Frame import
 import { Logger } from 'winston'                // Native import
 
-system Controller {
+@@system Controller {
     machine:
         $Active {
             init() {
@@ -325,7 +325,7 @@ Each extension clearly indicates the target language while maintaining the `@@ta
 // src/systems/traffic_light.frts
 @@target typescript
 
-system TrafficLight {
+@@system TrafficLight {
     machine:
         $Red {
             tick() { -> $Green() }

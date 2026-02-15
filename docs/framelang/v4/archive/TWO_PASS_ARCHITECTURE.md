@@ -115,9 +115,9 @@ pub struct HandlerBody {
 /// Frame statements that require validation
 pub enum Statement {
     Transition(TransitionAst),       // -> $State
-    Forward(ForwardAst),             // -> $$
-    StackPush(StackPushAst),         // $$[+]
-    StackPop(StackPopAst),           // -> $$[-]
+    Forward(ForwardAst),             // => $^
+    StackPush(StackPushAst),         // push$
+    StackPop(StackPopAst),           // pop$ or -> pop$
     Return(ReturnAst),
     Continue(ContinueAst),
     // NO NativeBlock - native code handled by splicer
@@ -259,9 +259,9 @@ pub enum RegionV3 {
 /// Types of Frame segments
 pub enum FrameSegmentKindV3 {
     Transition,   // -> $State
-    Forward,      // -> $$
-    StackPush,    // $$[+]
-    StackPop,     // -> $$[-]
+    Forward,      // => $^
+    StackPush,    // push$
+    StackPop,     // pop$ or -> pop$
 }
 ```
 
@@ -476,4 +476,4 @@ for (event, handler) in &state_entry.handlers {
 
 - [V4 Compiler Architecture](COMPILER_ARCHITECTURE.md)
 - [Validation Architecture](VALIDATION_ARCHITECTURE.md)
-- [Frame Grammar](../grammar.md)
+- [Frame Grammar](grammar_v4.md)

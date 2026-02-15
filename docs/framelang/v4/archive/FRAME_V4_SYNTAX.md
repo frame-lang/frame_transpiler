@@ -218,16 +218,17 @@ Delegate event to parent state handler.
 Push current state onto stack before transition.
 
 ```
-$$[+]
+push$
 -> $OtherState
 ```
 
 ### State Stack Pop
 
-Pop and transition to stacked state.
+Pop state from stack. Two forms:
 
 ```
-$$[-]
+pop$           # Change state without lifecycle (no exit/enter)
+-> pop$        # Transition with full lifecycle (exit then enter)
 ```
 
 ## Native Code

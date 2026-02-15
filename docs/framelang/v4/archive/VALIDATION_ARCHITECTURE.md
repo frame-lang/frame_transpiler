@@ -322,7 +322,7 @@ All other errors come from native compilers with Frame context added via source 
 #[test]
 fn test_unknown_state_validation() {
     let fixture = TestFixture::new("
-        system Example {
+        @@system Example {
             machine:
                 $Start {
                     go() { -> $NonExistent }
@@ -405,7 +405,7 @@ fn full_system_validation() {
 ```rust
 #[test]
 fn error_message_clarity() {
-    let source = "system S { machine: $A { go() { -> $B } } }";
+    let source = "@@system S { machine: $A { go() { -> $B } } }";
     let result = validate(source);
     
     let error = &result.errors[0];
@@ -461,7 +461,7 @@ Create a DSL for expressing validation tests:
 validation_test! {
     name: unknown_state_transition,
     frame_code: r#"
-        system Light {
+        @@system Light {
             machine:
                 $Red { tick() { -> $Purple } }  // Error here
                 $Green { }

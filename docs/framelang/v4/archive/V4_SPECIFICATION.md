@@ -52,7 +52,7 @@ annotation      = native_annotation | frame_annotation
 ### System Definition
 
 ```bnf
-system          = annotation* "system" identifier system_params? "{" system_body "}"
+system          = annotation* "@@system" identifier "{" system_body "}"
 system_params   = "(" system_param_list ")"
 system_param_list = system_param ("," system_param)*
 system_param    = start_state_param | enter_param | domain_param
@@ -88,10 +88,10 @@ exit_handler    = "$<(" params? ")" "{" native_code_block "}"
 
 ```bnf
 frame_statement = transition | forward | stack_push | stack_pop | system_return
-transition      = "->" "$" identifier "(" args? ")"
+transition      = "->" "$" identifier ("(" args? ")")?
 forward         = "=>" "$^"
-stack_push      = "$$[+]"
-stack_pop       = "$$[-]"
+stack_push      = "push$"
+stack_pop       = "pop$" | "->" "pop$"
 system_return   = "system.return" "=" expression
 ```
 
@@ -127,7 +127,7 @@ csharp_annotation = "[" identifier annotation_args? "]"
 ### Compilation Rules
 
 ```frame
-system Example ($(x, y), $>(init), config) {
+@@system Example ($(x, y), $>(init), config) {
     domain:
         config = None  # REQUIRED for domain param
         
@@ -409,7 +409,7 @@ import json
 from datetime import datetime
 from other_module import OtherFrameSystem  # Frame doesn't track this
 
-system MySystem {
+@@system MySystem {
     # ...
 }
 ```
@@ -464,7 +464,7 @@ Full context and helpful diagnostics for Frame-specific issues:
 ERROR: Start state parameters mismatch
   --> robot.fpy:10:5
    |
-10 | system Robot ($(x, y)) {
+10 | @@system Robot ($(x, y)) {
    |               ^^^^^^^^ System declares 2 parameters
 ...
 15 |     $Idle {  // ERROR: Must accept (x, y)
@@ -508,7 +508,7 @@ This approach:
 ## Appendices
 
 ### A. Complete Grammar
-See [`grammar.md`](grammar.md)
+See [`grammar_v4.md`](grammar_v4.md)
 
 ### B. System Parameters  
 See [`system_parameters.md`](system_parameters.md)

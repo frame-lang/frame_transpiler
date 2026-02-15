@@ -53,7 +53,7 @@
 
 ## Phase 1: Validation Expansion (Priority: HIGH)
 
-**Goal:** Implement 25+ additional error codes from `VALIDATION_EXPANSION_PLAN.md`
+**Goal:** Implement 25+ additional error codes
 
 **Timeline:** 6 weeks
 
@@ -118,7 +118,7 @@ Tasks:
 New error codes:
 - E440: `hsm-cycle` - Parent chain has cycle
 - E441: `hsm-depth-exceeded` - Too deep (>10 levels)
-- E442: `forward-no-parent` - `>>` without parent
+- E442: `forward-no-parent` - `=> $^` without parent
 - E443: `forward-unhandled` - Parent doesn't handle
 - E444: `orphan-parent` - Parent doesn't exist
 
@@ -279,7 +279,7 @@ The following are explicitly out of scope for V4:
 3. **Multi-file projects** - V5 scope
 4. **C#/Java/C/C++ backends** - Low priority, complete when needed
 
-See `docs/architecture_v5/PLAN.md` for future work.
+Future work will be documented in V5 planning documents.
 
 ---
 
