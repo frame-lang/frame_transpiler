@@ -27,6 +27,14 @@ use crate::frame_c::v4::native_region_scanner::{
 use super::ast::*;
 use super::backend::get_backend;
 
+/// Context for handler expansion - tracks parent state and event for HSM forwarding
+#[derive(Clone, Default)]
+struct HandlerContext {
+    pub state_name: String,
+    pub event_name: String,
+    pub parent_state: Option<String>,
+}
+
 /// Generate a complete CodegenNode for a Frame system
 ///
 /// # Arguments
@@ -559,6 +567,7 @@ fn generate_state_handlers_via_arcanum(system_name: &str, arcanum: &Arcanum, sou
         for (event, handler_entry) in &state_entry.handlers {
             let method = generate_handler_from_arcanum(
                 &state_entry.name,
+                state_entry.parent.as_deref(),
                 handler_entry,
                 source,
                 lang,
@@ -575,6 +584,7 @@ fn generate_state_handlers_via_arcanum(system_name: &str, arcanum: &Arcanum, sou
 /// Uses the handler's body_span to extract and splice native code with Frame expansions.
 fn generate_handler_from_arcanum(
     state_name: &str,
+    parent_state: Option<&str>,
     handler: &HandlerEntry,
     source: &[u8],
     lang: TargetLanguage,
@@ -601,8 +611,15 @@ fn generate_handler_from_arcanum(
         format!("_s_{}_{}", state_name, handler.event)
     };
 
+    // Build context for HSM forwarding
+    let ctx = HandlerContext {
+        state_name: state_name.to_string(),
+        event_name: handler.event.clone(),
+        parent_state: parent_state.map(|s| s.to_string()),
+    };
+
     // Splice the handler body: preserve native code, expand Frame segments
-    let body_code = splice_handler_body_from_span(&handler.body_span, source, lang);
+    let body_code = splice_handler_body_from_span(&handler.body_span, source, lang, &ctx);
 
     // For handlers with return types, remove trailing semicolon from the last expression
     // This is needed for Rust where the last expression is the return value
@@ -631,7 +648,7 @@ fn generate_handler_from_arcanum(
 }
 
 /// Splice handler body from a span (used by Arcanum-based generation)
-fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &[u8], lang: TargetLanguage) -> String {
+fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &[u8], lang: TargetLanguage, ctx: &HandlerContext) -> String {
     // Ensure span is within bounds
     if span.start >= source.len() || span.end > source.len() || span.start >= span.end {
         return String::new();
@@ -657,7 +674,7 @@ fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &
     let mut expansions = Vec::new();
     for region in &scan_result.regions {
         if let RegionV3::FrameSegment { span, kind, indent } = region {
-            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang);
+            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, ctx);
             expansions.push(expansion);
         }
     }
@@ -809,6 +826,7 @@ fn generate_enter_exit_handler(name: &str, body: &HandlerBody, source: &[u8], la
 }
 
 /// Splice handler body: preserve native code, replace Frame segments with generated code
+#[allow(dead_code)]
 fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> String {
     // Get the body bytes from source
     let body_bytes = &source[body.span.start..body.span.end];
@@ -827,11 +845,14 @@ fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) 
         Err(_) => return String::new(),
     };
 
+    // Legacy path: use empty context (no HSM forward support)
+    let ctx = HandlerContext::default();
+
     // Generate expansions for each Frame segment
     let mut expansions = Vec::new();
     for region in &scan_result.regions {
         if let RegionV3::FrameSegment { span, kind, indent } = region {
-            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang);
+            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, &ctx);
             expansions.push(expansion);
         }
     }
@@ -864,7 +885,7 @@ fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) 
 /// NOTE: The scanner leaves a gap between NativeText and FrameSegment where leading
 /// whitespace lives. Since the splicer doesn't copy this gap, we MUST include the
 /// indentation in the expansion to preserve proper code structure.
-fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, indent: usize, lang: TargetLanguage) -> String {
+fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, indent: usize, lang: TargetLanguage, ctx: &HandlerContext) -> String {
     let segment_text = String::from_utf8_lossy(&body_bytes[span.start..span.end]);
     // Use scanner's indent value to match native code indentation
     // This ensures Frame expansions align with surrounding native code
@@ -881,9 +902,21 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKindV3::Forward => {
-            match lang {
-                TargetLanguage::Python3 => format!("{}return  # Forward to parent", indent_str),
-                _ => format!("{}return; // Forward to parent", indent_str),
+            // HSM forward: call parent state's handler for the same event
+            if let Some(ref parent) = ctx.parent_state {
+                let parent_handler = format!("_s_{}_{}", parent, ctx.event_name);
+                match lang {
+                    TargetLanguage::Python3 => format!("{}self.{}()", indent_str, parent_handler),
+                    TargetLanguage::TypeScript => format!("{}this.{}();", indent_str, parent_handler),
+                    TargetLanguage::Rust => format!("{}self.{}()", indent_str, parent_handler),
+                    _ => format!("{}this.{}();", indent_str, parent_handler),
+                }
+            } else {
+                // No parent state - just return (shouldn't happen in valid HSM)
+                match lang {
+                    TargetLanguage::Python3 => format!("{}return  # Forward to parent (no parent)", indent_str),
+                    _ => format!("{}return; // Forward to parent (no parent)", indent_str),
+                }
             }
         }
         FrameSegmentKindV3::StackPush => {
