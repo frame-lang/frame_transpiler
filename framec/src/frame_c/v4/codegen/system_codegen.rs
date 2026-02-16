@@ -1892,13 +1892,7 @@ fn generate_operation(operation: &OperationAst, syntax: &super::backend::ClassSy
     // Extract native code from source using span (oceans model)
     let code = extract_body_content(source, &operation.body.span);
 
-    // For static operations in Python, add @staticmethod decorator
-    let decorators = if operation.is_static && matches!(syntax.language, TargetLanguage::Python3) {
-        vec!["staticmethod".to_string()]
-    } else {
-        vec![]
-    };
-
+    // Backend handles is_static flag for @staticmethod decorator
     CodegenNode::Method {
         name: operation.name.clone(),
         params,
@@ -1910,7 +1904,7 @@ fn generate_operation(operation: &OperationAst, syntax: &super::backend::ClassSy
         is_async: false,
         is_static: operation.is_static,
         visibility: Visibility::Public,
-        decorators,
+        decorators: vec![],
     }
 }
 
