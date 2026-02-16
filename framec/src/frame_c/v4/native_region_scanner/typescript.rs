@@ -18,10 +18,22 @@ impl NativeRegionScannerV3 for NativeRegionScannerTsV3 {
             let b = bytes[i];
             if at_sol {
                 if b == b' ' || b == b'\t' { indent += 1; i+=1; continue; }
-                // Transition: -> $ or -> (enter_args) $
+                // Transition-Forward: -> => $State (transition then forward event)
                 if b == b'-' && i+1<end && bytes[i+1]==b'>' {
                     let mut k = i + 2;
                     while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                    // Check for => (forward after transition)
+                    if k+1 < end && bytes[k] == b'=' && bytes[k+1] == b'>' {
+                        k += 2;
+                        while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                        if k < end && bytes[k] == b'$' {
+                            if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                            let mut j=i; j = find_frame_line_end_ts(bytes, j, end);
+                            regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::TransitionForward, indent });
+                            i=j; seg_start=i; at_sol=true; indent=0; continue;
+                        }
+                    }
+                    // Regular transition: -> $ or -> (enter_args) $
                     // Check for optional enter args: -> (args) $State
                     if k < end && bytes[k] == b'(' {
                         if let Some(k2) = balanced_paren_end_ts(bytes, k, end) {

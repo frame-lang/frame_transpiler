@@ -12,6 +12,9 @@ pub enum MirItemV3 {
         span: RegionSpan,
     },
     Forward { span: RegionSpan },
+    // Transition then forward event: -> => $State
+    // Transitions to target state, then dispatches current event to the new state
+    TransitionForward { target: String, span: RegionSpan },
     StackPush { span: RegionSpan },
     StackPop { span: RegionSpan },
     // System return: system.return = <expr> or ^ <expr>

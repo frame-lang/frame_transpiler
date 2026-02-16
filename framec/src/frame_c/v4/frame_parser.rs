@@ -1719,6 +1719,15 @@ impl FrameParser {
                     indent,
                 }))
             }
+            FrameSegmentKindV3::TransitionForward => {
+                // -> => $State (transition then forward event)
+                let (target, _args) = self.parse_transition_forward_from_string(&content)?;
+                Ok(Statement::TransitionForward(TransitionForwardAst {
+                    target,
+                    span: Span::new(span.start, span.end),
+                    indent,
+                }))
+            }
             FrameSegmentKindV3::StackPush => {
                 Ok(Statement::StackPush(StackPushAst {
                     span: Span::new(span.start, span.end),
@@ -1746,6 +1755,32 @@ impl FrameParser {
                 // Handled by splicer expansion
                 Err(ParseError::Expected("SystemReturnExpr handled by splicer".to_string()))
             }
+        }
+    }
+
+    /// Parse transition-forward string: "-> => $State"
+    fn parse_transition_forward_from_string(&self, content: &str) -> Result<(String, Vec<Expression>), ParseError> {
+        let content = content.trim();
+
+        // Find the state name (after $)
+        if let Some(dollar_pos) = content.rfind('$') {
+            let after_dollar = &content[dollar_pos + 1..];
+
+            // Extract state name
+            let mut target = String::new();
+            let mut chars = after_dollar.chars().peekable();
+            while let Some(&ch) = chars.peek() {
+                if ch.is_alphanumeric() || ch == '_' {
+                    target.push(ch);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+
+            Ok((target, vec![]))
+        } else {
+            Err(ParseError::Expected("state name after '$' in transition-forward".to_string()))
         }
     }
 

@@ -19,6 +19,7 @@ impl FrameStatementParserV3 {
         let text = &bytes[span.start..span.end];
         match kind {
             FrameSegmentKindV3::Transition => self.parse_transition(text, span),
+            FrameSegmentKindV3::TransitionForward => self.parse_transition_forward(text, span),
             FrameSegmentKindV3::Forward => self.parse_forward(text, span),
             FrameSegmentKindV3::StackPush => self.parse_stack(text, span, true),
             FrameSegmentKindV3::StackPop => self.parse_stack(text, span, false),
@@ -85,6 +86,28 @@ impl FrameStatementParserV3 {
         while i<n && line[i].is_ascii_whitespace() { i+=1; }
         if i<n { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
         Ok(MirItemV3::Transition{ target, exit_args, enter_args, state_args, span })
+    }
+
+    fn parse_transition_forward(&self, line: &[u8], span: RegionSpan) -> Result<MirItemV3, ParseErrorV3> {
+        // Expect: -> => $State
+        let n = line.len();
+        let mut i=0usize;
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // Required '->'
+        if !(i+2<=n && line[i]==b'-' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing ->")); }
+        i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // Required '=>'
+        if !(i+2<=n && line[i]==b'=' && line[i+1]==b'>') { return Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "missing =>")); }
+        i+=2; while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // '$' State
+        if i>=n || line[i]!=b'$' { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "expected $State after '-> =>'")); }
+        i+=1; let name_start=i;
+        if i>=n || !is_ident_start(line[i]) { return Err(ParseErrorV3::err(ParseErrorV3Kind::MissingState, "invalid state name start")); }
+        i+=1; while i<n && is_ident(line[i]) { i+=1; }
+        let target = String::from_utf8_lossy(&line[name_start..i]).to_string();
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        if i<n { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
+        Ok(MirItemV3::TransitionForward{ target, span })
     }
 
     fn parse_forward(&self, line: &[u8], span: RegionSpan) -> Result<MirItemV3, ParseErrorV3> {

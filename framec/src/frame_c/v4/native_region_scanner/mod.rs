@@ -1,6 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameSegmentKindV3 {
     Transition,
+    TransitionForward, // -> => $State - transition then forward event
     Forward,
     StackPush,
     StackPop,

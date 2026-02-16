@@ -13,7 +13,7 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
         while i<end {
             if block_nest>0 { if i+1<end && bytes[i]==b'/' && bytes[i+1]==b'*' { block_nest+=1; i+=2; continue; } if i+1<end && bytes[i]==b'*' && bytes[i+1]==b'/' { block_nest-=1; i+=2; continue; } i+=1; continue; }
             let b=bytes[i]; if at_sol { if b==b' '||b==b'\t' { indent+=1; i+=1; continue; }
-                // V4: -> $State (transition) or -> pop$ (pop transition)
+                // V4: -> $State (transition) or -> pop$ (pop transition) or -> => $State (transition forward)
                 if b == b'-' && i+1<end && bytes[i+1]==b'>' {
                     // Check for -> pop$ (pop transition)
                     if i+7<end && bytes[i+2]==b' ' && bytes[i+3]==b'p' && bytes[i+4]==b'o' && bytes[i+5]==b'p' && bytes[i+6]==b'$' {
@@ -22,9 +22,20 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
                         regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::StackPop, indent });
                         i=j; seg_start=i; at_sol=true; indent=0; continue;
                     }
-                    // Regular transition: -> $State or -> (enter_args) $State
                     let mut k = i + 2;
                     while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                    // Check for -> => $State (transition forward)
+                    if k+1 < end && bytes[k] == b'=' && bytes[k+1] == b'>' {
+                        k += 2;
+                        while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                        if k < end && bytes[k] == b'$' {
+                            if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                            let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                            regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::TransitionForward, indent });
+                            i=j; seg_start=i; at_sol=true; indent=0; continue;
+                        }
+                    }
+                    // Regular transition: -> $State or -> (enter_args) $State
                     // Check for optional enter args
                     if k < end && bytes[k] == b'(' {
                         if let Some(k2) = balanced_paren_end_rust(bytes, k, end) {

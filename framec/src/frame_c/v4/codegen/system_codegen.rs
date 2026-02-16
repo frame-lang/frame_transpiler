@@ -1466,6 +1466,35 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
             }
         }
+        FrameSegmentKindV3::TransitionForward => {
+            // Transition-Forward: -> => $State
+            // 1. Transition to the target state (exit current, enter new)
+            // 2. Dispatch the current event to the new state's handler
+            // 3. Return (event was handled by new state)
+            let target = extract_transition_target(&segment_text);
+            match lang {
+                TargetLanguage::Python3 => format!(
+                    "{}self._transition(\"{}\", None, None)\n{}return self._dispatch_event(\"{}\")",
+                    indent_str, target, indent_str, ctx.event_name
+                ),
+                TargetLanguage::TypeScript => format!(
+                    "{}this._transition(\"{}\", null, null);\n{}return this._dispatch_event(\"{}\");",
+                    indent_str, target, indent_str, ctx.event_name
+                ),
+                TargetLanguage::Rust => {
+                    // For Rust, call the target state's handler directly since _dispatch_event is a stub
+                    let handler_name = format!("_s_{}_{}", target, ctx.event_name);
+                    format!(
+                        "{}self._transition(\"{}\");\n{}return self.{}();",
+                        indent_str, target, indent_str, handler_name
+                    )
+                }
+                _ => format!(
+                    "{}this._transition(\"{}\", null, null);\n{}return this._dispatch_event(\"{}\");",
+                    indent_str, target, indent_str, ctx.event_name
+                ),
+            }
+        }
         FrameSegmentKindV3::Forward => {
             // HSM forward: call parent state's handler for the same event
             if let Some(ref parent) = ctx.parent_state {
@@ -1852,6 +1881,18 @@ fn convert_statement(stmt: &Statement) -> CodegenNode {
             // Check if forwarding to parent (event == "^")
             let to_parent = forward.event == "^";
             CodegenNode::Forward { to_parent, indent: forward.indent }
+        }
+        Statement::TransitionForward(tf) => {
+            // Transition-forward: transition to state then dispatch event
+            // The actual expansion happens in generate_frame_expansion
+            // This converts to a transition followed by forward
+            CodegenNode::Transition {
+                target_state: tf.target.clone(),
+                exit_args: vec![],
+                enter_args: vec![],
+                state_args: vec![],
+                indent: tf.indent,
+            }
         }
         Statement::StackPush(push) => {
             CodegenNode::StackPush { indent: push.indent }
