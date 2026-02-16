@@ -1531,29 +1531,30 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
         }
         FrameSegmentKindV3::StackPop => {
             // Restore state AND context - don't call _enter() since we're restoring, not freshly entering
+            // This is a transition, so we return after restoring state
             match lang {
                 TargetLanguage::Python3 => format!(
-                    "{}__saved = self._state_stack.pop()\n{}self._exit()\n{}self._state = __saved[0]\n{}self._state_context = __saved[1]",
-                    indent_str, indent_str, indent_str, indent_str
+                    "{}__saved = self._state_stack.pop()\n{}self._exit()\n{}self._state = __saved[0]\n{}self._state_context = __saved[1]\n{}return",
+                    indent_str, indent_str, indent_str, indent_str, indent_str
                 ),
                 TargetLanguage::TypeScript => format!(
-                    "{}const __saved = this._state_stack.pop()!;\n{}this._exit();\n{}this._state = __saved.state;\n{}this._state_context = __saved.context;",
-                    indent_str, indent_str, indent_str, indent_str
+                    "{}const __saved = this._state_stack.pop()!;\n{}this._exit();\n{}this._state = __saved.state;\n{}this._state_context = __saved.context;\n{}return;",
+                    indent_str, indent_str, indent_str, indent_str, indent_str
                 ),
                 // Rust: Use compartment-based method if there are state vars, else simple pop
                 TargetLanguage::Rust => {
                     if ctx.has_state_vars {
-                        format!("{}self._state_stack_pop();", indent_str)
+                        format!("{}self._state_stack_pop();\n{}return;", indent_str, indent_str)
                     } else {
                         format!(
-                            "{}let __popped_state = *self._state_stack.pop().unwrap().downcast::<String>().unwrap();\n{}self._transition(&__popped_state)",
-                            indent_str, indent_str
+                            "{}let __popped_state = *self._state_stack.pop().unwrap().downcast::<String>().unwrap();\n{}self._transition(&__popped_state);\n{}return;",
+                            indent_str, indent_str, indent_str
                         )
                     }
                 }
                 _ => format!(
-                    "{}const __saved = this._state_stack.pop()!;\n{}this._exit();\n{}this._state = __saved.state;\n{}this._state_context = __saved.context;",
-                    indent_str, indent_str, indent_str, indent_str
+                    "{}const __saved = this._state_stack.pop()!;\n{}this._exit();\n{}this._state = __saved.state;\n{}this._state_context = __saved.context;\n{}return;",
+                    indent_str, indent_str, indent_str, indent_str, indent_str
                 ),
             }
         }

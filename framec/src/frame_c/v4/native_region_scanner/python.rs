@@ -33,6 +33,14 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                             i=j; seg_start=i; at_sol=true; indent=0; continue;
                         }
                     }
+                    // Check for -> pop$ (pop transition without backtick)
+                    if k+3 < end && bytes[k] == b'p' && bytes[k+1] == b'o' && bytes[k+2] == b'p' && bytes[k+3] == b'$' {
+                        let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                        if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
+                        let mut j=i; j = find_frame_line_end_py(bytes, j, end);
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::StackPop, indent });
+                        i=j; seg_start=i; at_sol=true; indent=0; continue;
+                    }
                     // Regular transition: -> $ or -> (enter_args) $
                     // Check for optional enter args: -> (args) $State
                     if k < end && bytes[k] == b'(' {
