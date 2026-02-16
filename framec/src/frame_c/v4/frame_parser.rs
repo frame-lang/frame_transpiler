@@ -873,11 +873,12 @@ impl FrameParser {
         // Skip $<
         self.cursor += 2;
 
-        // Skip optional empty parens
-        if self.peek_char('(') {
-            self.expect_char('(')?;
-            self.expect_char(')')?;
-        }
+        // Parse optional parameters
+        let params = if self.peek_char('(') {
+            self.parse_event_params()?
+        } else {
+            vec![]
+        };
 
         self.skip_whitespace();
 
@@ -885,6 +886,7 @@ impl FrameParser {
         let body = self.parse_handler_body_with_scanner()?;
 
         Ok(ExitHandler {
+            params,
             body,
             span: Span::new(start, self.cursor),
         })

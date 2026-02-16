@@ -724,7 +724,14 @@ fn build_enhanced_state_from_frame_ast(state: &FrameStateAst) -> EnhancedStateEn
     if let Some(ref exit) = state.exit {
         let handler_entry = HandlerEntry {
             event: "$<".to_string(),
-            params: Vec::new(),  // Exit handlers don't have params
+            params: exit.params.iter().map(|p| {
+                FrameSymbol {
+                    name: p.name.clone(),
+                    kind: FrameSymbolKind::HandlerParam,
+                    declared_at: convert_span(&p.span),
+                    symbol_type: Some(type_to_string(&p.param_type)),
+                }
+            }).collect(),
             return_type: None,   // Exit handlers don't have return types
             body_span: convert_span(&exit.body.span),
             is_enter: false,

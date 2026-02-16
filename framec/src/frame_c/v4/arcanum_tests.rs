@@ -543,6 +543,7 @@ mod tests {
 
         // Add exit handler
         state.exit = Some(ExitHandler {
+            params: vec![],
             body: HandlerBody {
                 statements: vec![],
                 span: FrameSpan::new(110, 140),

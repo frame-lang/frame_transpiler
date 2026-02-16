@@ -1303,7 +1303,7 @@ fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassS
         if let Some(ref exit) = state.exit {
             methods.push(generate_enter_exit_handler(
                 &format!("_s_{}_exit", state.name),
-                &[],  // Exit handlers don't have params
+                &exit.params,
                 &exit.body,
                 source,
                 lang,
@@ -1445,8 +1445,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 
             match lang {
                 TargetLanguage::Python3 => {
-                    let exit_param = exit_str.as_ref().map_or("None".to_string(), |s| format!("({})", s));
-                    let enter_param = enter_str.as_ref().map_or("None".to_string(), |s| format!("({})", s));
+                    // Use trailing comma to ensure tuple even with single arg: (arg,)
+                    let exit_param = exit_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
+                    let enter_param = enter_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
                     format!("{}self._transition(\"{}\", {}, {})", indent_str, target, exit_param, enter_param)
                 }
                 TargetLanguage::TypeScript => {

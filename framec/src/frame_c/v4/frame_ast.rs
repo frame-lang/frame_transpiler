@@ -207,6 +207,7 @@ pub struct EnterHandler {
 /// Exit handler ($<)
 #[derive(Debug, Clone)]
 pub struct ExitHandler {
+    pub params: Vec<EventParam>,
     pub body: HandlerBody,
     pub span: Span,
 }
