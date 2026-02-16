@@ -1989,6 +1989,8 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
 
             restore_body.push_str("return instance");
 
+            // Note: @classmethod uses 'cls' as first param, but we pass explicit data
+            // Using @staticmethod is simpler for restore - just takes data dict
             methods.push(CodegenNode::Method {
                 name: "restore_state".to_string(),
                 params: vec![Param::new("data").with_type("dict")],
@@ -1998,9 +2000,9 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                     span: None,
                 }],
                 is_async: false,
-                is_static: true,  // classmethod
+                is_static: true,  // static method, not classmethod
                 visibility: Visibility::Public,
-                decorators: vec!["classmethod".to_string()],
+                decorators: vec![],  // is_static handles @staticmethod
             });
         }
         TargetLanguage::TypeScript => {
@@ -2020,7 +2022,7 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             methods.push(CodegenNode::Method {
                 name: "saveState".to_string(),
                 params: vec![],
-                return_type: Some("object".to_string()),
+                return_type: Some("any".to_string()),  // 'any' allows property access
                 body: vec![CodegenNode::NativeBlock {
                     code: save_body,
                     span: None,

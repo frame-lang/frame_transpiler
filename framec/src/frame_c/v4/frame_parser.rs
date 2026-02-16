@@ -26,6 +26,8 @@ pub struct FrameParser {
     cursor: usize,
     /// Target language
     target: TargetLanguage,
+    /// Whether @@persist was seen before current system
+    persist_seen: bool,
 }
 
 impl FrameParser {
@@ -35,6 +37,7 @@ impl FrameParser {
             source: source.to_vec(),
             cursor: 0,
             target,
+            persist_seen: false,
         }
     }
     
@@ -156,7 +159,7 @@ impl FrameParser {
     /// V4 pragmas:
     /// - @@target <lang>     - Target language (skipped)
     /// - @@system <name>     - System definition (NOT skipped - parsed)
-    /// - @@persist           - Persistence attribute (skipped, handled separately)
+    /// - @@persist           - Persistence attribute (captured for next system)
     /// - @@run-expect, @@skip-if, @@timeout - Test metadata (skipped)
     fn skip_pragmas(&mut self) {
         loop {
@@ -170,6 +173,11 @@ impl FrameParser {
             // Don't skip @@system - that's what we're looking for
             if self.peek_string("@@system") {
                 break;
+            }
+
+            // Check for @@persist - set flag for next system
+            if self.peek_string("@@persist") {
+                self.persist_seen = true;
             }
 
             // Skip this pragma line (@@target, @@persist, @@run-expect, etc.)
@@ -267,6 +275,18 @@ impl FrameParser {
         
         self.expect_char('}')?;
         
+        // Build persist_attr if @@persist was seen before this system
+        let persist_attr = if self.persist_seen {
+            self.persist_seen = false;  // Reset for next system
+            Some(PersistAttr {
+                save_name: None,
+                restore_name: None,
+                span: Span::new(start, start),  // Span is approximate
+            })
+        } else {
+            None
+        };
+
         Ok(SystemAst {
             name,
             params,
@@ -277,7 +297,7 @@ impl FrameParser {
             domain,
             span: Span::new(start, self.cursor),
             section_spans: SystemSectionSpans::default(),
-            persist_attr: None,
+            persist_attr,
             section_order: vec![],
         })
     }
