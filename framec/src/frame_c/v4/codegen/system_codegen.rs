@@ -121,6 +121,21 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         fields.push(field);
     }
 
+    // For Rust, generate struct fields for state variables
+    // (Other languages use _state_context dict)
+    if matches!(syntax.language, TargetLanguage::Rust) {
+        if let Some(ref machine) = system.machine {
+            for state in &machine.states {
+                for var in &state.state_vars {
+                    let type_str = type_to_string(&var.var_type);
+                    fields.push(Field::new(&format!("_sv_{}", var.name))
+                        .with_visibility(Visibility::Private)
+                        .with_type(&type_str));
+                }
+            }
+        }
+    }
+
     fields
 }
 
@@ -147,6 +162,36 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
                 CodegenNode::field(CodegenNode::self_ref(), &domain_var.name),
                 convert_expression(init),
             ));
+        }
+    }
+
+    // Initialize state variables (for Rust, these need default values in struct initializer)
+    // They'll be reinitialized to proper values in _enter()
+    if matches!(syntax.language, TargetLanguage::Rust) {
+        if let Some(ref machine) = system.machine {
+            for state in &machine.states {
+                for var in &state.state_vars {
+                    let init_value = match &var.var_type {
+                        Type::Int => CodegenNode::int(0),
+                        Type::Float => CodegenNode::float(0.0),
+                        Type::Bool => CodegenNode::bool(false),
+                        Type::String => CodegenNode::string(""),
+                        Type::Custom(name) => {
+                            match name.to_lowercase().as_str() {
+                                "i32" | "i64" | "u32" | "u64" | "isize" | "usize" => CodegenNode::int(0),
+                                "f32" | "f64" => CodegenNode::float(0.0),
+                                "bool" => CodegenNode::bool(false),
+                                _ => CodegenNode::int(0), // Default for unknown types
+                            }
+                        }
+                        Type::Unknown => CodegenNode::int(0),
+                    };
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), &format!("_sv_{}", var.name)),
+                        init_value,
+                    ));
+                }
+            }
         }
     }
 
@@ -330,32 +375,65 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
 
 /// Generate enter event dispatcher
 /// Uses language-specific dynamic dispatch pattern
+/// Also initializes state variables for the target state
 fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> CodegenNode {
     // Check if any states have enter handlers
     let has_enter_handlers = system.machine.as_ref()
         .map(|m| m.states.iter().any(|s| s.enter.is_some()))
         .unwrap_or(false);
 
-    let body = if !has_enter_handlers {
+    // Check if any states have state variables
+    let has_state_vars = system.machine.as_ref()
+        .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
+        .unwrap_or(false);
+
+    // Generate state variable initialization code
+    let state_var_init = if has_state_vars {
+        generate_state_var_init(system, lang)
+    } else {
+        String::new()
+    };
+
+    let body = if !has_enter_handlers && !has_state_vars {
         vec![CodegenNode::comment("No enter handlers")]
     } else {
         match lang {
             TargetLanguage::Python3 => {
+                let init_code = if !state_var_init.is_empty() {
+                    format!("{}\n", state_var_init)
+                } else {
+                    String::new()
+                };
+                let handler_code = if has_enter_handlers {
+                    "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()"
+                } else {
+                    ""
+                };
                 vec![CodegenNode::NativeBlock {
-                    code: "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
+                    code: format!("{}{}", init_code, handler_code),
                     span: None,
                 }]
             }
             TargetLanguage::TypeScript => {
+                let init_code = if !state_var_init.is_empty() {
+                    format!("{}\n", state_var_init)
+                } else {
+                    String::new()
+                };
+                let handler_code = if has_enter_handlers {
+                    "const handler_name = `_s_${this._state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this);\n}"
+                } else {
+                    ""
+                };
                 vec![CodegenNode::NativeBlock {
-                    code: "const handler_name = `_s_${this._state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this);\n}".to_string(),
+                    code: format!("{}{}", init_code, handler_code),
                     span: None,
                 }]
             }
             TargetLanguage::Rust => {
-                // Generate match-based dispatch for Rust
+                // Generate match-based dispatch for Rust with state var init
                 vec![CodegenNode::NativeBlock {
-                    code: generate_rust_enter_exit_dispatch(system, "enter"),
+                    code: generate_rust_enter_dispatch_with_vars(system),
                     span: None,
                 }]
             }
@@ -424,6 +502,134 @@ fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codegen
         visibility: Visibility::Private,
         decorators: vec![],
     }
+}
+
+/// Generate state variable initialization code for Python/TypeScript
+fn generate_state_var_init(system: &SystemAst, lang: TargetLanguage) -> String {
+    let mut code = String::new();
+    let self_ref = match lang {
+        TargetLanguage::Python3 => "self",
+        _ => "this",
+    };
+
+    if let Some(ref machine) = system.machine {
+        // Build a switch/if-else chain based on current state
+        let mut first = true;
+        for state in &machine.states {
+            if state.state_vars.is_empty() {
+                continue;
+            }
+
+            let condition = if first {
+                format!("if {}._state == \"{}\":", self_ref, state.name)
+            } else {
+                format!("elif {}._state == \"{}\":", self_ref, state.name)
+            };
+            first = false;
+
+            match lang {
+                TargetLanguage::Python3 => {
+                    code.push_str(&format!("{}\n", condition));
+                    for var in &state.state_vars {
+                        // Get the initial value - for now just use default values
+                        let init_val = state_var_init_value(&var.var_type, lang);
+                        code.push_str(&format!("    {}._state_context[\"{}\"] = {}\n", self_ref, var.name, init_val));
+                    }
+                }
+                TargetLanguage::TypeScript => {
+                    let ts_condition = if code.is_empty() {
+                        format!("if ({}._state === \"{}\") {{\n", self_ref, state.name)
+                    } else {
+                        format!("}} else if ({}._state === \"{}\") {{\n", self_ref, state.name)
+                    };
+                    code.push_str(&ts_condition);
+                    for var in &state.state_vars {
+                        let init_val = state_var_init_value(&var.var_type, lang);
+                        code.push_str(&format!("    {}._state_context[\"{}\"] = {};\n", self_ref, var.name, init_val));
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Close TypeScript braces
+        if matches!(lang, TargetLanguage::TypeScript) && !code.is_empty() {
+            code.push_str("}");
+        }
+    }
+
+    code
+}
+
+/// Get default initialization value for a type
+fn state_var_init_value(var_type: &Type, lang: TargetLanguage) -> String {
+    match var_type {
+        Type::Int => "0".to_string(),
+        Type::Float => "0.0".to_string(),
+        Type::Bool => match lang {
+            TargetLanguage::Python3 => "False".to_string(),
+            _ => "false".to_string(),
+        },
+        Type::String => "\"\"".to_string(),
+        Type::Custom(name) => {
+            // Try to infer from common type names
+            match name.to_lowercase().as_str() {
+                "int" | "i32" | "i64" | "u32" | "u64" | "number" => "0".to_string(),
+                "float" | "f32" | "f64" => "0.0".to_string(),
+                "bool" | "boolean" => match lang {
+                    TargetLanguage::Python3 => "False".to_string(),
+                    _ => "false".to_string(),
+                },
+                "str" | "string" => "\"\"".to_string(),
+                _ => match lang {
+                    TargetLanguage::Python3 => "None".to_string(),
+                    _ => "null".to_string(),
+                },
+            }
+        }
+        Type::Unknown => match lang {
+            TargetLanguage::Python3 => "None".to_string(),
+            _ => "null".to_string(),
+        },
+    }
+}
+
+/// Generate Rust enter dispatch with state variable initialization
+fn generate_rust_enter_dispatch_with_vars(system: &SystemAst) -> String {
+    let mut match_code = String::new();
+    match_code.push_str("match self._state.as_str() {\n");
+
+    if let Some(ref machine) = system.machine {
+        for state in &machine.states {
+            let has_enter = state.enter.is_some();
+            let has_vars = !state.state_vars.is_empty();
+
+            if !has_enter && !has_vars {
+                continue;
+            }
+
+            match_code.push_str(&format!("    \"{}\" => {{\n", state.name));
+
+            // Initialize state variables (using _sv_ prefixed fields for Rust)
+            for var in &state.state_vars {
+                let init_val = state_var_init_value(&var.var_type, TargetLanguage::Rust);
+                match_code.push_str(&format!(
+                    "        self._sv_{} = {};\n",
+                    var.name, init_val
+                ));
+            }
+
+            // Call enter handler if exists
+            if has_enter {
+                match_code.push_str(&format!("        self._s_{}_enter();\n", state.name));
+            }
+
+            match_code.push_str("    }\n");
+        }
+    }
+
+    match_code.push_str("    _ => {}\n");
+    match_code.push_str("}");
+    match_code
 }
 
 /// Generate Rust match-based dispatch for enter/exit handlers
@@ -935,6 +1141,21 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => format!("{}this._transition(this._state_stack.pop());", indent_str),
             }
         }
+        FrameSegmentKindV3::StateVar => {
+            // Extract variable name from "$.varName"
+            let var_name = extract_state_var_name(&segment_text);
+            // State variables are stored in state context
+            // For Rust, we use a typed approach with _sv_ prefixed local fields
+            match lang {
+                TargetLanguage::Python3 => format!("self._state_context[\"{}\"]", var_name),
+                TargetLanguage::TypeScript => format!("this._state_context[\"{}\"]", var_name),
+                TargetLanguage::Rust => {
+                    // Use a simple _sv_varname field approach for Rust
+                    format!("self._sv_{}", var_name)
+                },
+                _ => format!("this._state_context[\"{}\"]", var_name),
+            }
+        }
     }
 }
 
@@ -948,6 +1169,19 @@ fn extract_transition_target(text: &str) -> String {
         after_dollar[..end].to_string()
     } else {
         "Unknown".to_string()
+    }
+}
+
+/// Extract state variable name from "$.varName"
+fn extract_state_var_name(text: &str) -> String {
+    // Skip "$." prefix and get identifier
+    if text.starts_with("$.") {
+        let after_prefix = &text[2..];
+        let end = after_prefix.find(|c: char| !c.is_alphanumeric() && c != '_')
+            .unwrap_or(after_prefix.len());
+        after_prefix[..end].to_string()
+    } else {
+        "unknown".to_string()
     }
 }
 

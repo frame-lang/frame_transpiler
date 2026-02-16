@@ -66,6 +66,15 @@ impl NativeRegionScannerV3 for NativeRegionScannerTsV3 {
                 b'`' => {
                     i+=1; tmpl_brace=0; while i<end { if bytes[i]==b'`' && tmpl_brace==0 { i+=1; break; } if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'$' && i+1<end && bytes[i+1]==b'{' { tmpl_brace+=1; i+=2; continue; } if bytes[i]==b'}' && tmpl_brace>0 { tmpl_brace-=1; i+=1; continue; } i+=1; }
                 }
+                // State variable reference: $.varName
+                b'$' if i+1 < end && bytes[i+1] == b'.' => {
+                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    let var_start = i;
+                    i += 2; // Skip "$."
+                    while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') { i += 1; }
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: var_start, end: i }, kind: FrameSegmentKindV3::StateVar, indent: 0 });
+                    seg_start = i;
+                }
                 _ => { i+=1; }
             }
         }

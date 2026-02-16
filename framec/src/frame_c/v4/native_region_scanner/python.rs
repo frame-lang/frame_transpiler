@@ -78,6 +78,16 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                     i+=1; if triple { i+=2; }
                     loop { if i>=end { break; } if triple { if bytes[i]==q && i+2<end && bytes[i+1]==q && bytes[i+2]==q { i+=3; break; } i+=1; } else { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==q { i+=1; break; } i+=1; } }
                 }
+                // State variable reference: $.varName
+                b'$' if i+1 < end && bytes[i+1] == b'.' => {
+                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    // Find end of identifier: $.varName
+                    let var_start = i;
+                    i += 2; // Skip "$."
+                    while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') { i += 1; }
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: var_start, end: i }, kind: FrameSegmentKindV3::StateVar, indent: 0 });
+                    seg_start = i;
+                }
                 _ => { i+=1; }
             }
         }

@@ -479,6 +479,7 @@ impl FrameParser {
         self.expect_char('{')?;
 
         // Parse state contents
+        let mut state_vars = vec![];
         let mut handlers = vec![];
         let mut enter = None;
         let mut exit = None;
@@ -500,6 +501,9 @@ impl FrameParser {
             } else if self.peek_string("$<") {
                 // Exit handler
                 exit = Some(self.parse_exit_handler()?);
+            } else if self.peek_string("$.") {
+                // State variable ($.varName: type = init)
+                state_vars.push(self.parse_state_var()?);
             } else if self.peek_identifier() {
                 // Event handler
                 handlers.push(self.parse_handler()?);
@@ -508,7 +512,7 @@ impl FrameParser {
                 self.cursor += 1;
             }
         }
-        
+
         let end = self.cursor;
         self.expect_char('}')?;
 
@@ -516,6 +520,7 @@ impl FrameParser {
             name,
             params,
             parent,
+            state_vars,
             handlers,
             enter,
             exit,
@@ -556,9 +561,45 @@ impl FrameParser {
         self.expect_char(')')?;
         Ok(params)
     }
-    
+
+    /// Parse state variable declaration ($.varName: type = init)
+    fn parse_state_var(&mut self) -> Result<StateVarAst, ParseError> {
+        let start = self.cursor;
+
+        // Skip "$."
+        self.expect_string("$.")?;
+
+        // Parse variable name
+        let name = self.parse_identifier()?;
+
+        self.skip_whitespace();
+
+        // Parse type (required)
+        self.expect_char(':')?;
+        self.skip_whitespace();
+        let var_type = self.parse_type()?;
+
+        self.skip_whitespace();
+
+        // Parse optional initializer
+        let init = if self.peek_char('=') {
+            self.cursor += 1;
+            self.skip_whitespace();
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
+
+        Ok(StateVarAst {
+            name,
+            var_type,
+            init,
+            span: Span::new(start, self.cursor),
+        })
+    }
+
     // ... (continued in next part due to length)
-    
+
     // Helper methods
     
     /// Skip whitespace and Frame-level comments
@@ -765,7 +806,16 @@ impl FrameParser {
         self.cursor += 1;
         Ok(())
     }
-    
+
+    /// Expect a specific string (like "$.")
+    fn expect_string(&mut self, s: &str) -> Result<(), ParseError> {
+        if !self.peek_string(s) {
+            return Err(ParseError::Expected(format!("'{}'", s)));
+        }
+        self.cursor += s.len();
+        Ok(())
+    }
+
     /// Expect a specific keyword
     fn expect_keyword(&mut self, keyword: &str) -> Result<(), ParseError> {
         if !self.peek_keyword(keyword) {
@@ -1613,6 +1663,10 @@ impl FrameParser {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
                 RegionV3::FrameSegment { span, kind, indent } => {
+                    // StateVar segments are inline expressions handled by the splicer
+                    if *kind == FrameSegmentKindV3::StateVar {
+                        continue;
+                    }
                     let segment_bytes = &self.source[span.start..span.end];
                     let stmt = self.parse_frame_segment_from_bytes(segment_bytes, *kind, span, *indent)?;
                     statements.push(stmt);
@@ -1670,6 +1724,11 @@ impl FrameParser {
                     span: Span::new(span.start, span.end),
                     indent,
                 }))
+            }
+            FrameSegmentKindV3::StateVar => {
+                // State variables are expanded inline by the splicer
+                // No separate statement needed - return an error that will be handled
+                Err(ParseError::Expected("StateVar handled by splicer".to_string()))
             }
         }
     }

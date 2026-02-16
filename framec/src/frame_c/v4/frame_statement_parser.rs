@@ -22,6 +22,11 @@ impl FrameStatementParserV3 {
             FrameSegmentKindV3::Forward => self.parse_forward(text, span),
             FrameSegmentKindV3::StackPush => self.parse_stack(text, span, true),
             FrameSegmentKindV3::StackPop => self.parse_stack(text, span, false),
+            FrameSegmentKindV3::StateVar => {
+                // State variables are handled inline by the splicer expansion
+                // No MIR item needed - just pass through
+                Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "state var handled by splicer"))
+            }
         }
     }
 

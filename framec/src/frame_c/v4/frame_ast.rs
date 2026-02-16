@@ -154,12 +154,22 @@ pub struct MachineAst {
     pub span: Span,
 }
 
+/// State variable declaration ($.varName: type = init)
+#[derive(Debug, Clone)]
+pub struct StateVarAst {
+    pub name: String,
+    pub var_type: Type,
+    pub init: Option<Expression>,
+    pub span: Span,
+}
+
 /// State definition
 #[derive(Debug, Clone)]
 pub struct StateAst {
     pub name: String,
     pub params: Vec<StateParam>,
     pub parent: Option<String>,  // For HSM parent state
+    pub state_vars: Vec<StateVarAst>,  // State-local variables ($.varName)
     pub handlers: Vec<HandlerAst>,
     pub enter: Option<EnterHandler>,
     pub exit: Option<ExitHandler>,
@@ -543,6 +553,7 @@ impl StateAst {
             name,
             params: vec![],
             parent: None,
+            state_vars: vec![],
             handlers: vec![],
             enter: None,
             exit: None,
