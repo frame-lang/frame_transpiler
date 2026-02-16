@@ -1,5 +1,13 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FrameSegmentKindV3 { Transition, Forward, StackPush, StackPop, StateVar }
+pub enum FrameSegmentKindV3 {
+    Transition,
+    Forward,
+    StackPush,
+    StackPop,
+    StateVar,
+    SystemReturn,      // system.return = <expr> or return <expr> (sugar)
+    SystemReturnExpr,  // bare system.return (read current value)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RegionSpan { pub start: usize, pub end: usize }

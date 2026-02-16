@@ -1,4 +1,4 @@
-# Frame V4 State Variables - Situation Report
+# Frame V4 Implementation - Situation Report
 
 **Date:** 2026-02-15
 **Branch:** `frame_v4` (frame_transpiler), `main` (framepiler_test_env)
@@ -9,9 +9,11 @@
 
 ## Executive Summary
 
-Phase 1 (State Variables) of the Frame V4 implementation is **complete**. All 36 PRT tests pass across Python, TypeScript, and Rust backends. The V4 compiler is now the default pipeline with no environment variable required.
+Phase 1 (State Variables) and Phase 2 (System Return) of the Frame V4 implementation are **complete**. All 39 PRT tests pass across Python, TypeScript, and Rust backends. The V4 compiler is now the default pipeline with no environment variable required.
 
-**All three backends now correctly preserve state variables across push/pop operations.**
+**Key accomplishments:**
+- All three backends correctly preserve state variables across push/pop operations
+- System return syntax (`^` and `system.return`) works across all PRT backends
 
 ---
 
@@ -31,10 +33,10 @@ Phase 1 (State Variables) of the Frame V4 implementation is **complete**. All 36
 
 | Test Suite | Pass | Fail | Total |
 |------------|------|------|-------|
-| V4 PRT (Python) | 12 | 0 | 12 |
-| V4 PRT (TypeScript) | 12 | 0 | 12 |
-| V4 PRT (Rust) | 12 | 0 | 12 |
-| **Total** | **36** | **0** | **36** |
+| V4 PRT (Python) | 13 | 0 | 13 |
+| V4 PRT (TypeScript) | 13 | 0 | 13 |
+| V4 PRT (Rust) | 13 | 0 | 13 |
+| **Total** | **39** | **0** | **39** |
 
 ### Test Coverage
 
@@ -52,6 +54,7 @@ Phase 1 (State Variables) of the Frame V4 implementation is **complete**. All 36
 | 10 | state_var_basic | `$.varName` read/write |
 | 11 | state_var_reentry | State vars reinitialize on entry |
 | 12 | state_var_push_pop | State vars preserved across push/pop |
+| 13 | system_return | `^` and `system.return` syntax |
 
 ---
 
@@ -108,6 +111,39 @@ fn _enter(&mut self) {
 | Python | ✅ Yes | Saves `(state, context.copy())` tuple |
 | TypeScript | ✅ Yes | Saves `{state, context: {...}}` object |
 | Rust | ✅ Yes | Saves `(state, Compartment)` tuple (typed enum) |
+
+---
+
+## Phase 2: System Return
+
+### Syntax
+
+```frame
+$State {
+    handler(): int {
+        # Caret sugar - returns immediately
+        ^ 42
+
+        # Equivalent full syntax
+        system.return = 42
+    }
+}
+```
+
+### Behavior
+
+- `^ <expr>` - Sets return value and immediately returns from handler
+- `system.return = <expr>` - Sets return value and immediately returns
+- Both syntaxes are equivalent and expand to native `return <expr>`
+- State variables can be used in return expressions: `^ $.count`
+
+### Code Generation
+
+| Language | `^ expr` Expansion |
+|----------|-------------------|
+| Python | `return expr` |
+| TypeScript | `return expr;` |
+| Rust | `return expr;` |
 
 ---
 
@@ -278,9 +314,9 @@ Source (.frm)
 
 Per `frame_v4_plan.md`:
 
-### Phase 2: System Return
-- Implement `^` return statement for returning from system
-- Track return types through handler chain
+### ~~Phase 2: System Return~~ ✅ COMPLETE
+- ~~Implement `^` return statement for returning from system~~
+- ~~Track return types through handler chain~~
 
 ### Phase 3: Event Parameters
 - Complete event parameter passing through dispatch
@@ -331,4 +367,4 @@ To run individual tests:
 
 ---
 
-**Status:** ✅ Phase 1 Complete | 36/36 Tests Passing | All Languages Preserve State Variables
+**Status:** ✅ Phases 1-2 Complete | 39/39 Tests Passing | State Variables + System Return Working

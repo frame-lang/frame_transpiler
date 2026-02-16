@@ -66,6 +66,16 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
+                // Return value sugar: ^ <expr> at start of line
+                if b == b'^' {
+                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                    let start = i;
+                    i += 1; // Skip '^'
+                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+                    i = find_frame_line_end_rust(bytes, i, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent });
+                    seg_start = i; at_sol = true; indent = 0; continue;
+                }
                 at_sol=false; indent=0; }
             match b { b'\n'=>{at_sol=true;indent=0;i+=1;}
                 b'/' if i+1<end && bytes[i+1]==b'/' => { i+=2; while i<end && bytes[i]!=b'\n' { i+=1; } }
@@ -82,6 +92,24 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
                     i += 2; // Skip "$."
                     while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') { i += 1; }
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: var_start, end: i }, kind: FrameSegmentKindV3::StateVar, indent: 0 });
+                    seg_start = i;
+                }
+                // System return: system.return = <expr> or system.return
+                b's' if i+12 < end && &bytes[i..i+13] == b"system.return" => {
+                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    let start = i;
+                    i += 13; // Skip "system.return"
+                    // Skip whitespace
+                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+                    if i < end && bytes[i] == b'=' && (i+1 >= end || bytes[i+1] != b'=') {
+                        // system.return = <expr> - find end of expression
+                        i += 1; // Skip '='
+                        i = find_frame_line_end_rust(bytes, i, end);
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent: 0 });
+                    } else {
+                        // bare system.return - just the expression read
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturnExpr, indent: 0 });
+                    }
                     seg_start = i;
                 }
                 _ => { i+=1; }

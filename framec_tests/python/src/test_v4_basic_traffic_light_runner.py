@@ -18,14 +18,11 @@ framec = os.path.join(project_root, "target/release/framec")
 # Ensure generated directory exists
 os.makedirs(generated_dir, exist_ok=True)
 
-# Transpile with V4
-env = os.environ.copy()
-env["FRAME_USE_V4"] = "1"
+# Transpile (V4 is now the default)
 result = subprocess.run(
     [framec, frm_file, "-l", "python_3"],
     capture_output=True,
-    text=True,
-    env=env
+    text=True
 )
 
 if result.returncode != 0:

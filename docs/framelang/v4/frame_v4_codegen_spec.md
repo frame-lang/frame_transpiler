@@ -1,1097 +1,843 @@
-# Frame V4 Codegen Specification
+# Frame V4 Transpiler Architecture Specification
 
 **Version:** 1.0  
 **Date:** February 2026  
-**Audience:** Implementation team (backend authors)  
-**Status:** Normative — this is the source of truth for what the Framepiler emits.
+**Audience:** Implementation team  
+**Status:** Normative
 
 ---
 
-## 1. Scope
+## 1. Pipeline Overview
 
-This document specifies the exact generated code for every Frame construct in every supported target language. All examples show final emitted code, not intermediate CodegenNode representations.
-
-**Target languages:** Python 3, TypeScript, Rust
-
----
-
-## 2. Naming Conventions
-
-All generated identifiers follow these patterns:
-
-| Concept | Pattern | Example |
-|---------|---------|---------|
-| State identifier string | `__<sys>_state_<State>` | `__foo_state_Idle` |
-| State dispatch function | `__<sys>_state_<State>` | `__foo_state_Idle` |
-| Handler method | `__<sys>_state_<State>_<event>` | `__foo_state_Idle_start` |
-| Enter handler | `__<sys>_state_<State>_enter` | `__foo_state_Idle_enter` |
-| Exit handler | `__<sys>_state_<State>_exit` | `__foo_state_Idle_exit` |
-| Compartment class | `<Sys>Compartment` | `FooCompartment` |
-| FrameEvent class | `FrameEvent` | `FrameEvent` |
-| Action method | `__<actionName>` | `__validate` |
-
-`<sys>` is the system name lowercased. `<Sys>` is the system name as declared.
-
----
-
-## 3. Runtime Classes
-
-### 3.1 FrameEvent (when `frame_event = on`)
-
-**Python:**
-```python
-class FrameEvent:
-    def __init__(self, message, parameters=None):
-        self._message = message
-        self._parameters = parameters or {}
+```
+Source (.frm)
+    │
+    ▼
+┌──────────────┐
+│  Frame Parser │ → FrameAst
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│   Arcanum    │ → Symbol table (systems, states, events, variables)
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│  Validator   │ → Errors/warnings or pass
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│   Codegen    │ → CodegenNode tree
+└──────────────┘
+    │
+    ▼
+┌──────────────┐
+│   Backend    │ → Target source code (.py, .ts, .rs)
+└──────────────┘
 ```
 
-**TypeScript:**
-```typescript
-class FrameEvent {
-    public message: string;
-    public parameters: Record<string, any>;
-    constructor(message: string, parameters: Record<string, any> = {}) {
-        this.message = message;
-        this.parameters = parameters;
-    }
-}
-```
+Each stage is a pure function of its inputs. No stage mutates the output of a previous stage. Errors at any stage halt the pipeline and report diagnostics.
 
-**Rust:**
+---
+
+## 2. Frame Parser
+
+**Input:** Raw source bytes + target language identifier  
+**Output:** `FrameAst`
+
+### 2.1 Responsibilities
+
+1. Tokenize and parse all Frame constructs (`@@target`, `@@codegen`, `@@system`, states, handlers)
+2. Record source spans (byte offsets) for every handler body, state variable declaration, and native code region
+3. Skip native code preamble/postamble — record their spans for later pass-through
+4. Parse state variable declarations (`$.varName (: type)? = expr`) at the top of each state block
+5. Parse Frame statements within handler bodies (transitions, forwards, push/pop, `$.` access, `system.return`)
+6. Record but do not parse native code within handler bodies — preserve as byte spans
+
+### 2.2 AST Definitions
+
 ```rust
-struct FrameEvent {
-    message: String,
-    parameters: HashMap<String, Box<dyn Any>>,
+pub enum FrameAst {
+    Module(ModuleAst),
 }
-impl FrameEvent {
-    fn new(message: &str) -> Self {
-        FrameEvent { message: message.to_string(), parameters: HashMap::new() }
-    }
-    fn with_params(message: &str, parameters: HashMap<String, Box<dyn Any>>) -> Self {
-        FrameEvent { message: message.to_string(), parameters }
-    }
+
+pub struct ModuleAst {
+    pub preamble: Option<Span>,          // native code before @@target
+    pub target: TargetLanguage,
+    pub codegen_config: Option<CodegenConfig>,
+    pub annotations: Vec<Annotation>,
+    pub system: SystemAst,
+    pub postamble: Option<Span>,         // native code after @@system
+}
+
+pub struct CodegenConfig {
+    pub frame_event: Option<bool>,       // None = use default
+    pub state_stack: Option<bool>,
+    pub runtime: Option<RuntimeMode>,    // Kernel | Simple
+}
+
+pub enum Annotation {
+    Persist(PersistConfig),
+}
+
+pub struct SystemAst {
+    pub name: String,
+    pub system_params: Option<SystemParams>,
+    pub interface: Vec<InterfaceMethodAst>,
+    pub machine: MachineAst,
+    pub actions: Vec<ActionAst>,
+    pub operations: Vec<OperationAst>,
+    pub domain: Vec<DomainVarAst>,
+}
+
+pub struct SystemParams {
+    pub state_params: Vec<ParamAst>,     // $(...)
+    pub enter_params: Vec<ParamAst>,     // $>(...)
+    pub domain_params: Vec<ParamAst>,    // bare names
+}
+
+pub struct MachineAst {
+    pub states: Vec<StateAst>,
+}
+
+pub struct StateAst {
+    pub name: String,
+    pub parent: Option<String>,          // HSM parent state name
+    pub state_vars: Vec<StateVarAst>,    // $.varName declarations
+    pub handlers: Vec<HandlerAst>,
+    pub enter_handler: Option<HandlerAst>,
+    pub exit_handler: Option<HandlerAst>,
+    pub has_default_forward: bool,       // trailing => $^
+}
+
+pub struct StateVarAst {
+    pub name: String,                    // variable name (without $.)
+    pub type_annotation: Option<String>, // optional type
+    pub initializer: Span,              // byte span of native initializer expression
+}
+
+pub struct HandlerAst {
+    pub event: String,
+    pub params: Vec<ParamAst>,
+    pub return_type: Option<String>,
+    pub body: HandlerBody,
+}
+
+pub struct HandlerBody {
+    pub span: Span,                      // byte span of entire body
+    pub frame_statements: Vec<FrameStatement>,  // parsed Frame constructs with positions
+}
+
+pub enum FrameStatement {
+    Transition(TransitionStmt),
+    Forward,                             // => $^
+    StackPush(StackPushStmt),
+    StackPop,                            // bare pop$
+    StateVarAccess(StateVarAccessStmt),
+    StateVarAssign(StateVarAssignStmt),
+    SystemReturnAssign(Span),            // system.return = <expr_span>
+    SystemReturnRead,                    // system.return as expression
+    ReturnValue(Span),                   // return <expr_span> (in handler = sugar)
+}
+
+pub struct TransitionStmt {
+    pub target: TransitionTarget,
+    pub exit_args: Vec<Span>,            // native expression spans
+    pub enter_args: Vec<Span>,
+    pub state_args: Vec<Span>,
+    pub is_forwarding: bool,             // -> => flag
+}
+
+pub enum TransitionTarget {
+    State(String),                       // $StateName
+    Pop,                                 // pop$
+}
+
+pub struct StackPushStmt {
+    pub target: Option<String>,          // None = current state, Some = named state
+}
+
+pub struct StateVarAccessStmt {
+    pub var_name: String,
+    pub span: Span,
+}
+
+pub struct StateVarAssignStmt {
+    pub var_name: String,
+    pub value_span: Span,                // native expression span
+}
+
+pub struct InterfaceMethodAst {
+    pub name: String,
+    pub params: Vec<ParamAst>,
+    pub return_type: Option<String>,
+    pub default_return: Option<Span>,    // native expression for default
+}
+
+pub struct ActionAst {
+    pub name: String,
+    pub params: Vec<ParamAst>,
+    pub return_type: Option<String>,
+    pub body: Span,                      // entirely native code
+}
+
+pub struct OperationAst {
+    pub name: String,
+    pub params: Vec<ParamAst>,
+    pub return_type: Option<String>,
+    pub body: Span,                      // entirely native code
+    pub is_static: bool,
+}
+
+pub struct DomainVarAst {
+    pub name: String,
+    pub type_annotation: Option<String>,
+    pub initializer: Span,
+}
+
+pub struct ParamAst {
+    pub name: String,
+    pub type_annotation: Option<String>,
+}
+
+pub struct Span {
+    pub start: usize,                    // byte offset in source
+    pub end: usize,                      // byte offset (exclusive)
 }
 ```
 
-### 3.2 Compartment (always generated)
+### 2.3 Parser Behavior Notes
 
-**Python:**
-```python
-class FooCompartment:
-    def __init__(self, state):
-        self.state = state
-        self.state_args = {}
-        self.state_vars = {}
-        self.enter_args = {}
-        self.exit_args = {}
-        self.forward_event = None
-```
+- **State variable region:** The parser recognizes `$.` at the beginning of a line within a state block as a state variable declaration. The region ends at the first event handler (`<ident>(`, `$>`, `$<`) or `=> $^`.
+- **Handler body parsing:** The parser records the full byte span of the handler body. Within that span, it identifies Frame statements by their leading tokens (`->`, `=>`, `push$`, `pop$`, `$.`, `system.return`, `return`). The parser does NOT attempt to fully parse native code between Frame statements.
+- **String/comment awareness:** The parser must skip Frame token recognition inside string literals and comments of the target language. This requires minimal target-language awareness (string delimiters, comment syntax).
 
-**TypeScript:**
-```typescript
-class FooCompartment {
-    state: string;
-    stateArgs: Record<string, any> = {};
-    stateVars: Record<string, any> = {};
-    enterArgs: Record<string, any> = {};
-    exitArgs: Record<string, any> = {};
-    forwardEvent: FrameEvent | null = null;
-    constructor(state: string) { this.state = state; }
-}
-```
+---
 
-**Rust:**
+## 3. Arcanum (Symbol Table)
+
+**Input:** `FrameAst`  
+**Output:** `Arcanum`
+
+### 3.1 Responsibilities
+
+1. Catalog all systems, states, events, variables, interface methods
+2. Resolve HSM parent-child relationships
+3. Compute effective codegen configuration (user settings + auto-enable overrides)
+4. Build per-state handler registry (which events each state handles)
+
+### 3.2 Data Structure
+
 ```rust
-struct FooCompartment {
-    state: String,
-    state_args: HashMap<String, Box<dyn Any>>,
-    state_vars: HashMap<String, Box<dyn Any>>,
-    enter_args: HashMap<String, Box<dyn Any>>,
-    exit_args: HashMap<String, Box<dyn Any>>,
-    forward_event: Option<FrameEvent>,
+pub struct Arcanum {
+    pub system: SystemInfo,
+    pub effective_config: EffectiveCodegenConfig,
 }
-impl FooCompartment {
-    fn new(state: &str) -> Self {
-        FooCompartment {
-            state: state.to_string(),
-            state_args: HashMap::new(),
-            state_vars: HashMap::new(),
-            enter_args: HashMap::new(),
-            exit_args: HashMap::new(),
-            forward_event: None,
+
+pub struct SystemInfo {
+    pub name: String,
+    pub states: IndexMap<String, StateInfo>,  // insertion order = declaration order
+    pub start_state: String,                   // first state declared
+    pub interface_methods: Vec<InterfaceInfo>,
+    pub actions: Vec<String>,
+    pub operations: Vec<String>,
+    pub domain_vars: Vec<String>,
+    pub has_system_params: bool,
+    pub has_persist: bool,
+}
+
+pub struct StateInfo {
+    pub name: String,
+    pub parent: Option<String>,
+    pub state_vars: Vec<StateVarInfo>,
+    pub handled_events: HashSet<String>,      // event names this state handles
+    pub has_enter: bool,
+    pub has_exit: bool,
+    pub has_default_forward: bool,
+    pub children: Vec<String>,                 // states that declare this as parent
+}
+
+pub struct StateVarInfo {
+    pub name: String,
+    pub type_annotation: Option<String>,
+}
+
+pub struct InterfaceInfo {
+    pub name: String,
+    pub has_return: bool,
+    pub has_default_return: bool,
+}
+
+pub struct EffectiveCodegenConfig {
+    pub frame_event: bool,
+    pub state_stack: bool,
+    pub runtime: RuntimeMode,
+    pub overrides: Vec<String>,               // warning messages for auto-enables
+}
+```
+
+### 3.3 Auto-Enable Logic
+
+The Arcanum scans the AST for features that require specific codegen flags:
+
+```rust
+fn compute_effective_config(ast: &SystemAst, user: &CodegenConfig) -> EffectiveCodegenConfig {
+    let mut need_frame_event = false;
+    let mut need_state_stack = false;
+    let mut need_kernel = false;
+
+    for state in &ast.machine.states {
+        for handler in &state.handlers {
+            for stmt in &handler.body.frame_statements {
+                match stmt {
+                    Transition { is_forwarding: true, .. } => need_frame_event = true,
+                    Transition { exit_args, enter_args, .. }
+                        if !exit_args.is_empty() || !enter_args.is_empty()
+                        => need_frame_event = true,
+                    StackPush(_) | StackPop => need_state_stack = true,
+                    SystemReturnAssign(_) | SystemReturnRead => need_frame_event = true,
+                    ReturnValue(_) => need_frame_event = true,  // sugar needs return stack
+                    _ => {}
+                }
+            }
+        }
+        if state.enter_handler.as_ref().map_or(false, |h|
+            h.body.frame_statements.iter().any(|s| matches!(s, Transition { .. }))
+        ) {
+            need_kernel = true;
         }
     }
+
+    for iface in &ast.interface {
+        if iface.has_return || iface.default_return.is_some() {
+            need_frame_event = true;
+        }
+    }
+
+    // Apply overrides
+    // ...
 }
 ```
 
 ---
 
-## 4. Constructor
+## 4. Validator
 
-**Python:**
-```python
-def __init__(self):
-    # State stack (if state_stack = on)
-    self.__state_stack: list = []
+**Input:** `FrameAst` + `Arcanum`  
+**Output:** `Vec<Diagnostic>` (errors + warnings)
 
-    # Return stack (always)
-    self.__return_stack: list = []
+### 4.1 Validation Rules
 
-    # Create start state compartment
-    self.__compartment = FooCompartment('__foo_state_Idle')
-    self.__next_compartment = None
+| Code | Check | Severity |
+|------|-------|----------|
+| E001 | Parse errors | Error |
+| E402 | Transition targets unknown state | Error |
+| E403 | Duplicate state name | Error |
+| E405 | Interface parameter arity mismatch | Error |
+| E4xx | `=> $^` in state without parent | Error |
+| E4xx | `$.x` references undeclared state variable | Error |
+| E4xx | Transition in action body | Error |
+| E4xx | Duplicate state variable name in same state | Error |
+| E4xx | HSM cycle (A => B => A) | Error |
+| W4xx | `@@codegen` auto-enable override | Warning |
+| W4xx | Unreachable code after transition | Warning |
 
-    # Start state's state_args (if system has $(params))
-    # self.__compartment.state_args["param"] = arg_value
+### 4.2 Validation Order
 
-    # Start state's state_vars (from $.var declarations in start state)
-    # self.__compartment.state_vars["count"] = 0
+1. Structural validation (duplicates, missing references)
+2. HSM graph validation (cycles, missing parents)
+3. Statement validation (transitions in wrong context, undeclared variables)
+4. Config validation (auto-enable warnings)
 
-    # Domain variables
-    self.count = 0
-    self.label = "default"
+---
 
-    # Enter start state
-    e = FrameEvent("$>", self.__compartment.enter_args)
-    self.__kernel(e)
-```
+## 5. Codegen
 
-**TypeScript:**
-```typescript
-constructor() {
-    this.#stateStack = [];
-    this.#returnStack = [];
-    this.#compartment = new FooCompartment('__foo_state_Idle');
-    this.#nextCompartment = null;
-    this.count = 0;
-    this.label = "default";
-    const e = new FrameEvent("$>", this.#compartment.enterArgs);
-    this.#kernel(e);
-}
-```
+**Input:** `FrameAst` + `Arcanum` + raw source bytes  
+**Output:** `CodegenNode` tree
 
-**Rust:**
+### 5.1 Responsibilities
+
+1. Transform `SystemAst` into a `CodegenNode::Class` tree
+2. Generate all runtime infrastructure (compartment, kernel, router, dispatch, stack)
+3. Generate interface methods, handler methods, actions, operations
+4. Extract native code from source using spans
+5. Splice Frame statement expansions into native code regions
+6. Generate state variable initialization code for each state's compartment
+
+### 5.2 CodegenNode
+
+The language-agnostic intermediate representation. Backends translate this to target syntax.
+
 ```rust
-pub fn new() -> Self {
-    let compartment = FooCompartment::new("__foo_state_Idle");
-    // init state_vars on compartment
-    let mut foo = Foo {
-        state_stack: Vec::new(),
-        return_stack: Vec::new(),
-        compartment,
-        next_compartment: None,
-        count: 0,
-        label: String::from("default"),
-    };
-    let e = FrameEvent::new("$>");
-    foo.kernel(e);
-    foo
+pub enum CodegenNode {
+    // === Structural ===
+    Module {
+        preamble: Option<String>,
+        imports: Vec<CodegenNode>,
+        items: Vec<CodegenNode>,
+        postamble: Option<String>,
+    },
+    Class {
+        name: String,
+        fields: Vec<Field>,
+        methods: Vec<CodegenNode>,
+        inner_classes: Vec<CodegenNode>,
+    },
+
+    // === Methods ===
+    Constructor {
+        params: Vec<Param>,
+        body: Vec<CodegenNode>,
+    },
+    Method {
+        name: String,
+        params: Vec<Param>,
+        return_type: Option<String>,
+        body: Vec<CodegenNode>,
+        visibility: Visibility,
+        is_static: bool,
+    },
+
+    // === Statements ===
+    VarDecl {
+        name: String,
+        type_annotation: Option<String>,
+        init: Option<Box<CodegenNode>>,
+    },
+    Assignment {
+        target: Box<CodegenNode>,
+        value: Box<CodegenNode>,
+    },
+    Return {
+        value: Option<Box<CodegenNode>>,
+    },
+    If {
+        condition: Box<CodegenNode>,
+        then_block: Vec<CodegenNode>,
+        else_block: Option<Vec<CodegenNode>>,
+    },
+    IfElseChain {
+        branches: Vec<(Box<CodegenNode>, Vec<CodegenNode>)>,  // (condition, body) pairs
+        else_block: Option<Vec<CodegenNode>>,
+    },
+    Match {
+        subject: Box<CodegenNode>,
+        arms: Vec<(String, Vec<CodegenNode>)>,
+        default: Option<Vec<CodegenNode>>,
+    },
+
+    // === Frame-Specific ===
+    CompartmentCreate {
+        system_name: String,
+        state_name: String,
+        state_arg_inits: Vec<(String, Box<CodegenNode>)>,
+        state_var_inits: Vec<(String, Box<CodegenNode>)>,
+        enter_arg_inits: Vec<(String, Box<CodegenNode>)>,
+        set_forward_event: bool,
+    },
+    TransitionCall {
+        compartment_var: String,            // variable name holding the compartment
+    },
+    StateStackPush {
+        compartment_expr: Box<CodegenNode>,
+    },
+    StateStackPop,
+    SystemReturnAssign {
+        value: Box<CodegenNode>,
+    },
+    SystemReturnRead,
+    ParentDispatch {
+        parent_state: String,
+        system_name: String,
+    },
+
+    // === Native Code ===
+    NativeBlock {
+        code: String,
+    },
+
+    // === Expressions ===
+    Literal(LiteralValue),
+    Ident(String),
+    FieldAccess {
+        receiver: Box<CodegenNode>,
+        field: String,
+    },
+    MethodCall {
+        receiver: Option<Box<CodegenNode>>,
+        method: String,
+        args: Vec<CodegenNode>,
+    },
+    IndexAccess {
+        receiver: Box<CodegenNode>,
+        key: Box<CodegenNode>,
+    },
+    StringLiteral(String),
+    BoolLiteral(bool),
+    NullLiteral,
+    ListLiteral(Vec<CodegenNode>),
+    DictLiteral(Vec<(CodegenNode, CodegenNode)>),
+}
+
+pub enum Visibility { Public, Private }
+pub enum LiteralValue { Int(i64), Float(f64), String(String), Bool(bool), Null }
+pub struct Field { pub name: String, pub type_annotation: Option<String>, pub visibility: Visibility }
+pub struct Param { pub name: String, pub type_annotation: Option<String> }
+```
+
+### 5.3 System Codegen Algorithm
+
+The system codegen builds the class tree in this order:
+
+```
+1. Generate inner classes:
+   a. FrameEvent (if enabled)
+   b. Compartment
+
+2. Generate fields:
+   a. __compartment
+   b. __next_compartment
+   c. __state_stack (if enabled)
+   d. __return_stack
+   e. Domain variables
+
+3. Generate constructor:
+   a. Initialize state stack
+   b. Initialize return stack
+   c. Create start state compartment
+   d. Initialize start state's state_args (from system params)
+   e. Initialize start state's state_vars
+   f. Initialize domain variables (from system params or defaults)
+   g. Send enter event to start state via kernel
+
+4. Generate runtime infrastructure:
+   a. __kernel (if runtime = kernel)
+   b. __router
+   c. __transition
+   d. State dispatch functions (one per state)
+   e. __state_stack_push, __state_stack_pop (if enabled)
+
+5. Generate interface methods
+
+6. Generate handler methods (one per state+event pair):
+   a. Extract native code from source using body span
+   b. Scan for Frame constructs within native code
+   c. Splice Frame expansions into native code
+   d. Append auto-return after transitions
+
+7. Generate actions (native code pass-through, with system.return rewriting)
+
+8. Generate operations (entirely native code)
+
+9. Generate persistence methods (if @@persist)
+```
+
+### 5.4 NativeRegionScanner
+
+Scans handler body bytes for Frame constructs within native code.
+
+**Input:** Byte slice of handler body + target language  
+**Output:** Ordered list of regions (Native or Frame construct)
+
+```rust
+pub enum Region {
+    Native(Span),
+    Transition(TransitionRegion),
+    Forward(Span),
+    StackPush(StackPushRegion),
+    StackPop(Span),
+    StateVarRead(StateVarRegion),
+    StateVarAssign(StateVarAssignRegion),
+    SystemReturnAssign(SystemReturnRegion),
+    SystemReturnRead(Span),
+    ReturnValue(ReturnValueRegion),
 }
 ```
 
+**Recognition patterns:**
+
+| Token sequence | Region type |
+|---------------|-------------|
+| `->` `$<ident>` | Transition |
+| `->` `=>` | Forwarding transition |
+| `->` `(` | Transition with enter args (scan for `$`) |
+| `(` ... `)` `->` | Transition with exit args |
+| `->` `pop$` | Transition to popped state |
+| `=>` `$^` | Forward to parent |
+| `push$` | Stack push |
+| `pop$` (not preceded by `->`) | Stack pop |
+| `$.` `<ident>` `=` | State variable write |
+| `$.` `<ident>` (not followed by `=`) | State variable read |
+| `system.return` `=` | System return assign |
+| `system.return` (not followed by `=`) | System return read |
+| `return` `<expr>` (in handler context) | Return value sugar |
+
+**Critical:** Skip recognition inside string literals and comments of the target language.
+
+### 5.5 Splicer
+
+The splicer takes the region list from the scanner and builds `CodegenNode` output by:
+
+1. Emitting `NativeBlock` nodes for native regions
+2. Expanding Frame regions into their `CodegenNode` equivalents
+3. Appending `Return` after every transition expansion
+
+The splicer knows the current context (handler vs action) to correctly handle `return <expr>` sugar.
+
 ---
 
-## 5. Kernel
+## 6. Language Backend
 
-Frame V4 always uses the kernel runtime for deferred transitions.
+**Input:** `CodegenNode` tree  
+**Output:** Target language source code string
 
-**Python:**
-```python
-def __kernel(self, e):
-    self.__router(e)
-    while self.__next_compartment is not None:
-        next_compartment = self.__next_compartment
-        self.__next_compartment = None
-        exit_event = FrameEvent("$<", self.__compartment.exit_args)
-        self.__router(exit_event)
-        self.__compartment = next_compartment
-        if next_compartment.forward_event is None:
-            enter_event = FrameEvent("$>", self.__compartment.enter_args)
-            self.__router(enter_event)
+### 6.1 Backend Trait
+
+```rust
+pub trait LanguageBackend {
+    fn emit(&self, node: &CodegenNode, ctx: &mut EmitContext) -> String;
+    fn target_language(&self) -> TargetLanguage;
+    fn self_keyword(&self) -> &'static str;           // "self" | "this"
+    fn null_keyword(&self) -> &'static str;            // "None" | "null" | "None"
+    fn true_keyword(&self) -> &'static str;
+    fn false_keyword(&self) -> &'static str;
+    fn runtime_imports(&self) -> Vec<String>;
+    fn class_syntax(&self) -> ClassSyntax;
+    fn dispatch_syntax(&self) -> DispatchSyntax;       // IfElse | Switch | Match
+}
+
+pub struct EmitContext {
+    pub indent_level: usize,
+    pub indent_str: String,                            // "    " or "\t"
+}
+```
+
+### 6.2 Backend-Specific Dispatch Patterns
+
+| Backend | Router | State dispatch | Variable access |
+|---------|--------|---------------|-----------------|
+| Python | `if/elif` on `self.__compartment.state` | `if/elif` on `e._message` | `self.__compartment.state_vars["name"]` |
+| TypeScript | `switch (this.#compartment.state)` | `switch (e.message)` | `this.#compartment.stateVars["name"]` |
+| Rust | `match self._state.as_str()` | `match e.message.as_str()` | `if let FooCompartment::State(ctx) = &self._compartment { ctx.name }` |
+
+### 6.3 Backend-Specific Compartment
+
+| Backend | Compartment type | State vars storage | State stack type |
+|---------|-----------------|-------------------|-----------------|
+| Python | Class instance | `dict` | `list` of compartment instances |
+| TypeScript | Class instance | `Record<string, any>` | `Array` of compartment instances |
+| Rust | Enum-of-structs | Typed struct fields per state | `Vec<(String, FooCompartment)>` — fully typed, no `Box<dyn Any>` |
+
+**Rust enum-of-structs pattern:** The Rust backend generates one context struct per state that has state variables, and an enum wrapping all variants. This provides compile-time type safety, direct field access (no runtime downcasting), and correct push/pop preservation (the entire enum value moves onto/off the stack). See the Codegen Spec for full details.
+
+### 6.4 Native Code Re-indentation
+
+When emitting `NativeBlock` nodes, the backend must adjust indentation to match the current emit context. The algorithm:
+
+1. Determine the original indentation of the native code block (from its first non-empty line)
+2. Strip that original indentation from all lines
+3. Apply the current context's indentation to all lines
+
+---
+
+## 7. Generated Code Structure
+
+For a system named `Foo` with states `$A` and `$B`, the generated class contains:
+
+```
+class Foo:
+    # Inner classes
+    class FrameEvent          (if frame_event = on)
+    class FooCompartment      (always)
+
+    # Fields
+    __compartment             (always)
+    __next_compartment        (always)
+    __state_stack             (if state_stack = on)
+    __return_stack            (always)
+    <domain vars>             (from domain:)
+
+    # Constructor
+    __init__                  (always)
+
+    # Runtime infrastructure
+    __kernel                  (if runtime = kernel)
+    __router                  (always)
+    __transition              (always)
+    __foo_state_A             (state dispatch — one per state)
+    __foo_state_B
+    __state_stack_push        (if state_stack = on)
+    __state_stack_pop         (if state_stack = on)
+
+    # Interface methods        (from interface:)
+    start
+    stop
+    getStatus
+
+    # Handler methods          (one per state+event pair)
+    __foo_state_A_enter       (if $A has $>)
+    __foo_state_A_exit        (if $A has $<)
+    __foo_state_A_start       (if $A handles start)
+    __foo_state_B_enter
+    __foo_state_B_stop
+
+    # Actions                  (from actions:)
+    __validate
+
+    # Operations               (from operations:)
+    getTemp
+    static add
+
+    # Persistence              (if @@persist)
+    _save
+    _restore (classmethod/static)
+```
+
+**Naming conventions:**
+- State identifiers: `__<systemname>_state_<StateName>`
+- State dispatch functions: `__<systemname>_state_<StateName>`
+- Handler methods: `__<systemname>_state_<StateName>_<event>`
+- Actions: `__<actionName>` (private)
+- Operations: `<opName>` (public)
+
+---
+
+## 8. Three-Layer Dispatch Architecture
+
+### 8.1 Flow
+
+```
+Interface method call
+  → Create FrameEvent (if enabled) or direct call
+  → Kernel (processes event + deferred transitions)
+    → Router (selects state dispatch by compartment.state)
+      → State dispatch (selects handler by event name)
+        → Handler method (user code + Frame expansions)
+```
+
+### 8.2 Kernel (when `runtime = kernel`)
+
+```
+kernel(event):
+    router(event)
+    while next_compartment is not None:
+        nc = next_compartment
+        next_compartment = None
+        router(FrameEvent("$<", compartment.exit_args))     // exit current
+        compartment = nc                                     // change state
+        if nc.forward_event is None:
+            router(FrameEvent("$>", compartment.enter_args)) // enter new
         else:
-            forwarded = next_compartment.forward_event
-            next_compartment.forward_event = None
-            if forwarded._message == "$>":
-                self.__router(forwarded)
+            if nc.forward_event.message == "$>":
+                router(nc.forward_event)                     // forwarded IS enter
             else:
-                enter_event = FrameEvent("$>", self.__compartment.enter_args)
-                self.__router(enter_event)
-                self.__router(forwarded)
+                router(FrameEvent("$>", compartment.enter_args)) // enter first
+                router(nc.forward_event)                          // then forward
+            nc.forward_event = None
 ```
 
-**TypeScript:**
-```typescript
-#kernel(e: FrameEvent): void {
-    this.#router(e);
-    while (this.#nextCompartment !== null) {
-        const nextCompartment = this.#nextCompartment!;
-        this.#nextCompartment = null;
-        const exitEvent = new FrameEvent("$<", this.#compartment.exitArgs);
-        this.#router(exitEvent);
-        this.#compartment = nextCompartment;
-        if (nextCompartment.forwardEvent === null) {
-            const enterEvent = new FrameEvent("$>", this.#compartment.enterArgs);
-            this.#router(enterEvent);
-        } else {
-            const forwarded = nextCompartment.forwardEvent;
-            nextCompartment.forwardEvent = null;
-            if (forwarded.message === "$>") {
-                this.#router(forwarded);
-            } else {
-                const enterEvent = new FrameEvent("$>", this.#compartment.enterArgs);
-                this.#router(enterEvent);
-                this.#router(forwarded);
-            }
-        }
-    }
-}
+### 8.3 Router
+
+```
+router(event):
+    match compartment.state:
+        "__foo_state_A" → foo_state_A(event)
+        "__foo_state_B" → foo_state_B(event)
 ```
 
-**Rust:**
-```rust
-fn kernel(&mut self, e: FrameEvent) {
-    self.router(e);
-    while let Some(next_compartment) = self.next_compartment.take() {
-        let exit_event = FrameEvent::with_params("$<",
-            std::mem::take(&mut self.compartment.exit_args));
-        self.router(exit_event);
-        self.compartment = next_compartment;
-        if self.compartment.forward_event.is_none() {
-            let enter_event = FrameEvent::with_params("$>",
-                std::mem::take(&mut self.compartment.enter_args));
-            self.router(enter_event);
-        } else {
-            let forwarded = self.compartment.forward_event.take().unwrap();
-            if forwarded.message == "$>" {
-                self.router(forwarded);
-            } else {
-                let enter_event = FrameEvent::with_params("$>",
-                    std::mem::take(&mut self.compartment.enter_args));
-                self.router(enter_event);
-                self.router(forwarded);
-            }
-        }
-    }
-}
+### 8.4 State Dispatch
+
+```
+foo_state_A(event):
+    match event.message:
+        "$>"        → foo_state_A_enter(event)
+        "$<"        → foo_state_A_exit(event)
+        "start"     → foo_state_A_start(event)
+        "process"   → foo_state_A_process(event)
+        _           → foo_state_Parent(event)     // HSM: forward to parent
+                    // or: do nothing              // no parent
 ```
 
----
+### 8.5 Handler Method
 
-## 6. Router
+Contains user's native code with Frame statement expansions. Example:
 
-**Python:**
-```python
-def __router(self, e):
-    if self.__compartment.state == '__foo_state_Idle':
-        self.__foo_state_Idle(e)
-    elif self.__compartment.state == '__foo_state_Active':
-        self.__foo_state_Active(e)
 ```
-
-**TypeScript:**
-```typescript
-#router(e: FrameEvent): void {
-    switch (this.#compartment.state) {
-        case '__foo_state_Idle': this.#fooStateIdle(e); break;
-        case '__foo_state_Active': this.#fooStateActive(e); break;
-    }
-}
-```
-
-**Rust:**
-```rust
-fn router(&mut self, e: FrameEvent) {
-    match self.compartment.state.as_str() {
-        "__foo_state_Idle" => self.foo_state_idle(e),
-        "__foo_state_Active" => self.foo_state_active(e),
-        _ => {}
-    }
-}
-```
-
----
-
-## 7. State Dispatch Functions
-
-One per state. Routes event messages to handler methods.
-
-### 7.1 Without HSM Parent
-
-**Python:**
-```python
-def __foo_state_Idle(self, e):
-    if e._message == "$>":
-        self.__foo_state_Idle_enter(e)
-    elif e._message == "$<":
-        self.__foo_state_Idle_exit(e)
-    elif e._message == "start":
-        self.__foo_state_Idle_start(e)
-```
-
-**TypeScript:**
-```typescript
-#fooStateIdle(e: FrameEvent): void {
-    switch (e.message) {
-        case "$>": this.#fooStateIdleEnter(e); break;
-        case "$<": this.#fooStateIdleExit(e); break;
-        case "start": this.#fooStateIdleStart(e); break;
-    }
-}
-```
-
-**Rust:**
-```rust
-fn foo_state_idle(&mut self, e: FrameEvent) {
-    match e.message.as_str() {
-        "$>" => self.foo_state_idle_enter(e),
-        "$<" => self.foo_state_idle_exit(e),
-        "start" => self.foo_state_idle_start(e),
-        _ => {}
-    }
-}
-```
-
-### 7.2 With HSM Parent
-
-Unhandled events fall through to parent dispatch:
-
-**Python:**
-```python
-def __foo_state_Child(self, e):
-    if e._message == "specific":
-        self.__foo_state_Child_specific(e)
-    else:
-        self.__foo_state_Parent(e)
-```
-
-Enter and exit events are NOT forwarded to parent. Only user-defined events.
-
-### 7.3 With Default Forward (`=> $^`)
-
-When the state has `=> $^` at the end, the state dispatch calls parent for all unmatched events. This is the same codegen as 7.2 — the `=> $^` declaration in the Frame source controls whether the `else` clause is generated.
-
----
-
-## 8. Transition Method
-
-**Python:**
-```python
-def __transition(self, next_compartment):
-    self.__next_compartment = next_compartment
-```
-
-**TypeScript:**
-```typescript
-#transition(nextCompartment: FooCompartment): void {
-    this.#nextCompartment = nextCompartment;
-}
-```
-
-**Rust:**
-```rust
-fn transition(&mut self, next_compartment: FooCompartment) {
-    self.next_compartment = Some(next_compartment);
-}
-```
-
----
-
-## 9. State Stack Methods
-
-### 9.1 Push
-
-**Python:**
-```python
-def __state_stack_push(self, compartment):
-    self.__state_stack.append(compartment)
-```
-
-**TypeScript:**
-```typescript
-#stateStackPush(compartment: FooCompartment): void {
-    this.#stateStack.push(compartment);
-}
-```
-
-**Rust:**
-```rust
-fn state_stack_push(&mut self, compartment: FooCompartment) {
-    self.state_stack.push(compartment);
-}
-```
-
-### 9.2 Pop
-
-**Python:**
-```python
-def __state_stack_pop(self):
-    return self.__state_stack.pop()
-```
-
-**TypeScript:**
-```typescript
-#stateStackPop(): FooCompartment {
-    return this.#stateStack.pop()!;
-}
-```
-
-**Rust:**
-```rust
-fn state_stack_pop(&mut self) -> FooCompartment {
-    self.state_stack.pop().expect("state stack underflow")
-}
-```
-
----
-
-## 10. Interface Methods
-
-### 10.1 No Return
-
-**Python:**
-```python
-def start(self):
-    e = FrameEvent("start", None)
-    self.__kernel(e)
-```
-
-**TypeScript:**
-```typescript
-start(): void {
-    const e = new FrameEvent("start");
-    this.#kernel(e);
-}
-```
-
-**Rust:**
-```rust
-pub fn start(&mut self) {
-    let e = FrameEvent::new("start");
-    self.kernel(e);
-}
-```
-
-### 10.2 With Parameters
-
-**Python:**
-```python
-def process(self, data, priority):
-    e = FrameEvent("process", {"data": data, "priority": priority})
-    self.__kernel(e)
-```
-
-### 10.3 With Return (No Default)
-
-**Python:**
-```python
-def get_status(self) -> str:
-    self.__return_stack.append(None)
-    e = FrameEvent("get_status", None)
-    self.__kernel(e)
-    return self.__return_stack.pop()
-```
-
-**TypeScript:**
-```typescript
-getStatus(): string {
-    this.#returnStack.push(null);
-    const e = new FrameEvent("get_status");
-    this.#kernel(e);
-    return this.#returnStack.pop();
-}
-```
-
-**Rust:**
-```rust
-pub fn get_status(&mut self) -> String {
-    self.return_stack.push(Box::new(None::<String>));
-    let e = FrameEvent::new("get_status");
-    self.kernel(e);
-    let val = self.return_stack.pop().unwrap();
-    *val.downcast::<Option<String>>().unwrap()
-        .unwrap_or_default()
-}
-```
-
-### 10.4 With Default Return
-
-```frame
-interface:
-    getDecision(): str = "yes"
-```
-
-**Python:**
-```python
-def get_decision(self) -> str:
-    self.__return_stack.append("yes")    # push default
-    e = FrameEvent("get_decision", None)
-    self.__kernel(e)
-    return self.__return_stack.pop()
-```
-
----
-
-## 11. Splicer Expansion Rules
-
-These rules define how each Frame construct within a handler body is expanded into generated code. The splicer operates on the native code regions identified by the NativeRegionScanner.
-
-### 11.1 Simple Transition: `-> $Next`
-
-**Python:**
-```python
-next_compartment = FooCompartment('__foo_state_Next')
-next_compartment.state_vars["x"] = 0          # one line per $.var in $Next
-next_compartment.state_vars["y"] = "default"
-self.__transition(next_compartment)
-return
-```
-
-**TypeScript:**
-```typescript
-const nextCompartment = new FooCompartment('__foo_state_Next');
-nextCompartment.stateVars["x"] = 0;
-nextCompartment.stateVars["y"] = "default";
-this.#transition(nextCompartment);
-return;
-```
-
-**Rust:**
-```rust
-let mut next_compartment = FooCompartment::new("__foo_state_Next");
-next_compartment.state_vars.insert("x".to_string(), Box::new(0i32));
-next_compartment.state_vars.insert("y".to_string(), Box::new(String::from("default")));
-self.transition(next_compartment);
-return;
-```
-
-**Rule:** Every transition expansion ends with `return`. Non-negotiable.
-
-**Rule:** State variable initializers come from the target state's `$.var` declarations. If the target state has no state variables, no init lines are emitted.
-
-### 11.2 Transition with State Args: `-> $Next(job_id)`
-
-Same as 11.1 plus:
-```python
-next_compartment.state_args["job_id"] = job_id
-```
-
-State args are set BEFORE state var inits (order: create → state_args → state_vars → transition → return).
-
-### 11.3 Transition with Enter Args: `-> (msg, count) $Next`
-
-Same as 11.1 plus:
-```python
-next_compartment.enter_args["msg"] = msg
-next_compartment.enter_args["count"] = count
-```
-
-### 11.4 Transition with Exit Args: `(reason) -> $Next`
-
-Exit args are set on the CURRENT compartment, before creating the next:
-```python
-self.__compartment.exit_args["reason"] = reason
-next_compartment = FooCompartment('__foo_state_Next')
-# ... state var inits ...
-self.__transition(next_compartment)
-return
-```
-
-### 11.5 Full Transition: `(exit) -> (enter) $Next(state)`
-
-```python
-self.__compartment.exit_args["exit"] = exit
-next_compartment = FooCompartment('__foo_state_Next')
-next_compartment.state_args["state"] = state
-next_compartment.enter_args["enter"] = enter
-next_compartment.state_vars["x"] = 0
-self.__transition(next_compartment)
-return
-```
-
-**Order:** exit_args on current → create compartment → state_args → enter_args → state_vars → transition → return
-
-### 11.6 Event Forwarding: `-> => $Next`
-
-Same as 11.1 plus:
-```python
-next_compartment.forward_event = e    # stash current event
-```
-
-Set AFTER state var inits, BEFORE transition call.
-
-### 11.7 Transition to Popped State: `-> pop$`
-
-```python
-next_compartment = self.__state_stack_pop()
-self.__transition(next_compartment)
-return
-```
-
-No state var initialization — the popped compartment already has its preserved variables.
-
-### 11.8 Forward to Parent: `=> $^`
-
-**Python:**
-```python
-self.__foo_state_Parent(e)
-return
-```
-
-**TypeScript:**
-```typescript
-this.#fooStateParent(e);
-return;
-```
-
-**Rust:**
-```rust
-self.foo_state_parent(e);
-return;
-```
-
-### 11.9 Stack Push (Current): `push$`
-
-**Python:**
-```python
-self.__state_stack_push(self.__compartment)
-```
-
-**TypeScript:**
-```typescript
-this.#stateStackPush(this.#compartment);
-```
-
-**Rust:**
-```rust
-self.state_stack_push(std::mem::replace(&mut self.compartment,
-    FooCompartment::new("")));  // placeholder, will be replaced by transition
-```
-
-Note: Rust requires ownership transfer. The exact pattern depends on whether a transition follows immediately.
-
-### 11.10 Stack Push (Named): `push$ $Fallback`
-
-**Python:**
-```python
-__fallback_compartment = FooCompartment('__foo_state_Fallback')
-__fallback_compartment.state_vars["x"] = 0    # init state vars
-self.__state_stack_push(__fallback_compartment)
-```
-
-### 11.11 Stack Pop (Discard): `pop$`
-
-**Python:**
-```python
-self.__state_stack_pop()
-```
-
-### 11.12 State Variable Read: `$.counter`
-
-**Python:**
-```python
-self.__compartment.state_vars["counter"]
-```
-
-**TypeScript:**
-```typescript
-this.#compartment.stateVars["counter"]
-```
-
-**Rust:**
-```rust
-*self.compartment.state_vars.get("counter").unwrap()
-    .downcast_ref::<i32>().unwrap()
-```
-
-This is an inline substitution — the `$.counter` token in native code is replaced with the compartment access expression. The surrounding native code is preserved.
-
-### 11.13 State Variable Write: `$.counter = expr`
-
-**Python:**
-```python
-self.__compartment.state_vars["counter"] = expr
-```
-
-**TypeScript:**
-```typescript
-this.#compartment.stateVars["counter"] = expr;
-```
-
-**Rust:**
-```rust
-self.compartment.state_vars.insert("counter".to_string(), Box::new(expr));
-```
-
-The `expr` is native code and passes through unchanged.
-
-### 11.14 System Return Assign: `system.return = expr`
-
-**Python:**
-```python
-self.__return_stack[-1] = expr
-```
-
-**TypeScript:**
-```typescript
-this.#returnStack[this.#returnStack.length - 1] = expr;
-```
-
-**Rust:**
-```rust
-*self.return_stack.last_mut().unwrap() = Box::new(expr);
-```
-
-### 11.15 System Return Read: `system.return`
-
-**Python:**
-```python
-self.__return_stack[-1]
-```
-
-Inline substitution.
-
-### 11.16 Return Value Sugar (in Handler): `return expr`
-
-**Python:**
-```python
-self.__return_stack[-1] = expr
-return
-```
-
-**TypeScript:**
-```typescript
-this.#returnStack[this.#returnStack.length - 1] = expr;
-return;
-```
-
-### 11.17 Return Value (in Action): `return expr`
-
-Pass through unchanged. No transformation.
-
-### 11.18 Bare Return: `return`
-
-Pass through unchanged in all contexts.
-
----
-
-## 12. Actions
-
-Actions are private methods. Their bodies are entirely native code except for `system.return` access.
-
-**Python:**
-```python
-def __validate(self, data):
-    # native code from action body
-    # system.return references are rewritten
-    # return <expr> is NOT rewritten (native function return)
-```
-
-**TypeScript:**
-```typescript
-#validate(data: any): any {
+foo_state_A_start(event):
     // native code
-}
-```
-
-**Rust:**
-```rust
-fn validate(&mut self, data: ...) -> ... {
-    // native code
-}
-```
-
----
-
-## 13. Operations
-
-Operations are public methods. Bodies are entirely native code. No Frame construct rewriting.
-
-**Python:**
-```python
-def get_temp(self):
-    return self.temp
-
-@staticmethod
-def add(a, b):
-    return a + b
-```
-
-**TypeScript:**
-```typescript
-getTemp(): number {
-    return this.temp;
-}
-
-static add(a: number, b: number): number {
-    return a + b;
-}
-```
-
-**Rust:**
-```rust
-pub fn get_temp(&self) -> f64 {
-    self.temp
-}
-
-pub fn add(a: f64, b: f64) -> f64 {
-    a + b
-}
+    result = compute()
+    if result > 0:
+        // Frame expansion of -> $B
+        nc = FooCompartment("__foo_state_B")
+        nc.state_vars["count"] = 0          // $.count init
+        self.__transition(nc)
+        return                               // auto-generated
+    // native code continues (only if transition didn't fire)
+    log("staying in A")
 ```
 
 ---
 
-## 14. Persistence Methods (when `@@persist`)
+## 9. Persistence Codegen
 
-### 14.1 Save
+When `@@persist` is present, generate two additional methods.
 
-**Python:**
-```python
-def _save(self) -> str:
-    import json
-    snapshot = {
-        "schemaVersion": 1,
-        "systemName": "Foo",
-        "state": self.__compartment.state,
-        "stateArgs": dict(self.__compartment.state_args),
-        "stateVars": dict(self.__compartment.state_vars),
-        "domain": {
-            "count": self.count,
-            "label": self.label,
-        },
-        "stack": [
-            {
-                "state": c.state,
-                "stateArgs": dict(c.state_args),
-                "stateVars": dict(c.state_vars),
-            }
-            for c in self.__state_stack
-        ]
-    }
-    return json.dumps(snapshot)
-```
+### 9.1 JSON Schema
 
-### 14.2 Restore
-
-**Python:**
-```python
-@classmethod
-def _restore(cls, data: str) -> 'Foo':
-    import json
-    snapshot = json.loads(data)
-    instance = object.__new__(cls)
-    instance.__state_stack = []
-    instance.__return_stack = []
-    instance.__next_compartment = None
-    instance.__compartment = FooCompartment(snapshot["state"])
-    instance.__compartment.state_args = dict(snapshot.get("stateArgs", {}))
-    instance.__compartment.state_vars = dict(snapshot.get("stateVars", {}))
-    instance.count = snapshot["domain"]["count"]
-    instance.label = snapshot["domain"]["label"]
-    for entry in snapshot.get("stack", []):
-        c = FooCompartment(entry["state"])
-        c.state_args = dict(entry.get("stateArgs", {}))
-        c.state_vars = dict(entry.get("stateVars", {}))
-        instance.__state_stack.append(c)
-    return instance
-```
-
-Note: `_restore` does NOT call the constructor or trigger enter events. The machine is reconstituted at rest.
-
----
-
-## 15. Complete Generated Example
-
-**Input:**
-
-```frame
-@@target python_3
-@@codegen {
-    frame_event: on,
-    runtime: kernel
-}
-
-@@system Counter {
-    interface:
-        increment()
-        getCount(): int = 0
-
-    machine:
-        $Counting {
-            $.count: int = 0
-
-            $>() {
-                print("Entered Counting")
-            }
-
-            increment() {
-                $.count = $.count + 1
-                if $.count >= 10:
-                    -> $Full
-            }
-
-            getCount(): int {
-                return $.count
-            }
-        }
-
-        $Full {
-            $>() {
-                print("Counter is full!")
-            }
-
-            getCount(): int {
-                return 10
-            }
-        }
-
-    domain:
-        var label: str = "default"
+```json
+{
+    "schemaVersion": 1,
+    "systemName": "<name>",
+    "state": "<current_state_name>",
+    "stateArgs": { ... },
+    "stateVars": { ... },
+    "domain": { ... },
+    "stack": [ { "state": "...", "stateArgs": {...}, "stateVars": {...} }, ... ]
 }
 ```
 
-**Output:**
+### 9.2 Generated Methods
 
-```python
-class Counter:
+**Save:** Serialize current compartment + domain + stack to JSON string.
 
-    class FrameEvent:
-        def __init__(self, message, parameters=None):
-            self._message = message
-            self._parameters = parameters or {}
+**Restore:** Create new instance, deserialize JSON, set compartment, domain, stack. Do NOT invoke enter handler (the state is being restored, not entered).
 
-    class CounterCompartment:
-        def __init__(self, state):
-            self.state = state
-            self.state_args = {}
-            self.state_vars = {}
-            self.enter_args = {}
-            self.exit_args = {}
-            self.forward_event = None
+### 9.3 Field Filtering
 
-    def __init__(self):
-        self.__state_stack = []
-        self.__return_stack = []
-        self.__compartment = Counter.CounterCompartment('__counter_state_Counting')
-        self.__next_compartment = None
-        self.__compartment.state_vars["count"] = 0
-        self.label = "default"
-        e = Counter.FrameEvent("$>", self.__compartment.enter_args)
-        self.__kernel(e)
-
-    # ---- Runtime Infrastructure ----
-
-    def __kernel(self, e):
-        self.__router(e)
-        while self.__next_compartment is not None:
-            next_compartment = self.__next_compartment
-            self.__next_compartment = None
-            exit_event = Counter.FrameEvent("$<", self.__compartment.exit_args)
-            self.__router(exit_event)
-            self.__compartment = next_compartment
-            if next_compartment.forward_event is None:
-                enter_event = Counter.FrameEvent("$>", self.__compartment.enter_args)
-                self.__router(enter_event)
-            else:
-                forwarded = next_compartment.forward_event
-                next_compartment.forward_event = None
-                if forwarded._message == "$>":
-                    self.__router(forwarded)
-                else:
-                    enter_event = Counter.FrameEvent("$>", self.__compartment.enter_args)
-                    self.__router(enter_event)
-                    self.__router(forwarded)
-
-    def __router(self, e):
-        if self.__compartment.state == '__counter_state_Counting':
-            self.__counter_state_Counting(e)
-        elif self.__compartment.state == '__counter_state_Full':
-            self.__counter_state_Full(e)
-
-    def __transition(self, next_compartment):
-        self.__next_compartment = next_compartment
-
-    # ---- State Dispatch ----
-
-    def __counter_state_Counting(self, e):
-        if e._message == "$>":
-            self.__counter_state_Counting_enter(e)
-        elif e._message == "increment":
-            self.__counter_state_Counting_increment(e)
-        elif e._message == "getCount":
-            self.__counter_state_Counting_getCount(e)
-
-    def __counter_state_Full(self, e):
-        if e._message == "$>":
-            self.__counter_state_Full_enter(e)
-        elif e._message == "getCount":
-            self.__counter_state_Full_getCount(e)
-
-    # ---- Interface Methods ----
-
-    def increment(self):
-        e = Counter.FrameEvent("increment", None)
-        self.__kernel(e)
-
-    def getCount(self) -> int:
-        self.__return_stack.append(0)
-        e = Counter.FrameEvent("getCount", None)
-        self.__kernel(e)
-        return self.__return_stack.pop()
-
-    # ---- Handler Methods ----
-
-    def __counter_state_Counting_enter(self, e):
-        print("Entered Counting")
-
-    def __counter_state_Counting_increment(self, e):
-        self.__compartment.state_vars["count"] = self.__compartment.state_vars["count"] + 1
-        if self.__compartment.state_vars["count"] >= 10:
-            next_compartment = Counter.CounterCompartment('__counter_state_Full')
-            self.__transition(next_compartment)
-            return
-
-    def __counter_state_Counting_getCount(self, e):
-        self.__return_stack[-1] = self.__compartment.state_vars["count"]
-        return
-
-    def __counter_state_Full_enter(self, e):
-        print("Counter is full!")
-
-    def __counter_state_Full_getCount(self, e):
-        self.__return_stack[-1] = 10
-        return
-```
+| Form | Behavior |
+|------|---------|
+| `@@persist` | All domain vars |
+| `@@persist(domain=[a, b])` | Only `a`, `b` |
+| `@@persist(exclude=[c])` | All except `c` |
 
 ---
 
-## 16. Test Requirements
+## 10. File Structure
 
-Every backend must pass these test patterns:
-
-| # | Test | Validates |
-|---|------|-----------|
-| 1 | Simple transition A → B | Compartment creation, exit/enter fire, state changes |
-| 2 | Transition with state args | `state_args` populated, accessible in target |
-| 3 | Transition with enter args | `enter_args` passed to enter handler |
-| 4 | Transition with exit args | `exit_args` passed to exit handler |
-| 5 | Event forwarding `-> =>` | Forwarded event dispatched after enter |
-| 6 | HSM implicit forward | Unhandled event bubbles to parent |
-| 7 | HSM explicit `=> $^` | Explicit forward in handler |
-| 8 | State var init + modify | `$.x` initialized on entry, modified in handler |
-| 9 | State var reset on reentry | `$.x` reinitialized when state re-entered |
-| 10 | State var preserved by push/pop | `push$` → `-> pop$` preserves `$.x` value |
-| 11 | `system.return` basic | Set in handler, returned to caller |
-| 12 | `system.return` in action | Action sets it, interface returns it |
-| 13 | `system.return` chain | Set across transition, last writer wins |
-| 14 | `system.return` default | Default returned when handler doesn't set |
-| 15 | Return stack reentrancy | Nested interface calls maintain separate returns |
-| 16 | Service pattern | Enter-handler transition chains, no stack overflow |
-| 17 | System params (all 3 groups) | State params, enter params, domain overrides |
-| 18 | Operations bypass | Operations don't trigger state machine |
-| 19 | Static operations | No self/this |
-| 20 | `return value` sugar in handler | Sets system.return + exits |
-| 21 | `return value` in action | Normal function return |
-| 22 | `@@codegen` auto-enable | Features auto-enabled when needed |
-| 23 | Push named state `push$ $X` | Creates new compartment with state vars |
-| 24 | Persistence save/restore | Roundtrip serialize/deserialize |
+```
+framec/src/frame_c/
+├── v4/
+│   ├── frame_parser.rs           # Frame syntax parser
+│   ├── frame_ast.rs              # FrameAst definitions (Section 2.2)
+│   ├── arcanum.rs                # Symbol table (Section 3)
+│   ├── frame_validator.rs        # Validation (Section 4)
+│   ├── native_region_scanner.rs  # Scanner (Section 5.4)
+│   ├── codegen/
+│   │   ├── mod.rs                # Codegen entry point
+│   │   ├── ast.rs                # CodegenNode definitions (Section 5.2)
+│   │   ├── system_codegen.rs     # SystemAst → CodegenNode (Section 5.3)
+│   │   ├── splicer.rs            # Native code splicing (Section 5.5)
+│   │   ├── backend.rs            # LanguageBackend trait (Section 6.1)
+│   │   └── backends/
+│   │       ├── python.rs         # Python emitter
+│   │       ├── typescript.rs     # TypeScript emitter
+│   │       └── rust_backend.rs   # Rust emitter
+│   └── pipeline/
+│       ├── config.rs             # Pipeline configuration
+│       ├── compiler.rs           # Orchestrates parse → arcanum → validate → codegen → emit
+│       └── traits.rs             # Pipeline traits
+└── cli.rs                        # Command-line interface
+```

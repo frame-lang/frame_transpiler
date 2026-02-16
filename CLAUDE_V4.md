@@ -17,7 +17,7 @@ Read these for complete understanding:
 1. **[docs/framelang_design/architecture_v4/README.md](docs/framelang_design/architecture_v4/README.md)** - V4 architecture overview
 2. **[docs/framelang_design/architecture_v4/TWO_PASS_ARCHITECTURE.md](docs/framelang_design/architecture_v4/TWO_PASS_ARCHITECTURE.md)** - Two-pass validation model
 3. **[docs/plans/VALIDATION_EXPANSION_PLAN.md](docs/plans/VALIDATION_EXPANSION_PLAN.md)** - Planned validation improvements
-4. **[docs/architecture_v5/PLAN.md](docs/architecture_v5/PLAN.md)** - Future native compiler integration (V5)
+4. **[docs/architecture_v5/PLAN.md](docs/framepiler_design/architecture_v5/PLAN.md)** - Future native compiler integration (V5)
 
 ## Two-Pass Validation Model
 

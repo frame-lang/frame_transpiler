@@ -27,6 +27,11 @@ impl FrameStatementParserV3 {
                 // No MIR item needed - just pass through
                 Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "state var handled by splicer"))
             }
+            FrameSegmentKindV3::SystemReturn => self.parse_system_return(text, span),
+            FrameSegmentKindV3::SystemReturnExpr => {
+                // bare system.return - just returns the current value
+                Ok(MirItemV3::SystemReturnExpr{ span })
+            }
         }
     }
 
@@ -104,6 +109,31 @@ impl FrameStatementParserV3 {
         i+=5; while i<n && line[i].is_ascii_whitespace() { i+=1; }
         if i < n { return Err(ParseErrorV3::err(ParseErrorV3Kind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
         Ok(if is_push { MirItemV3::StackPush{ span } } else { MirItemV3::StackPop{ span } })
+    }
+
+    fn parse_system_return(&self, line: &[u8], span: RegionSpan) -> Result<MirItemV3, ParseErrorV3> {
+        // Expect: system.return = <expr> or ^ <expr>
+        let mut i = 0usize; let n = line.len();
+        while i<n && line[i].is_ascii_whitespace() { i+=1; }
+        // Check for caret sugar: ^ <expr>
+        if i < n && line[i] == b'^' {
+            i += 1;
+            while i<n && line[i].is_ascii_whitespace() { i+=1; }
+            let expr = String::from_utf8_lossy(&line[i..]).trim().to_string();
+            return Ok(MirItemV3::SystemReturn{ expr, span });
+        }
+        // Check for system.return = <expr>
+        if i + 13 <= n && &line[i..i+13] == b"system.return" {
+            i += 13;
+            while i<n && line[i].is_ascii_whitespace() { i+=1; }
+            if i < n && line[i] == b'=' && (i+1 >= n || line[i+1] != b'=') {
+                i += 1;
+                while i<n && line[i].is_ascii_whitespace() { i+=1; }
+                let expr = String::from_utf8_lossy(&line[i..]).trim().to_string();
+                return Ok(MirItemV3::SystemReturn{ expr, span });
+            }
+        }
+        Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "malformed system.return"))
     }
 
     fn balanced_paren_block<'a>(&self, line: &'a [u8], open_idx: usize) -> Result<(&'a [u8], usize), ParseErrorV3> {

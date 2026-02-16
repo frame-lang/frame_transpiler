@@ -14,4 +14,10 @@ pub enum MirItemV3 {
     Forward { span: RegionSpan },
     StackPush { span: RegionSpan },
     StackPop { span: RegionSpan },
+    // System return: system.return = <expr> or ^ <expr>
+    // Sets the return value and returns from handler
+    SystemReturn { expr: String, span: RegionSpan },
+    // System return expression read: bare system.return
+    // Returns the current return value
+    SystemReturnExpr { span: RegionSpan },
 }

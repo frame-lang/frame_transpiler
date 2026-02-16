@@ -48,6 +48,16 @@ impl NativeRegionScannerV3 for NativeRegionScannerCsV3 {
                     i+=2; loop { if i>=end { break; } if i+1<end && bytes[i]==b'"' && bytes[i+1]==b'"' { i+=2; continue; } if bytes[i]==b'"' { i+=1; break; } i+=1; }
                 }
                 b'$' => {
+                    // Check for state variable reference first: $.varName
+                    if i+1 < end && bytes[i+1] == b'.' {
+                        if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                        let var_start = i;
+                        i += 2; // Skip "$."
+                        while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') { i += 1; }
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: var_start, end: i }, kind: FrameSegmentKindV3::StateVar, indent: 0 });
+                        seg_start = i;
+                        continue;
+                    }
                     // $"..." or raw $"""...""" (with N quotes) or $@"..." handled via @ branch after this if `$@`.
                     let mut j=i; let mut _dollars=0; while j<end && bytes[j]==b'$' { _dollars+=1; j+=1; }
                     // if next is '@', fall through so '@' handler consumes verbatim string
@@ -70,6 +80,31 @@ impl NativeRegionScannerV3 for NativeRegionScannerCsV3 {
                     } else {
                         i+=1;
                     }
+                }
+                // System return: system.return = <expr> or system.return
+                b's' if i+12 < end && &bytes[i..i+13] == b"system.return" => {
+                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    let start = i;
+                    i += 13; // Skip "system.return"
+                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+                    if i < end && bytes[i] == b'=' && (i+1 >= end || bytes[i+1] != b'=') {
+                        i += 1;
+                        i = find_frame_line_end_c_like(bytes, i, end);
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent: 0 });
+                    } else {
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturnExpr, indent: 0 });
+                    }
+                    seg_start = i;
+                }
+                // Return value sugar: ^ (caret) - returns from handler
+                b'^' => {
+                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
+                    let start = i;
+                    i += 1;
+                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+                    i = find_frame_line_end_c_like(bytes, i, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent: 0 });
+                    seg_start = i;
                 }
                 _ => { i+=1; }
             }

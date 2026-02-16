@@ -52,6 +52,16 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
             }
             MirItemV3::StackPush{ .. } => format!("{}self._frame_stack_push()\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}self._frame_stack_pop()\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return\n", pad)
+                } else {
+                    format!("{}self._return_value = {}\n{}return\n", pad, expr, pad)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => {
+                format!("{}self._return_value", pad)
+            }
         }
     }
 }
@@ -102,6 +112,16 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
             }
             MirItemV3::StackPush{ .. } => format!("{}this._frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}this._frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}this._return_value = {};\n{}return;\n", pad, expr, pad)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => {
+                format!("{}this._return_value", pad)
+            }
         }
     }
 }
@@ -128,6 +148,16 @@ impl FrameStatementExpanderV3 for CExpanderV3 {
             }
             MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}_return_value = {};\n{}return;\n", pad, expr, pad)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => {
+                format!("{}_return_value", pad)
+            }
         }
     }
 }
@@ -153,6 +183,16 @@ impl FrameStatementExpanderV3 for CppExpanderV3 {
             }
             MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}_return_value = {};\n{}return;\n", pad, expr, pad)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => {
+                format!("{}_return_value", pad)
+            }
         }
     }
 }
@@ -177,6 +217,16 @@ impl FrameStatementExpanderV3 for JavaExpanderV3 {
             }
             MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}_returnValue = {};\n{}return;\n", pad, expr, pad)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => {
+                format!("{}_returnValue", pad)
+            }
         }
     }
 }
@@ -225,6 +275,24 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
                     format!("{}_frame_stack_pop();\n", pad)
                 }
             }
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    if use_methods {
+                        format!("{}self._return_value = {};\n{}return;\n", pad, expr, pad)
+                    } else {
+                        format!("{}_return_value = {};\n{}return;\n", pad, expr, pad)
+                    }
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => {
+                if use_methods {
+                    format!("{}self._return_value", pad)
+                } else {
+                    format!("{}_return_value", pad)
+                }
+            }
         }
     }
 }
@@ -241,6 +309,14 @@ impl FrameStatementExpanderV3 for PyFacadeExpanderV3 {
             MirItemV3::Forward{ .. } => format!("{}__frame_forward()\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push()\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop()\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return\n", pad)
+                } else {
+                    format!("{}__frame_return({})\n", pad, expr)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }
@@ -257,6 +333,14 @@ impl FrameStatementExpanderV3 for TsFacadeExpanderV3 {
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}__frame_return({});\n", pad, expr)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }
@@ -273,6 +357,14 @@ impl FrameStatementExpanderV3 for CFacadeExpanderV3 {
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}__frame_return({});\n", pad, expr)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }
@@ -291,6 +383,14 @@ impl FrameStatementExpanderV3 for RustFacadeExpanderV3 {
             MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
             MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
             MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
+            MirItemV3::SystemReturn{ expr, .. } => {
+                if expr.is_empty() {
+                    format!("{}return;\n", pad)
+                } else {
+                    format!("{}__frame_return({});\n", pad, expr)
+                }
+            }
+            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }

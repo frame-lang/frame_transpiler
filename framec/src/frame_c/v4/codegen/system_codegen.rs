@@ -122,6 +122,13 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         .with_visibility(Visibility::Private)
         .with_type("Dict"));
 
+    // Return value field for system.return (not needed for Rust since we use native return)
+    if !matches!(syntax.language, TargetLanguage::Rust) {
+        fields.push(Field::new("_return_value")
+            .with_visibility(Visibility::Private)
+            .with_type("Any"));
+    }
+
     // Domain variables
     for domain_var in &system.domain {
         let mut field = Field::new(&domain_var.name)
@@ -1471,6 +1478,53 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => format!("this._state_context[\"{}\"]", var_name),
             }
         }
+        FrameSegmentKindV3::SystemReturn => {
+            // system.return = <expr> or ^ <expr>
+            // For simplicity, expand to native return which works with current dispatch
+            let expr = extract_system_return_expr(&segment_text);
+            // Expand any state variable references in the expression
+            let expanded_expr = expand_state_vars_in_expr(&expr, lang);
+            match lang {
+                TargetLanguage::Python3 => {
+                    if expanded_expr.is_empty() {
+                        format!("{}return", indent_str)
+                    } else {
+                        format!("{}return {}", indent_str, expanded_expr)
+                    }
+                }
+                TargetLanguage::TypeScript => {
+                    if expanded_expr.is_empty() {
+                        format!("{}return;", indent_str)
+                    } else {
+                        format!("{}return {};", indent_str, expanded_expr)
+                    }
+                }
+                TargetLanguage::Rust => {
+                    if expanded_expr.is_empty() {
+                        format!("{}return;", indent_str)
+                    } else {
+                        format!("{}return {};", indent_str, expanded_expr)
+                    }
+                }
+                _ => {
+                    if expanded_expr.is_empty() {
+                        format!("{}return;", indent_str)
+                    } else {
+                        format!("{}return {};", indent_str, expanded_expr)
+                    }
+                }
+            }
+        }
+        FrameSegmentKindV3::SystemReturnExpr => {
+            // bare system.return - read current return value
+            // This uses the _return_value field for expression context
+            match lang {
+                TargetLanguage::Python3 => "self._return_value".to_string(),
+                TargetLanguage::TypeScript => "this._return_value".to_string(),
+                TargetLanguage::Rust => "self._return_value".to_string(),
+                _ => "this._return_value".to_string(),
+            }
+        }
     }
 }
 
@@ -1498,6 +1552,55 @@ fn extract_state_var_name(text: &str) -> String {
     } else {
         "unknown".to_string()
     }
+}
+
+/// Extract expression from system.return = <expr> or ^ <expr>
+fn extract_system_return_expr(text: &str) -> String {
+    let text = text.trim();
+    // Handle caret sugar: ^ <expr>
+    if text.starts_with('^') {
+        let after_caret = text[1..].trim();
+        return after_caret.to_string();
+    }
+    // Handle system.return = <expr>
+    if text.starts_with("system.return") {
+        let after = &text[13..];
+        let trimmed = after.trim();
+        if trimmed.starts_with('=') {
+            return trimmed[1..].trim().to_string();
+        }
+    }
+    String::new()
+}
+
+/// Expand state variable references ($.varName) in an expression string
+fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
+    let mut result = String::new();
+    let bytes = expr.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if i + 1 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'.' {
+            // Found $.varName
+            i += 2; // Skip "$."
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            let var_name = String::from_utf8_lossy(&bytes[start..i]).to_string();
+            match lang {
+                TargetLanguage::Python3 => result.push_str(&format!("self._state_context[\"{}\"]", var_name)),
+                TargetLanguage::TypeScript => result.push_str(&format!("this._state_context[\"{}\"]", var_name)),
+                TargetLanguage::Rust => result.push_str(&format!("self._sv_{}", var_name)),
+                _ => result.push_str(&format!("this._state_context[\"{}\"]", var_name)),
+            }
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    result
 }
 
 /// Get the native region scanner for the target language
