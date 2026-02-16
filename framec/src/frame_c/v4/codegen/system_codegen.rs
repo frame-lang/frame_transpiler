@@ -274,6 +274,15 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
         CodegenNode::Dict(vec![]),
     ));
 
+    // Initialize return value (for system.return chain semantics)
+    // Not needed for Rust which uses native return
+    if !matches!(syntax.language, TargetLanguage::Rust) {
+        body.push(CodegenNode::assign(
+            CodegenNode::field(CodegenNode::self_ref(), "_return_value"),
+            CodegenNode::null(),
+        ));
+    }
+
     // Initialize domain variables
     for domain_var in &system.domain {
         if let Some(ref init) = &domain_var.initializer {
@@ -1005,7 +1014,7 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                 generate_rust_interface_dispatch(system, &method.name, &args, method.return_type.is_some())
             }
             _ => {
-                // For dynamic languages, use _dispatch_event
+                // For dynamic languages, use _dispatch_event with _return_value pattern
                 let mut dispatch_args = vec![CodegenNode::string(&method.name)];
                 dispatch_args.extend(args);
 
@@ -1015,9 +1024,38 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                     dispatch_args,
                 );
 
-                // If method has return type, wrap in Return; otherwise just call
+                // If method has return type, use _return_value pattern for chain semantics
                 if method.return_type.is_some() {
-                    CodegenNode::Return { value: Some(Box::new(dispatch_call)) }
+                    // Generate: self._return_value = None; self._dispatch_event(...); return self._return_value
+                    let init_return = match lang {
+                        TargetLanguage::Python3 => "self._return_value = None",
+                        TargetLanguage::TypeScript => "this._return_value = null",
+                        _ => "this._return_value = null",
+                    };
+                    let return_expr = match lang {
+                        TargetLanguage::Python3 => "self._return_value",
+                        TargetLanguage::TypeScript => "this._return_value",
+                        _ => "this._return_value",
+                    };
+                    CodegenNode::NativeBlock {
+                        code: format!("{}\n{}\nreturn {}",
+                            init_return,
+                            match lang {
+                                TargetLanguage::Python3 => format!("self._dispatch_event(\"{}\"{})",
+                                    method.name,
+                                    if method.params.is_empty() { "".to_string() }
+                                    else { format!(", {}", method.params.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ")) }
+                                ),
+                                _ => format!("this._dispatch_event(\"{}\"{})",
+                                    method.name,
+                                    if method.params.is_empty() { "".to_string() }
+                                    else { format!(", {}", method.params.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ")) }
+                                ),
+                            },
+                            return_expr
+                        ),
+                        span: None,
+                    }
                 } else {
                     CodegenNode::ExprStmt(Box::new(dispatch_call))
                 }
@@ -1577,27 +1615,47 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKindV3::SystemReturn => {
-            // system.return = <expr> or ^ <expr>
-            // For simplicity, expand to native return which works with current dispatch
+            // system.return = <expr> or return <expr>
+            // return <expr> is sugar for system.return = <expr>; return (early exit)
+            // system.return = just sets value without returning (for chain semantics)
+            let trimmed = segment_text.trim_start();
+            let is_return_sugar = trimmed.starts_with("return ");
             let expr = extract_system_return_expr(&segment_text);
             // Expand any state variable references in the expression
             let expanded_expr = expand_state_vars_in_expr(&expr, lang);
+
             match lang {
                 TargetLanguage::Python3 => {
                     if expanded_expr.is_empty() {
-                        format!("{}return", indent_str)
+                        if is_return_sugar {
+                            format!("{}return", indent_str)
+                        } else {
+                            // system.return with no expr - just a read, shouldn't happen here
+                            "".to_string()
+                        }
+                    } else if is_return_sugar {
+                        // ^ expr: set _return_value AND return (early exit)
+                        format!("{}self._return_value = {}\n{}return", indent_str, expanded_expr, indent_str)
                     } else {
-                        format!("{}return {}", indent_str, expanded_expr)
+                        // system.return = expr: just set _return_value (chain semantics)
+                        format!("{}self._return_value = {}", indent_str, expanded_expr)
                     }
                 }
                 TargetLanguage::TypeScript => {
                     if expanded_expr.is_empty() {
-                        format!("{}return;", indent_str)
+                        if is_return_sugar {
+                            format!("{}return;", indent_str)
+                        } else {
+                            "".to_string()
+                        }
+                    } else if is_return_sugar {
+                        format!("{}this._return_value = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     } else {
-                        format!("{}return {};", indent_str, expanded_expr)
+                        format!("{}this._return_value = {};", indent_str, expanded_expr)
                     }
                 }
                 TargetLanguage::Rust => {
+                    // Rust still uses native return for now (no _return_value pattern)
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
                     } else {
@@ -1606,9 +1664,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
                 _ => {
                     if expanded_expr.is_empty() {
-                        format!("{}return;", indent_str)
+                        if is_return_sugar {
+                            format!("{}return;", indent_str)
+                        } else {
+                            "".to_string()
+                        }
+                    } else if is_return_sugar {
+                        format!("{}this._return_value = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     } else {
-                        format!("{}return {};", indent_str, expanded_expr)
+                        format!("{}this._return_value = {};", indent_str, expanded_expr)
                     }
                 }
             }
@@ -1712,13 +1776,13 @@ fn extract_state_var_name(text: &str) -> String {
     }
 }
 
-/// Extract expression from system.return = <expr> or ^ <expr>
+/// Extract expression from system.return = <expr> or return <expr>
 fn extract_system_return_expr(text: &str) -> String {
     let text = text.trim();
-    // Handle caret sugar: ^ <expr>
-    if text.starts_with('^') {
-        let after_caret = text[1..].trim();
-        return after_caret.to_string();
+    // Handle return sugar: return <expr>
+    if text.starts_with("return ") {
+        let after_return = text[7..].trim();
+        return after_return.to_string();
     }
     // Handle system.return = <expr>
     if text.starts_with("system.return") {

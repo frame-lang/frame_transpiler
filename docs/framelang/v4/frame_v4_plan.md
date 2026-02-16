@@ -1,6 +1,6 @@
 # Frame V4 Implementation Plan
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** February 2026
 **Status:** Active Development
 **Approach:** Test-Driven (PRT: Python, Rust, TypeScript)
@@ -11,7 +11,7 @@
 
 **Existing:** 9 core tests + 365 migrated tests
 **Required:** 24 tests per codegen spec
-**Gap:** 9 tests missing, 3 need dedicated versions
+**Gap:** 8 tests missing, 3 need dedicated versions
 
 ---
 
@@ -155,7 +155,7 @@ All 4 tests pass for PRT
 
 ---
 
-## Phase 4: Extended Stack Operations
+## Phase 4: @@codegen Directive
 
 **Status:** NOT IMPLEMENTED
 
@@ -163,13 +163,14 @@ All 4 tests pass for PRT
 
 | Test File | Validates |
 |-----------|-----------|
-| `21_push_named_state.frm` | `push$ $StateName` creates new compartment |
+| `21_codegen_auto_enable.frm` | Using `push$` auto-enables `state_stack` |
 
 ### 4.2 Implementation Tasks
 
-1. Parse `push$ $StateName` in `frame_statement_parser.rs`
-2. Generate compartment creation with state var inits
-3. Push new compartment (not current)
+1. Parse `@@codegen { key: value }` after `@@target`
+2. Add `CodegenConfig` to AST
+3. Implement auto-enable logic in Arcanum
+4. Generate W400/W401 warnings for overrides
 
 ### 4.3 Verify
 
@@ -177,7 +178,7 @@ Test passes for PRT
 
 ---
 
-## Phase 5: @@codegen Directive
+## Phase 5: Static Operations
 
 **Status:** NOT IMPLEMENTED
 
@@ -185,14 +186,13 @@ Test passes for PRT
 
 | Test File | Validates |
 |-----------|-----------|
-| `22_codegen_auto_enable.frm` | Using `push$` auto-enables `state_stack` |
+| `22_static_operations.frm` | `static op()` has no self/this |
 
 ### 5.2 Implementation Tasks
 
-1. Parse `@@codegen { key: value }` after `@@target`
-2. Add `CodegenConfig` to AST
-3. Implement auto-enable logic in Arcanum
-4. Generate W400/W401 warnings for overrides
+1. Parse `static` keyword in operations
+2. Validate no instance access
+3. Generate `@staticmethod` / `static`
 
 ### 5.3 Verify
 
@@ -200,7 +200,7 @@ Test passes for PRT
 
 ---
 
-## Phase 6: Static Operations
+## Phase 6: Persistence
 
 **Status:** NOT IMPLEMENTED
 
@@ -208,59 +208,37 @@ Test passes for PRT
 
 | Test File | Validates |
 |-----------|-----------|
-| `23_static_operations.frm` | `static op()` has no self/this |
+| `23_persist_basic.frm` | `@@persist` generates save/restore |
+| `24_persist_roundtrip.frm` | Save → restore preserves state + domain |
 
 ### 6.2 Implementation Tasks
-
-1. Parse `static` keyword in operations
-2. Validate no instance access
-3. Generate `@staticmethod` / `static`
-
-### 6.3 Verify
-
-Test passes for PRT
-
----
-
-## Phase 7: Persistence
-
-**Status:** NOT IMPLEMENTED
-
-### 7.1 Write Tests First
-
-| Test File | Validates |
-|-----------|-----------|
-| `24_persist_basic.frm` | `@@persist` generates save/restore |
-| `25_persist_roundtrip.frm` | Save → restore preserves state + domain |
-
-### 7.2 Implementation Tasks
 
 1. Generate `_save()` method
 2. Generate `_restore(data)` class method
 3. Handle state stack serialization
 4. Handle field filtering (`domain=[...]`, `exclude=[...]`)
 
-### 7.3 Verify
+### 6.3 Verify
 
 Tests pass for PRT
 
 ---
 
-## Phase 8: Service Pattern
+## Phase 7: Service Pattern
 
 **Status:** NOT TESTED
 
-### 8.1 Write Tests First
+### 7.1 Write Tests First
 
 | Test File | Validates |
 |-----------|-----------|
-| `26_service_pattern.frm` | Enter handler chains don't stack overflow |
+| `25_service_pattern.frm` | Enter handler chains don't stack overflow |
 
-### 8.2 Implementation Tasks
+### 7.2 Implementation Tasks
 
 Kernel already handles this. Just need test validation.
 
-### 8.3 Verify
+### 7.3 Verify
 
 Test passes for PRT
 
@@ -281,12 +259,11 @@ Test passes for PRT
 | 18 | `18_transition_exit_args.frm` | 3 | Exit args |
 | 19 | `19_event_forwarding.frm` | 3 | `-> =>` |
 | 20 | `20_transition_pop.frm` | 3 | `-> pop$` |
-| 21 | `21_push_named_state.frm` | 4 | `push$ $State` |
-| 22 | `22_codegen_auto_enable.frm` | 5 | @@codegen |
-| 23 | `23_static_operations.frm` | 6 | Static ops |
-| 24 | `24_persist_basic.frm` | 7 | @@persist |
-| 25 | `25_persist_roundtrip.frm` | 7 | Persistence |
-| 26 | `26_service_pattern.frm` | 8 | Enter chains |
+| 21 | `21_codegen_auto_enable.frm` | 4 | @@codegen |
+| 22 | `22_static_operations.frm` | 5 | Static ops |
+| 23 | `23_persist_basic.frm` | 6 | @@persist |
+| 24 | `24_persist_roundtrip.frm` | 6 | Persistence |
+| 25 | `25_service_pattern.frm` | 7 | Enter chains |
 
 ---
 
@@ -316,8 +293,7 @@ done
 | 3 | 17-20 | All PRT |
 | 4 | 21 | All PRT |
 | 5 | 22 | All PRT |
-| 6 | 23 | All PRT |
-| 7 | 24-25 | All PRT |
-| 8 | 26 | All PRT |
+| 6 | 23-24 | All PRT |
+| 7 | 25 | All PRT |
 
-**Final:** 26 tests × 3 languages = 78 test passes
+**Final:** 25 tests × 3 languages = 75 test passes

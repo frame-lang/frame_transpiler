@@ -514,7 +514,7 @@ The system codegen builds the class tree in this order:
    g. Send enter event to start state via kernel
 
 4. Generate runtime infrastructure:
-   a. __kernel (if runtime = kernel)
+   a. __kernel (always)
    b. __router
    c. __transition
    d. State dispatch functions (one per state)
@@ -662,7 +662,7 @@ class Foo:
     __init__                  (always)
 
     # Runtime infrastructure
-    __kernel                  (if runtime = kernel)
+    __kernel                  (always)
     __router                  (always)
     __transition              (always)
     __foo_state_A             (state dispatch — one per state)
@@ -716,7 +716,7 @@ Interface method call
         → Handler method (user code + Frame expansions)
 ```
 
-### 8.2 Kernel (when `runtime = kernel`)
+### 8.2 Kernel
 
 ```
 kernel(event):

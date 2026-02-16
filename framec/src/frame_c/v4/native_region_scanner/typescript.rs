@@ -102,15 +102,19 @@ impl NativeRegionScannerV3 for NativeRegionScannerTsV3 {
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::StackPop, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
-                // Return value sugar: ^ <expr> at start of line
-                if b == b'^' {
-                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                    let start = i;
-                    i += 1; // Skip '^'
-                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
-                    i = find_frame_line_end_ts(bytes, i, end);
-                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent });
-                    seg_start = i; at_sol = true; indent = 0; continue;
+                // Return sugar: return <expr> at start of line in handlers
+                // Sugar for system.return = <expr>; return
+                if b == b'r' && i+6 <= end && &bytes[i..i+6] == b"return" {
+                    // Check if followed by space/tab and expression (not just bare return)
+                    let after_return = i + 6;
+                    if after_return < end && (bytes[after_return] == b' ' || bytes[after_return] == b'\t') {
+                        let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                        if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
+                        let start = i;
+                        i = find_frame_line_end_ts(bytes, i, end);
+                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent });
+                        seg_start = i; at_sol = true; indent = 0; continue;
+                    }
                 }
                 at_sol = false; indent=0;
             }

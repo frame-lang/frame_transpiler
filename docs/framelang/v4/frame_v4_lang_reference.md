@@ -305,10 +305,9 @@ Forwards the current event to the parent state's dispatch function.
 
 ```
 push$                   // push current state's compartment
-push$ $<StateName>      // push a new compartment for the named state
 ```
 
-Pushes a compartment onto the state stack. When pushing the current state, the entire compartment (including state variables) is preserved. When pushing a named state, a new compartment is created with that state's variable initializers.
+Pushes the current state's compartment onto the state stack. The entire compartment (including state variables) is preserved and can be restored with `pop$` or `-> pop$`.
 
 ### 5.4 Stack Pop — `pop$`
 

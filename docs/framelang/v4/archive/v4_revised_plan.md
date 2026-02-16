@@ -476,20 +476,11 @@ Pushes a state onto the state stack.
 push$
 ```
 
-**Push an explicit state:**
-```
-push$ $<StateName>
-```
-
-**Examples:**
+**Example:**
 ```frame
 handleInterrupt() {
     push$              // Save current state
     -> $Interrupt      // Go handle interrupt
-}
-
-setupFallback() {
-    push$ $SafeMode    // Push a specific state as fallback
 }
 ```
 
@@ -923,7 +914,6 @@ line | source code
 | `-> pop$` | `self._transition(self._state_stack.pop())` |
 | `=> $^` | `self._forward_to_parent()` |
 | `push$` | `self._state_stack.append(self._state)` |
-| `push$ $Fallback` | `self._state_stack.append("Fallback")` |
 | `pop$` | `self._state_stack.pop()` |
 
 ### Generated System Structure
@@ -1709,7 +1699,6 @@ event(x: type, y: type) {
 | Feature | Description |
 |---------|-------------|
 | `@@persist` | JSON persistence code generation |
-| `push$ $StateName` | Push explicit state to stack |
 | `-> pop$` | Transition to popped state (with lifecycle) |
 | Native type passthrough | Any native type syntax works |
 | HSM `=> $^` | Forward to parent state |
