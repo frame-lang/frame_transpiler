@@ -83,6 +83,11 @@ pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLangua
         methods.push(generate_operation(operation, &syntax, source));
     }
 
+    // Persistence methods (when @@persist is present)
+    if system.persist_attr.is_some() {
+        methods.extend(generate_persistence_methods(system, &syntax));
+    }
+
     CodegenNode::Class {
         name: system.name.clone(),
         fields,
@@ -1887,6 +1892,13 @@ fn generate_operation(operation: &OperationAst, syntax: &super::backend::ClassSy
     // Extract native code from source using span (oceans model)
     let code = extract_body_content(source, &operation.body.span);
 
+    // For static operations in Python, add @staticmethod decorator
+    let decorators = if operation.is_static && matches!(syntax.language, TargetLanguage::Python3) {
+        vec!["staticmethod".to_string()]
+    } else {
+        vec![]
+    };
+
     CodegenNode::Method {
         name: operation.name.clone(),
         params,
@@ -1896,9 +1908,9 @@ fn generate_operation(operation: &OperationAst, syntax: &super::backend::ClassSy
             span: Some(operation.body.span.clone()),
         }],
         is_async: false,
-        is_static: false,
+        is_static: operation.is_static,
         visibility: Visibility::Public,
-        decorators: vec![],
+        decorators,
     }
 }
 
@@ -1932,6 +1944,159 @@ fn extract_body_content(source: &[u8], span: &crate::frame_c::v4::frame_ast::Spa
     } else {
         trimmed.to_string()
     }
+}
+
+/// Generate persistence methods (save_state, restore_state) for @@persist
+fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<CodegenNode> {
+    let mut methods = Vec::new();
+
+    match syntax.language {
+        TargetLanguage::Python3 => {
+            // Generate save_state method
+            let mut save_body = String::new();
+            save_body.push_str("data = {\n");
+            save_body.push_str("    '_state': self._state,\n");
+            save_body.push_str("    '_state_context': dict(self._state_context),\n");
+
+            // Add domain variables
+            for var in &system.domain {
+                save_body.push_str(&format!("    '{}': self.{},\n", var.name, var.name));
+            }
+
+            save_body.push_str("}\n");
+            save_body.push_str("return data");
+
+            methods.push(CodegenNode::Method {
+                name: "save_state".to_string(),
+                params: vec![],
+                return_type: Some("dict".to_string()),
+                body: vec![CodegenNode::NativeBlock {
+                    code: save_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Public,
+                decorators: vec![],
+            });
+
+            // Generate restore_state classmethod
+            let mut restore_body = String::new();
+            restore_body.push_str(&format!("instance = object.__new__({})\n", system.name));
+            restore_body.push_str("instance._state = data['_state']\n");
+            restore_body.push_str("instance._state_context = dict(data['_state_context'])\n");
+            restore_body.push_str("instance._state_stack = []\n");
+            restore_body.push_str("instance._return_value = None\n");
+
+            // Restore domain variables
+            for var in &system.domain {
+                restore_body.push_str(&format!("instance.{} = data['{}']\n", var.name, var.name));
+            }
+
+            restore_body.push_str("return instance");
+
+            methods.push(CodegenNode::Method {
+                name: "restore_state".to_string(),
+                params: vec![Param::new("data").with_type("dict")],
+                return_type: Some(format!("'{}'", system.name)),
+                body: vec![CodegenNode::NativeBlock {
+                    code: restore_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: true,  // classmethod
+                visibility: Visibility::Public,
+                decorators: vec!["classmethod".to_string()],
+            });
+        }
+        TargetLanguage::TypeScript => {
+            // Generate saveState method
+            let mut save_body = String::new();
+            save_body.push_str("return {\n");
+            save_body.push_str("    _state: this._state,\n");
+            save_body.push_str("    _state_context: { ...this._state_context },\n");
+
+            // Add domain variables
+            for var in &system.domain {
+                save_body.push_str(&format!("    {}: this.{},\n", var.name, var.name));
+            }
+
+            save_body.push_str("};");
+
+            methods.push(CodegenNode::Method {
+                name: "saveState".to_string(),
+                params: vec![],
+                return_type: Some("object".to_string()),
+                body: vec![CodegenNode::NativeBlock {
+                    code: save_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Public,
+                decorators: vec![],
+            });
+
+            // Generate restoreState static method
+            let mut restore_body = String::new();
+            restore_body.push_str(&format!("const instance = Object.create({}.prototype);\n", system.name));
+            restore_body.push_str("instance._state = data._state;\n");
+            restore_body.push_str("instance._state_context = { ...data._state_context };\n");
+            restore_body.push_str("instance._state_stack = [];\n");
+            restore_body.push_str("instance._return_value = null;\n");
+
+            // Restore domain variables
+            for var in &system.domain {
+                restore_body.push_str(&format!("instance.{} = data.{};\n", var.name, var.name));
+            }
+
+            restore_body.push_str("return instance;");
+
+            methods.push(CodegenNode::Method {
+                name: "restoreState".to_string(),
+                params: vec![Param::new("data").with_type("any")],
+                return_type: Some(system.name.clone()),
+                body: vec![CodegenNode::NativeBlock {
+                    code: restore_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: true,
+                visibility: Visibility::Public,
+                decorators: vec![],
+            });
+        }
+        TargetLanguage::Rust => {
+            // Rust needs different approach - implement Serialize/Deserialize traits
+            // For now, generate basic to_state/from_state methods
+            let mut save_body = String::new();
+            save_body.push_str("// Manual state serialization for Rust\n");
+            save_body.push_str("let mut state = std::collections::HashMap::new();\n");
+            save_body.push_str("state.insert(\"_state\".to_string(), self._state.clone());\n");
+
+            // Domain variables would need more sophisticated handling for Rust
+            save_body.push_str("state");
+
+            methods.push(CodegenNode::Method {
+                name: "save_state".to_string(),
+                params: vec![],
+                return_type: Some("std::collections::HashMap<String, String>".to_string()),
+                body: vec![CodegenNode::NativeBlock {
+                    code: save_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Public,
+                decorators: vec![],
+            });
+        }
+        _ => {
+            // Other languages not yet supported
+        }
+    }
+
+    methods
 }
 
 /// Convert Frame AST statements to CodegenNode

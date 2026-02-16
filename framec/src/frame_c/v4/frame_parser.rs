@@ -1365,16 +1365,25 @@ impl FrameParser {
     /// Parse a single operation
     fn parse_operation(&mut self) -> Result<OperationAst, ParseError> {
         let start = self.cursor;
-        
+
+        // Check for optional 'static' keyword
+        let is_static = if self.peek_keyword("static") {
+            self.cursor += 6; // Skip "static"
+            self.skip_whitespace();
+            true
+        } else {
+            false
+        };
+
         let name = self.parse_identifier()?;
-        
+
         // Parse parameters
         let params = if self.peek_char('(') {
             self.parse_operation_params()?
         } else {
             vec![]
         };
-        
+
         // Parse return type
         let return_type = if self.peek_char(':') {
             self.cursor += 1;
@@ -1383,17 +1392,18 @@ impl FrameParser {
         } else {
             Type::Unknown
         };
-        
+
         self.skip_whitespace();
-        
+
         // Parse operation body
         let body = self.parse_operation_body()?;
-        
+
         Ok(OperationAst {
             name,
             params,
             return_type,
             body,
+            is_static,
             span: Span::new(start, self.cursor),
         })
     }

@@ -449,6 +449,7 @@ pub struct OperationAst {
     pub params: Vec<OperationParam>,
     pub return_type: Type,
     pub body: OperationBody,
+    pub is_static: bool,
     pub span: Span,
 }
 
