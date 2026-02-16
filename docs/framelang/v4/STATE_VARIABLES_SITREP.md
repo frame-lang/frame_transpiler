@@ -1,8 +1,8 @@
 # Frame V4 State Variables - Situation Report
 
 **Date:** 2026-02-15
-**Branch:** `v4_pure` (frame_transpiler), `main` (framepiler_test_env)
-**Version:** 0.87.0
+**Branch:** `frame_v4` (frame_transpiler), `main` (framepiler_test_env)
+**Version:** 0.87.4
 **Author:** Claude Opus 4.5 (AI-assisted development)
 
 ---
@@ -11,7 +11,7 @@
 
 Phase 1 (State Variables) of the Frame V4 implementation is **complete**. All 36 PRT tests pass across Python, TypeScript, and Rust backends. The V4 compiler is now the default pipeline with no environment variable required.
 
-One architectural limitation exists: Rust does not preserve state variables across push/pop operations. This is documented and the Rust test suite expects this behavior.
+**All three backends now correctly preserve state variables across push/pop operations.**
 
 ---
 
@@ -19,7 +19,7 @@ One architectural limitation exists: Rust does not preserve state variables acro
 
 1. [Test Status](#test-status)
 2. [Implementation Details](#implementation-details)
-3. [Rust Limitation Diagnosis](#rust-limitation-diagnosis)
+3. [Rust Compartment Architecture](#rust-compartment-architecture)
 4. [Architecture Overview](#architecture-overview)
 5. [Recent Changes](#recent-changes)
 6. [Next Steps](#next-steps)
@@ -107,169 +107,100 @@ fn _enter(&mut self) {
 |----------|------------|-----------|
 | Python | ✅ Yes | Saves `(state, context.copy())` tuple |
 | TypeScript | ✅ Yes | Saves `{state, context: {...}}` object |
-| Rust | ❌ No | Only saves state name (documented limitation) |
+| Rust | ✅ Yes | Saves `(state, Compartment)` tuple (typed enum) |
 
 ---
 
-## Rust Limitation Diagnosis
+## Rust Compartment Architecture
 
-### Problem Statement
+Rust uses a "compartment enum" pattern for type-safe state variable preservation across push/pop operations.
 
-When using push/pop in Rust:
-```
-Counter ($.count = 3) → push$ → Other → pop$ → Counter ($.count = 0)
-```
+### Generated Types
 
-**Expected:** `$.count` should be `3` after pop (preserved)
-**Actual:** `$.count` is `0` after pop (reinitialized)
+For a system with state variables, the compiler generates:
 
-Python and TypeScript correctly preserve the value as `3`.
-
-### Root Cause Analysis
-
-#### How Python/TypeScript Work (Correctly)
-
-**Storage:** Single `_state_context` dictionary holds all state variables
-
-```python
-self._state_context = {"count": 3}
-```
-
-**Push:** Saves state name AND a copy of the entire context
-```python
-self._state_stack.append((self._state, self._state_context.copy()))
-# Stack: [("Counter", {"count": 3})]
-```
-
-**Pop:** Restores both state name AND context
-```python
-__saved = self._state_stack.pop()
-self._exit()
-self._state = __saved[0]           # "Counter"
-self._state_context = __saved[1]   # {"count": 3} ← Preserved!
-```
-
-#### How Rust Works (Problem)
-
-**Storage:** Individual `_sv_` struct fields per state variable
+1. **Context structs** for each state with variables
+2. **Compartment enum** with variants for each state
+3. **Helper methods** `_state_stack_push()` and `_state_stack_pop()`
 
 ```rust
-pub struct StateVarPushPop {
-    _state: String,
-    _state_stack: Vec<Box<dyn std::any::Any>>,
-    _state_context: HashMap<String, Box<dyn std::any::Any>>,  // Unused!
-    _sv_count: i32,        // Counter's state var
-    _sv_other_count: i32,  // Other's state var
+// Context struct for Counter state
+#[derive(Clone, Default)]
+struct CounterContext {
+    count: i32,
 }
-```
 
-**Push:** Only saves state name (NOT the `_sv_` field values)
-```rust
-self._state_stack.push(Box::new(self._state.clone()));
-// Stack: [Box("Counter")]
-// _sv_count = 3 is NOT saved!
-```
+// Context struct for Other state
+#[derive(Clone, Default)]
+struct OtherContext {
+    other_count: i32,
+}
 
-**Pop:** Restores state name, but `_transition()` calls `_enter()` which reinitializes
-```rust
-let __popped_state = *self._state_stack.pop().unwrap()
-    .downcast::<String>().unwrap();
-self._transition(&__popped_state);  // Calls _enter()!
-```
+// Compartment enum with typed variants
+#[derive(Clone)]
+enum StateVarPushPopCompartment {
+    Counter(CounterContext),
+    Other(OtherContext),
+    Empty,
+}
 
-**`_enter()` reinitializes state vars:**
-```rust
-fn _enter(&mut self) {
-    match self._state.as_str() {
-        "Counter" => {
-            self._sv_count = 0;  // ← Overwrites preserved value!
-        }
-        _ => {}
+impl Default for StateVarPushPopCompartment {
+    fn default() -> Self {
+        StateVarPushPopCompartment::Counter(CounterContext::default())
     }
 }
 ```
 
-### Why Rust Uses `_sv_` Fields
-
-Rust requires compile-time type safety. A `HashMap<String, Box<dyn Any>>` loses type information:
+### Generated Struct
 
 ```rust
-// HashMap approach - type-unsafe
-let count: i32 = *self._state_context.get("count")
-    .unwrap()
-    .downcast_ref::<i32>()
-    .unwrap();  // Runtime panic if wrong type!
-```
-
-The `_sv_` field approach provides:
-- Compile-time type checking
-- No runtime downcasting
-- Better performance (no heap allocation per access)
-
-```rust
-// _sv_ fields - type-safe
-let count: i32 = self._sv_count;  // Direct field access
-```
-
-### Potential Solutions
-
-#### Option 1: Save/Restore Individual Fields
-
-Generate code to save each `_sv_` field on push, restore on pop.
-
-```rust
-struct CounterContext { count: i32 }
-
-// Push
-let ctx = CounterContext { count: self._sv_count };
-self._state_stack.push(Box::new((self._state.clone(), ctx)));
-
-// Pop
-let (state, ctx) = *self._state_stack.pop().unwrap()
-    .downcast::<(String, CounterContext)>().unwrap();
-self._sv_count = ctx.count;
-```
-
-**Complexity:** High - Need per-state context structs, type-aware downcasting
-
-#### Option 2: Use Enum for State Context
-
-Generate an enum with variants for each state's context:
-
-```rust
-#[derive(Clone)]
-enum StateContext {
-    Counter { count: i32 },
-    Other { other_count: i32 },
-    None,
+pub struct StateVarPushPop {
+    _state: String,
+    _state_stack: Vec<(String, StateVarPushPopCompartment)>,  // Typed!
+    _state_context: HashMap<String, Box<dyn std::any::Any>>,
+    _sv_count: i32,        // Direct field access in handlers
+    _sv_other_count: i32,
 }
 ```
 
-**Complexity:** Medium-High - Requires enum generation and mapping logic
+### Push/Pop Methods
 
-#### Option 3: HashMap with Type Wrappers
+```rust
+fn _state_stack_push(&mut self) {
+    let compartment = match self._state.as_str() {
+        "Counter" => StateVarPushPopCompartment::Counter(
+            CounterContext { count: self._sv_count }
+        ),
+        "Other" => StateVarPushPopCompartment::Other(
+            OtherContext { other_count: self._sv_other_count }
+        ),
+        _ => StateVarPushPopCompartment::Empty,
+    };
+    self._state_stack.push((self._state.clone(), compartment));
+}
 
-Use `_state_context` HashMap consistently instead of `_sv_` fields.
+fn _state_stack_pop(&mut self) {
+    let (saved_state, compartment) = self._state_stack.pop().unwrap();
+    self._exit();
+    self._state = saved_state;
+    match compartment {
+        StateVarPushPopCompartment::Counter(ctx) => {
+            self._sv_count = ctx.count;
+        }
+        StateVarPushPopCompartment::Other(ctx) => {
+            self._sv_other_count = ctx.other_count;
+        }
+        StateVarPushPopCompartment::Empty => {}
+    }
+}
+```
 
-**Complexity:** High - Architectural change to Rust codegen
+### Benefits
 
-#### Option 4: Accept Limitation (Current)
-
-Document that Rust push/pop doesn't preserve state vars. Users can use domain variables if preservation is needed.
-
-**Complexity:** None - Current behavior
-
-### Recommended Approach
-
-**Short-term:** Option 4 (Accept Limitation)
-- Current behavior is documented
-- Tests pass with adjusted assertions
-- Workaround exists (use domain variables)
-
-**Long-term:** Option 2 (Enum Approach)
-- Generate `StateContext` enum per system
-- Modify `_enter()` to accept optional context
-- Estimated effort: 2-3 hours
+1. **Type Safety**: All state variables have compile-time type checking
+2. **No Runtime Downcasting**: Direct field access via `_sv_` fields
+3. **Correct Push/Pop**: State variables are preserved using typed enum
+4. **Performance**: No heap allocation for state variable access
 
 ---
 
@@ -326,30 +257,20 @@ Source (.frm)
 
 ## Recent Changes
 
-### Commits (This Session)
+### This Session
 
-```
-5d556282 feat(v4): State variable preservation across push/pop (Python/TS)
-78c26514 feat(v4): Implement state variables ($.varName) for Phase 1
-31a66463 fix(v4): HSM forward now calls parent handler instead of just returning
-43d3c6c5 feat(v4): Complete Rust backend codegen for V4 baseline
-```
+- **Implemented Rust compartment enum pattern** for state variable preservation
+- **Generated context structs** per state with state variables
+- **Generated compartment enum** with typed variants
+- **Generated `_state_stack_push` and `_state_stack_pop` methods**
+- **Updated test 12** to expect correct preservation behavior
 
-### Files Modified
+### Key Functions Added
 
-**frame_transpiler:**
-- `framec/src/frame_c/v4/codegen/system_codegen.rs` - Push/pop preservation logic
-- `framec/src/frame_c/v4/body_closer/typescript.rs` - Backtick syntax handling
-- `framec/src/frame_c/v4/native_region_scanner/rust.rs` - Backtick Frame syntax
-- `framec/src/frame_c/v4/native_region_scanner/typescript.rs` - StateVar detection
-- `framec/src/frame_c/v4/native_region_scanner/python.rs` - StateVar detection
-
-**framepiler_test_env:**
-- `common/test-frames/v4/prt/run_tests.sh` - Added tests 11-12
-- `common/test-frames/v4/prt/rust/11_state_var_reentry.frm`
-- `common/test-frames/v4/prt/rust/12_state_var_push_pop.frm`
-- `common/test-frames/v4/prt/typescript/11_state_var_reentry.frm`
-- `common/test-frames/v4/prt/typescript/12_state_var_push_pop.frm`
+- `generate_rust_compartment_types()` - Generates context structs and compartment enum
+- `generate_rust_state_stack_push()` - Builds compartment from `_sv_` fields and pushes
+- `generate_rust_state_stack_pop()` - Pops and restores `_sv_` fields from compartment
+- Updated `HandlerContext` with `has_state_vars` flag for conditional code generation
 
 ---
 
@@ -374,15 +295,11 @@ Per `frame_v4_plan.md`:
 
 ## Recommendations
 
-1. **Push to remote** when ready to share progress
+1. **Rust warning suppression** - Add `#[allow(non_snake_case)]` to generated code to suppress handler name warnings
 
-2. **Rust state var preservation** - Consider implementing Option 2 (enum approach) if users need this feature
+2. **Native code semicolons** - Document that Rust handlers require proper Rust syntax (semicolons on non-final statements)
 
-3. **Rust warning suppression** - Add `#[allow(non_snake_case)]` to generated code to suppress handler name warnings
-
-4. **Native code semicolons** - Document that Rust handlers require proper Rust syntax (semicolons on non-final statements)
-
-5. **Continue to Phase 2** - System return (`^`) is next in the plan
+3. **Continue to Phase 2** - System return (`^`) is next in the plan
 
 ---
 
@@ -414,4 +331,4 @@ To run individual tests:
 
 ---
 
-**Status:** ✅ Phase 1 Complete | 36/36 Tests Passing | Ready for Review
+**Status:** ✅ Phase 1 Complete | 36/36 Tests Passing | All Languages Preserve State Variables

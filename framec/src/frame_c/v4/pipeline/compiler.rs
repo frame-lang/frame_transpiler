@@ -6,7 +6,7 @@
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::utils::RunError;
 use super::config::{PipelineConfig, CompileMode};
-use crate::frame_c::v4::codegen::{generate_system, get_backend, EmitContext};
+use crate::frame_c::v4::codegen::{generate_system, generate_rust_compartment_types, get_backend, EmitContext};
 use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
 
 /// Result of module compilation
@@ -273,6 +273,14 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                 result.push('\n');
             }
 
+            // For Rust: Generate compartment types (enum and context structs) first
+            if matches!(config.target, TargetLanguage::Rust) {
+                let compartment_types = generate_rust_compartment_types(system);
+                if !compartment_types.is_empty() {
+                    result.push_str(&compartment_types);
+                }
+            }
+
             // Generated system code
             ctx = ctx.with_system(&system.name);
             let codegen_node = generate_system(system, &arcanum, config.target, source);
@@ -320,6 +328,14 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                         if !native_clean.ends_with('\n') {
                             result.push('\n');
                         }
+                    }
+                }
+
+                // For Rust: Generate compartment types (enum and context structs) first
+                if matches!(config.target, TargetLanguage::Rust) {
+                    let compartment_types = generate_rust_compartment_types(system);
+                    if !compartment_types.is_empty() {
+                        result.push_str(&compartment_types);
                     }
                 }
 
