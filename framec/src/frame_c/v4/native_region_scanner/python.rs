@@ -58,7 +58,7 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                         }
                     }
                 }
-                // Stack: $$[+/-] (accept partial "$$[" to surface parser error)
+                // Stack: $$[+/-] (V3 syntax)
                 if b == b'$' && i+2<end && bytes[i+1]==b'$' && bytes[i+2]==b'[' {
                     // When at SOL, exclude the indentation from the NativeText region
                     let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
@@ -66,6 +66,22 @@ impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
                     let mut j=i; j = find_frame_line_end_py(bytes, j, end);
                     let kind = if i+3<end && bytes[i+3]==b'+' { FrameSegmentKindV3::StackPush } else { FrameSegmentKindV3::StackPop };
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind, indent });
+                    i=j; seg_start=i; at_sol=true; indent=0; continue;
+                }
+                // V4: `push$ (stack push with backtick)
+                if b == b'`' && i+5<end && bytes[i+1]==b'p' && bytes[i+2]==b'u' && bytes[i+3]==b's' && bytes[i+4]==b'h' && bytes[i+5]==b'$' {
+                    let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                    if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
+                    let mut j=i; j = find_frame_line_end_py(bytes, j, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::StackPush, indent });
+                    i=j; seg_start=i; at_sol=true; indent=0; continue;
+                }
+                // V4: `-> pop$ (pop transition with backtick)
+                if b == b'`' && i+7<end && bytes[i+1]==b'-' && bytes[i+2]==b'>' && bytes[i+3]==b' ' && bytes[i+4]==b'p' && bytes[i+5]==b'o' && bytes[i+6]==b'p' && bytes[i+7]==b'$' {
+                    let native_end = if indent > 0 { i.saturating_sub(indent) } else { i };
+                    if seg_start < native_end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: native_end } }); }
+                    let mut j=i; j = find_frame_line_end_py(bytes, j, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::StackPop, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
                 at_sol = false; indent=0;

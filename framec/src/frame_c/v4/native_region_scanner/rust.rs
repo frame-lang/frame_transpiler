@@ -37,7 +37,21 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
                     regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Forward, indent });
                     i=j; seg_start=i; at_sol=true; indent=0; continue;
                 }
-                // V4: push$ (stack push)
+                // V4: `push$ (stack push with backtick)
+                if b == b'`' && i+5<end && bytes[i+1]==b'p' && bytes[i+2]==b'u' && bytes[i+3]==b's' && bytes[i+4]==b'h' && bytes[i+5]==b'$' {
+                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::StackPush, indent });
+                    i=j; seg_start=i; at_sol=true; indent=0; continue;
+                }
+                // V4: `-> pop$ (pop transition with backtick)
+                if b == b'`' && i+7<end && bytes[i+1]==b'-' && bytes[i+2]==b'>' && bytes[i+3]==b' ' && bytes[i+4]==b'p' && bytes[i+5]==b'o' && bytes[i+6]==b'p' && bytes[i+7]==b'$' {
+                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
+                    let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
+                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::StackPop, indent });
+                    i=j; seg_start=i; at_sol=true; indent=0; continue;
+                }
+                // V4: push$ (stack push without backtick - legacy)
                 if b == b'p' && i+4<end && bytes[i+1]==b'u' && bytes[i+2]==b's' && bytes[i+3]==b'h' && bytes[i+4]==b'$' {
                     if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
                     let mut j=i; j = find_frame_line_end_rust(bytes, j, end);

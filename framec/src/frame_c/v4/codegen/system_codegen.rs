@@ -531,8 +531,12 @@ fn generate_state_var_init(system: &SystemAst, lang: TargetLanguage) -> String {
                 TargetLanguage::Python3 => {
                     code.push_str(&format!("{}\n", condition));
                     for var in &state.state_vars {
-                        // Get the initial value - for now just use default values
-                        let init_val = state_var_init_value(&var.var_type, lang);
+                        // Use explicit initializer if provided, otherwise fall back to type default
+                        let init_val = if let Some(ref init) = var.init {
+                            expression_to_string(init, lang)
+                        } else {
+                            state_var_init_value(&var.var_type, lang)
+                        };
                         code.push_str(&format!("    {}._state_context[\"{}\"] = {}\n", self_ref, var.name, init_val));
                     }
                 }
@@ -544,7 +548,11 @@ fn generate_state_var_init(system: &SystemAst, lang: TargetLanguage) -> String {
                     };
                     code.push_str(&ts_condition);
                     for var in &state.state_vars {
-                        let init_val = state_var_init_value(&var.var_type, lang);
+                        let init_val = if let Some(ref init) = var.init {
+                            expression_to_string(init, lang)
+                        } else {
+                            state_var_init_value(&var.var_type, lang)
+                        };
                         code.push_str(&format!("    {}._state_context[\"{}\"] = {};\n", self_ref, var.name, init_val));
                     }
                 }
@@ -593,6 +601,48 @@ fn state_var_init_value(var_type: &Type, lang: TargetLanguage) -> String {
     }
 }
 
+/// Convert an Expression to a string representation for inline code
+fn expression_to_string(expr: &Expression, lang: TargetLanguage) -> String {
+    match expr {
+        Expression::Literal(lit) => match lit {
+            Literal::Int(n) => n.to_string(),
+            Literal::Float(f) => f.to_string(),
+            Literal::String(s) => format!("\"{}\"", s),
+            Literal::Bool(b) => match lang {
+                TargetLanguage::Python3 => if *b { "True".to_string() } else { "False".to_string() },
+                _ => if *b { "true".to_string() } else { "false".to_string() },
+            },
+            Literal::Null => match lang {
+                TargetLanguage::Python3 => "None".to_string(),
+                _ => "null".to_string(),
+            },
+        },
+        Expression::Var(name) => name.clone(),
+        Expression::Binary { left, op, right } => {
+            let op_str = match op {
+                BinaryOp::Add => "+", BinaryOp::Sub => "-", BinaryOp::Mul => "*",
+                BinaryOp::Div => "/", BinaryOp::Mod => "%",
+                BinaryOp::Eq => "==", BinaryOp::Ne => "!=",
+                BinaryOp::Lt => "<", BinaryOp::Le => "<=",
+                BinaryOp::Gt => ">", BinaryOp::Ge => ">=",
+                BinaryOp::And => "&&", BinaryOp::Or => "||",
+                BinaryOp::BitAnd => "&", BinaryOp::BitOr => "|", BinaryOp::BitXor => "^",
+            };
+            format!("{} {} {}",
+                expression_to_string(left, lang),
+                op_str,
+                expression_to_string(right, lang))
+        }
+        Expression::Unary { op, expr } => {
+            let op_str = match op {
+                UnaryOp::Not => "!", UnaryOp::Neg => "-", UnaryOp::BitNot => "~",
+            };
+            format!("{}{}", op_str, expression_to_string(expr, lang))
+        }
+        _ => "0".to_string(), // Fallback for complex expressions
+    }
+}
+
 /// Generate Rust enter dispatch with state variable initialization
 fn generate_rust_enter_dispatch_with_vars(system: &SystemAst) -> String {
     let mut match_code = String::new();
@@ -611,7 +661,11 @@ fn generate_rust_enter_dispatch_with_vars(system: &SystemAst) -> String {
 
             // Initialize state variables (using _sv_ prefixed fields for Rust)
             for var in &state.state_vars {
-                let init_val = state_var_init_value(&var.var_type, TargetLanguage::Rust);
+                let init_val = if let Some(ref init) = var.init {
+                    expression_to_string(init, TargetLanguage::Rust)
+                } else {
+                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
+                };
                 match_code.push_str(&format!(
                     "        self._sv_{} = {};\n",
                     var.name, init_val
@@ -1126,19 +1180,35 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKindV3::StackPush => {
+            // Save both state name AND state context so state vars are preserved on pop
             match lang {
-                TargetLanguage::Python3 => format!("{}self._state_stack.append(self._state)", indent_str),
+                TargetLanguage::Python3 => format!("{}self._state_stack.append((self._state, self._state_context.copy()))", indent_str),
+                TargetLanguage::TypeScript => format!("{}this._state_stack.push({{state: this._state, context: {{...this._state_context}}}});", indent_str),
+                // TODO: Rust state var preservation requires saving _sv_ fields - for now just save state
                 TargetLanguage::Rust => format!("{}self._state_stack.push(Box::new(self._state.clone()));", indent_str),
-                TargetLanguage::TypeScript => format!("{}this._state_stack.push(this._state);", indent_str),
-                _ => format!("{}this._state_stack.push(this._state);", indent_str),
+                _ => format!("{}this._state_stack.push({{state: this._state, context: {{...this._state_context}}}});", indent_str),
             }
         }
         FrameSegmentKindV3::StackPop => {
+            // Restore state AND context - don't call _enter() since we're restoring, not freshly entering
             match lang {
-                TargetLanguage::Python3 => format!("{}self._transition(self._state_stack.pop())", indent_str),
-                TargetLanguage::Rust => format!("{}let __popped_state = *self._state_stack.pop().unwrap().downcast::<String>().unwrap();\n{}self._transition(&__popped_state)", indent_str, indent_str),
-                TargetLanguage::TypeScript => format!("{}this._transition(this._state_stack.pop());", indent_str),
-                _ => format!("{}this._transition(this._state_stack.pop());", indent_str),
+                TargetLanguage::Python3 => format!(
+                    "{}__saved = self._state_stack.pop()\n{}self._exit()\n{}self._state = __saved[0]\n{}self._state_context = __saved[1]",
+                    indent_str, indent_str, indent_str, indent_str
+                ),
+                TargetLanguage::TypeScript => format!(
+                    "{}const __saved = this._state_stack.pop()!;\n{}this._exit();\n{}this._state = __saved.state;\n{}this._state_context = __saved.context;",
+                    indent_str, indent_str, indent_str, indent_str
+                ),
+                // TODO: Rust state var preservation - for now, just restore state (vars will reinit)
+                TargetLanguage::Rust => format!(
+                    "{}let __popped_state = *self._state_stack.pop().unwrap().downcast::<String>().unwrap();\n{}self._transition(&__popped_state)",
+                    indent_str, indent_str
+                ),
+                _ => format!(
+                    "{}const __saved = this._state_stack.pop()!;\n{}this._exit();\n{}this._state = __saved.state;\n{}this._state_context = __saved.context;",
+                    indent_str, indent_str, indent_str, indent_str
+                ),
             }
         }
         FrameSegmentKindV3::StateVar => {

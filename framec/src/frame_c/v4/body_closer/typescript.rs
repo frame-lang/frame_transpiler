@@ -20,6 +20,20 @@ impl BodyCloserV3 for BodyCloserTsV3 {
                     if i >= n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedString, message: "unterminated string".into() }); }
                 }
                 b'`' => {
+                    // Check for Frame V4 statements: `push$ or `-> pop$
+                    // These are NOT template literals - skip to end of line
+                    if i + 5 < n && &bytes[i+1..i+6] == b"push$" {
+                        // `push$ - skip to newline
+                        i += 1;
+                        while i < n && bytes[i] != b'\n' { i += 1; }
+                        continue;
+                    }
+                    if i + 7 < n && &bytes[i+1..i+8] == b"-> pop$" {
+                        // `-> pop$ - skip to newline
+                        i += 1;
+                        while i < n && bytes[i] != b'\n' { i += 1; }
+                        continue;
+                    }
                     // template with nested ${}
                     i += 1;
                     let mut brace = 0i32;
