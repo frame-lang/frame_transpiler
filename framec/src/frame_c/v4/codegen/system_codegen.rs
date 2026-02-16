@@ -1201,10 +1201,18 @@ fn generate_handler_from_arcanum(
         body_code
     };
 
+    // For TypeScript/typed languages, don't put return types on handler methods
+    // The interface wrappers handle returns via _return_value pattern
+    // This avoids TypeScript errors for handlers that don't explicitly return
+    let method_return_type = match lang {
+        TargetLanguage::TypeScript => None,
+        _ => handler.return_type.clone(),
+    };
+
     CodegenNode::Method {
         name: method_name,
         params,
-        return_type: handler.return_type.clone(),
+        return_type: method_return_type,
         body: vec![CodegenNode::NativeBlock {
             code: body_code,
             span: Some(crate::frame_c::v4::frame_ast::Span {
@@ -1644,12 +1652,13 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::TypeScript => {
                     if expanded_expr.is_empty() {
                         if is_return_sugar {
-                            format!("{}return;", indent_str)
+                            format!("{}return this._return_value;", indent_str)
                         } else {
                             "".to_string()
                         }
                     } else if is_return_sugar {
-                        format!("{}this._return_value = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        // Set _return_value AND return it (for TypeScript type compatibility)
+                        format!("{}this._return_value = {};\n{}return this._return_value;", indent_str, expanded_expr, indent_str)
                     } else {
                         format!("{}this._return_value = {};", indent_str, expanded_expr)
                     }
@@ -1665,12 +1674,12 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => {
                     if expanded_expr.is_empty() {
                         if is_return_sugar {
-                            format!("{}return;", indent_str)
+                            format!("{}return this._return_value;", indent_str)
                         } else {
                             "".to_string()
                         }
                     } else if is_return_sugar {
-                        format!("{}this._return_value = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}this._return_value = {};\n{}return this._return_value;", indent_str, expanded_expr, indent_str)
                     } else {
                         format!("{}this._return_value = {};", indent_str, expanded_expr)
                     }
