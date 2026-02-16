@@ -2,18 +2,19 @@
 
 **Date:** 2026-02-15
 **Branch:** `frame_v4` (frame_transpiler), `main` (framepiler_test_env)
-**Version:** 0.87.4
+**Version:** 0.89.0
 **Author:** Claude Opus 4.5 (AI-assisted development)
 
 ---
 
 ## Executive Summary
 
-Phase 1 (State Variables) and Phase 2 (System Return) of the Frame V4 implementation are **complete**. All 39 PRT tests pass across Python, TypeScript, and Rust backends. The V4 compiler is now the default pipeline with no environment variable required.
+Phase 1 (State Variables), Phase 2 (System Return), and Phase 3.1 (Transition Enter Args) of the Frame V4 implementation are **complete**. All 42 PRT tests pass across Python, TypeScript, and Rust backends. The V4 compiler is now the default pipeline with no environment variable required.
 
 **Key accomplishments:**
 - All three backends correctly preserve state variables across push/pop operations
 - System return syntax (`^` and `system.return`) works across all PRT backends
+- Transition enter args (`-> (args) $State`) passes arguments to enter handlers (Python/TypeScript)
 
 ---
 
@@ -33,10 +34,10 @@ Phase 1 (State Variables) and Phase 2 (System Return) of the Frame V4 implementa
 
 | Test Suite | Pass | Fail | Total |
 |------------|------|------|-------|
-| V4 PRT (Python) | 13 | 0 | 13 |
-| V4 PRT (TypeScript) | 13 | 0 | 13 |
-| V4 PRT (Rust) | 13 | 0 | 13 |
-| **Total** | **39** | **0** | **39** |
+| V4 PRT (Python) | 14 | 0 | 14 |
+| V4 PRT (TypeScript) | 14 | 0 | 14 |
+| V4 PRT (Rust) | 14 | 0 | 14 |
+| **Total** | **42** | **0** | **42** |
 
 ### Test Coverage
 
@@ -55,6 +56,7 @@ Phase 1 (State Variables) and Phase 2 (System Return) of the Frame V4 implementa
 | 11 | state_var_reentry | State vars reinitialize on entry |
 | 12 | state_var_push_pop | State vars preserved across push/pop |
 | 13 | system_return | `^` and `system.return` syntax |
+| 14 | transition_enter_args | `-> (args) $State` enter arguments |
 
 ---
 

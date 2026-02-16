@@ -22,8 +22,18 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
                         regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::StackPop, indent });
                         i=j; seg_start=i; at_sol=true; indent=0; continue;
                     }
-                    // Regular transition -> $State
-                    if i+3<end && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
+                    // Regular transition: -> $State or -> (enter_args) $State
+                    let mut k = i + 2;
+                    while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                    // Check for optional enter args
+                    if k < end && bytes[k] == b'(' {
+                        if let Some(k2) = balanced_paren_end_rust(bytes, k, end) {
+                            k = k2;
+                            while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') { k += 1; }
+                        }
+                    }
+                    // Must have $ after -> or -> (args)
+                    if k < end && bytes[k] == b'$' {
                         if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end:i } }); }
                         let mut j=i; j = find_frame_line_end_rust(bytes, j, end);
                         regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start:i, end:j }, kind: FrameSegmentKindV3::Transition, indent });
@@ -118,6 +128,27 @@ impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
         if seg_start<end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end } }); }
         Ok(ScanResultV3{ close_byte: close, regions })
     }
+}
+
+fn balanced_paren_end_rust(bytes: &[u8], mut i: usize, end: usize) -> Option<usize> {
+    if i >= end || bytes[i] != b'(' { return None; }
+    let mut depth: i32 = 0;
+    let mut in_s: Option<u8> = None;
+    while i < end {
+        let b = bytes[i];
+        if let Some(q) = in_s {
+            if b == b'\\' { i += 2; continue; }
+            if b == q { in_s = None; i += 1; continue; }
+            i += 1; continue;
+        }
+        match b {
+            b'\'' | b'"' => { in_s = Some(b); i += 1; }
+            b'(' => { depth += 1; i += 1; }
+            b')' => { depth -= 1; i += 1; if depth == 0 { return Some(i); } }
+            _ => { i += 1; }
+        }
+    }
+    None
 }
 
 fn find_frame_line_end_rust(bytes: &[u8], mut j: usize, end: usize) -> usize {

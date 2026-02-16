@@ -9,7 +9,7 @@
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::frame_ast::{
     SystemAst, StateAst, HandlerAst, HandlerBody, Statement, MachineAst,
-    ActionAst, OperationAst, Type, LoopKind,
+    ActionAst, OperationAst, Type, LoopKind, EventParam,
     Expression, Literal, BinaryOp, UnaryOp,
 };
 use crate::frame_c::v4::arcanum::{Arcanum, HandlerEntry};
@@ -376,25 +376,48 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
         ),
         _ => CodegenNode::ident("target_state"),
     };
+    // Language-specific _transition body that passes args to _exit and _enter
+    let transition_body = match lang {
+        TargetLanguage::Python3 => {
+            vec![CodegenNode::NativeBlock {
+                code: "if exit_args:\n    self._exit(*exit_args)\nelse:\n    self._exit()\nself._state = target_state\nif enter_args:\n    self._enter(*enter_args)\nelse:\n    self._enter()".to_string(),
+                span: None,
+            }]
+        }
+        TargetLanguage::TypeScript => {
+            vec![CodegenNode::NativeBlock {
+                code: "if (exit_args) {\n    this._exit(...exit_args);\n} else {\n    this._exit();\n}\nthis._state = target_state;\nif (enter_args) {\n    this._enter(...enter_args);\n} else {\n    this._enter();\n}".to_string(),
+                span: None,
+            }]
+        }
+        TargetLanguage::Rust => {
+            // Rust doesn't support variable args yet, use simple dispatch
+            vec![
+                CodegenNode::ExprStmt(Box::new(
+                    CodegenNode::method_call(CodegenNode::self_ref(), "_exit", vec![]),
+                )),
+                CodegenNode::assign(
+                    CodegenNode::field(CodegenNode::self_ref(), "_state"),
+                    state_value.clone(),
+                ),
+                CodegenNode::ExprStmt(Box::new(
+                    CodegenNode::method_call(CodegenNode::self_ref(), "_enter", vec![]),
+                )),
+            ]
+        }
+        _ => {
+            vec![CodegenNode::NativeBlock {
+                code: "if (exit_args) {\n    this._exit(...exit_args);\n} else {\n    this._exit();\n}\nthis._state = target_state;\nif (enter_args) {\n    this._enter(...enter_args);\n} else {\n    this._enter();\n}".to_string(),
+                span: None,
+            }]
+        }
+    };
+
     methods.push(CodegenNode::Method {
         name: "_transition".to_string(),
         params: transition_params,
         return_type: None,
-        body: vec![
-            // Call exit handler
-            CodegenNode::ExprStmt(Box::new(
-                CodegenNode::method_call(CodegenNode::self_ref(), "_exit", vec![]),
-            )),
-            // Change state
-            CodegenNode::assign(
-                CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                state_value.clone(),
-            ),
-            // Call enter handler
-            CodegenNode::ExprStmt(Box::new(
-                CodegenNode::method_call(CodegenNode::self_ref(), "_enter", vec![]),
-            )),
-        ],
+        body: transition_body,
         is_async: false,
         is_static: false,
         visibility: Visibility::Private,
@@ -627,6 +650,13 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
         String::new()
     };
 
+    // Language-specific params for varargs
+    let params = match lang {
+        TargetLanguage::Python3 => vec![Param::new("*args")],
+        TargetLanguage::TypeScript => vec![Param::new("...args").with_type("any[]")],
+        _ => vec![],
+    };
+
     let body = if !has_enter_handlers && !has_state_vars {
         vec![CodegenNode::comment("No enter handlers")]
     } else {
@@ -638,7 +668,7 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
                     String::new()
                 };
                 let handler_code = if has_enter_handlers {
-                    "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()"
+                    "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)"
                 } else {
                     ""
                 };
@@ -654,7 +684,7 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
                     String::new()
                 };
                 let handler_code = if has_enter_handlers {
-                    "const handler_name = `_s_${this._state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this);\n}"
+                    "const handler_name = `_s_${this._state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}"
                 } else {
                     ""
                 };
@@ -678,7 +708,7 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
 
     CodegenNode::Method {
         name: "_enter".to_string(),
-        params: vec![],
+        params,
         return_type: None,
         body,
         is_async: false,
@@ -696,19 +726,26 @@ fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codegen
         .map(|m| m.states.iter().any(|s| s.exit.is_some()))
         .unwrap_or(false);
 
+    // Language-specific params for varargs
+    let params = match lang {
+        TargetLanguage::Python3 => vec![Param::new("*args")],
+        TargetLanguage::TypeScript => vec![Param::new("...args").with_type("any[]")],
+        _ => vec![],
+    };
+
     let body = if !has_exit_handlers {
         vec![CodegenNode::comment("No exit handlers")]
     } else {
         match lang {
             TargetLanguage::Python3 => {
                 vec![CodegenNode::NativeBlock {
-                    code: "handler_name = f\"_s_{self._state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler()".to_string(),
+                    code: "handler_name = f\"_s_{self._state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)".to_string(),
                     span: None,
                 }]
             }
             TargetLanguage::TypeScript => {
                 vec![CodegenNode::NativeBlock {
-                    code: "const handler_name = `_s_${this._state}_exit`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this);\n}".to_string(),
+                    code: "const handler_name = `_s_${this._state}_exit`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}".to_string(),
                     span: None,
                 }]
             }
@@ -727,7 +764,7 @@ fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codegen
 
     CodegenNode::Method {
         name: "_exit".to_string(),
-        params: vec![],
+        params,
         return_type: None,
         body,
         is_async: false,
@@ -1255,6 +1292,7 @@ fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassS
         if let Some(ref enter) = state.enter {
             methods.push(generate_enter_exit_handler(
                 &format!("_s_{}_enter", state.name),
+                &enter.params,
                 &enter.body,
                 source,
                 lang,
@@ -1265,6 +1303,7 @@ fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassS
         if let Some(ref exit) = state.exit {
             methods.push(generate_enter_exit_handler(
                 &format!("_s_{}_exit", state.name),
+                &[],  // Exit handlers don't have params
                 &exit.body,
                 source,
                 lang,
@@ -1304,12 +1343,18 @@ fn generate_handler(state: &StateAst, handler: &HandlerAst, syntax: &super::back
 }
 
 /// Generate enter/exit handler method using the splicer
-fn generate_enter_exit_handler(name: &str, body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> CodegenNode {
+fn generate_enter_exit_handler(name: &str, params: &[EventParam], body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> CodegenNode {
     let body_code = splice_handler_body(body, source, lang);
+
+    // Convert EventParams to Params
+    let method_params: Vec<Param> = params.iter().map(|p| {
+        let type_str = type_to_string(&p.param_type);
+        Param::new(&p.name).with_type(&type_str)
+    }).collect();
 
     CodegenNode::Method {
         name: name.to_string(),
-        params: vec![],
+        params: method_params,
         return_type: None,
         body: vec![CodegenNode::NativeBlock {
             code: body_code,
@@ -1390,12 +1435,34 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 
     match kind {
         FrameSegmentKindV3::Transition => {
-            // Parse transition: -> $State or -> $State(args)
+            // Parse transition: (exit_args)? -> (enter_args)? $State(state_args)?
             let target = extract_transition_target(&segment_text);
+            let (exit_args, enter_args) = extract_transition_args(&segment_text);
+
+            // Expand state variable references in arguments
+            let exit_str = exit_args.map(|a| expand_state_vars_in_expr(&a, lang));
+            let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang));
+
             match lang {
-                TargetLanguage::Python3 => format!("{}self._transition(\"{}\", None, None)", indent_str, target),
-                TargetLanguage::TypeScript => format!("{}this._transition(\"{}\");", indent_str, target),
-                _ => format!("{}self._transition(\"{}\")", indent_str, target),
+                TargetLanguage::Python3 => {
+                    let exit_param = exit_str.as_ref().map_or("None".to_string(), |s| format!("({})", s));
+                    let enter_param = enter_str.as_ref().map_or("None".to_string(), |s| format!("({})", s));
+                    format!("{}self._transition(\"{}\", {}, {})", indent_str, target, exit_param, enter_param)
+                }
+                TargetLanguage::TypeScript => {
+                    let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                    let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                    format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                }
+                TargetLanguage::Rust => {
+                    // Rust currently doesn't support enter/exit args in _transition
+                    format!("{}self._transition(\"{}\")", indent_str, target)
+                }
+                _ => {
+                    let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                    let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                    format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                }
             }
         }
         FrameSegmentKindV3::Forward => {
@@ -1539,6 +1606,66 @@ fn extract_transition_target(text: &str) -> String {
     } else {
         "Unknown".to_string()
     }
+}
+
+/// Extract transition arguments (exit_args, enter_args) from transition text
+/// Syntax: (exit_args)? -> (enter_args)? $State(state_args)?
+fn extract_transition_args(text: &str) -> (Option<String>, Option<String>) {
+    let text = text.trim();
+    let bytes = text.as_bytes();
+    let n = bytes.len();
+    let mut i = 0;
+
+    // Skip leading whitespace
+    while i < n && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+
+    // Check for (exit_args) before ->
+    let mut exit_args: Option<String> = None;
+    if i < n && bytes[i] == b'(' {
+        if let Some(close_idx) = find_balanced_paren(bytes, i, n) {
+            exit_args = Some(String::from_utf8_lossy(&bytes[i+1..close_idx-1]).to_string());
+            i = close_idx;
+            while i < n && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+        }
+    }
+
+    // Skip ->
+    if i + 1 < n && bytes[i] == b'-' && bytes[i + 1] == b'>' {
+        i += 2;
+        while i < n && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
+    }
+
+    // Check for (enter_args) after ->
+    let mut enter_args: Option<String> = None;
+    if i < n && bytes[i] == b'(' {
+        if let Some(close_idx) = find_balanced_paren(bytes, i, n) {
+            enter_args = Some(String::from_utf8_lossy(&bytes[i+1..close_idx-1]).to_string());
+        }
+    }
+
+    (exit_args, enter_args)
+}
+
+/// Find the closing paren for a balanced paren block, returns index after ')'
+fn find_balanced_paren(bytes: &[u8], mut i: usize, end: usize) -> Option<usize> {
+    if i >= end || bytes[i] != b'(' { return None; }
+    let mut depth = 0i32;
+    let mut in_str: Option<u8> = None;
+    while i < end {
+        let b = bytes[i];
+        if let Some(q) = in_str {
+            if b == b'\\' { i += 2; continue; }
+            if b == q { in_str = None; }
+            i += 1; continue;
+        }
+        match b {
+            b'\'' | b'"' => { in_str = Some(b); i += 1; }
+            b'(' => { depth += 1; i += 1; }
+            b')' => { depth -= 1; i += 1; if depth == 0 { return Some(i); } }
+            _ => { i += 1; }
+        }
+    }
+    None
 }
 
 /// Extract state variable name from "$.varName"
