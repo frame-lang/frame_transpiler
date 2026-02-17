@@ -60,6 +60,18 @@ impl FrameStatementParserV3 {
             i = next;
             while i<n && line[i].is_ascii_whitespace() { i+=1; }
         }
+        // Check for pop-transition: -> $$[-]
+        if i+5<=n && &line[i..i+5] == b"$$[-]" {
+            // Pop-transition - target comes from stack at runtime
+            return Ok(MirItemV3::Transition{
+                target: "$$[-]".to_string(),
+                exit_args: exit_args,
+                enter_args: enter_args,
+                state_args: vec![],
+                span
+            });
+        }
+
         // Optional label: read an identifier if present, but ignore it for now
         if i<n && (line[i].is_ascii_alphabetic() || line[i]==b'_') {
             let mut j=i+1; while j<n && (line[j].is_ascii_alphanumeric() || line[j]==b'_') { j+=1; }

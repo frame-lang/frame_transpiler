@@ -94,6 +94,7 @@ pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLangua
         methods,
         base_classes: vec![],
         is_abstract: false,
+        derives: vec![],  // Derives not used - we manually build JSON
     }
 }
 
@@ -1487,33 +1488,56 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
     match kind {
         FrameSegmentKindV3::Transition => {
             // Parse transition: (exit_args)? -> (enter_args)? $State(state_args)?
-            let target = extract_transition_target(&segment_text);
-            let (exit_args, enter_args) = extract_transition_args(&segment_text);
+            // Check for pop-transition: -> $$[-]
+            if segment_text.contains("$$[-]") {
+                // Pop-transition: pop state from stack and transition to it
+                match lang {
+                    TargetLanguage::Python3 => format!(
+                        "{}__saved = self._state_stack.pop()\n{}self._transition(__saved[0], None, None)",
+                        indent_str, indent_str
+                    ),
+                    TargetLanguage::TypeScript => format!(
+                        "{}const __saved = this._state_stack.pop()!;\n{}this._transition(__saved.state, null, null);",
+                        indent_str, indent_str
+                    ),
+                    TargetLanguage::Rust => format!(
+                        "{}let __saved = self._state_stack.pop().unwrap();\n{}let __target = __saved.downcast_ref::<String>().unwrap();\n{}self._transition(__target)",
+                        indent_str, indent_str, indent_str
+                    ),
+                    _ => format!(
+                        "{}const __saved = this._state_stack.pop();\n{}this._transition(__saved.state, null, null);",
+                        indent_str, indent_str
+                    ),
+                }
+            } else {
+                let target = extract_transition_target(&segment_text);
+                let (exit_args, enter_args) = extract_transition_args(&segment_text);
 
-            // Expand state variable references in arguments
-            let exit_str = exit_args.map(|a| expand_state_vars_in_expr(&a, lang));
-            let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang));
+                // Expand state variable references in arguments
+                let exit_str = exit_args.map(|a| expand_state_vars_in_expr(&a, lang));
+                let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang));
 
-            match lang {
-                TargetLanguage::Python3 => {
-                    // Use trailing comma to ensure tuple even with single arg: (arg,)
-                    let exit_param = exit_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
-                    let enter_param = enter_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
-                    format!("{}self._transition(\"{}\", {}, {})", indent_str, target, exit_param, enter_param)
-                }
-                TargetLanguage::TypeScript => {
-                    let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
-                    let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
-                    format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
-                }
-                TargetLanguage::Rust => {
-                    // Rust currently doesn't support enter/exit args in _transition
-                    format!("{}self._transition(\"{}\")", indent_str, target)
-                }
-                _ => {
-                    let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
-                    let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
-                    format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                match lang {
+                    TargetLanguage::Python3 => {
+                        // Use trailing comma to ensure tuple even with single arg: (arg,)
+                        let exit_param = exit_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
+                        let enter_param = enter_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
+                        format!("{}self._transition(\"{}\", {}, {})", indent_str, target, exit_param, enter_param)
+                    }
+                    TargetLanguage::TypeScript => {
+                        let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                        let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                        format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                    }
+                    TargetLanguage::Rust => {
+                        // Rust currently doesn't support enter/exit args in _transition
+                        format!("{}self._transition(\"{}\")", indent_str, target)
+                    }
+                    _ => {
+                        let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                        let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
+                        format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                    }
                 }
             }
         }
@@ -1565,8 +1589,27 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKindV3::StackPush => {
+            // Check if this is a push-then-transition: $$[+] -> $State
+            let has_transition = segment_text.contains("->");
+            let transition_code = if has_transition {
+                // Extract target state and generate transition
+                let target = extract_transition_target(&segment_text);
+                if !target.is_empty() {
+                    match lang {
+                        TargetLanguage::Python3 => format!("\n{}self._transition(\"{}\", None, None)", indent_str, target),
+                        TargetLanguage::TypeScript => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
+                        TargetLanguage::Rust => format!("\n{}self._transition(\"{}\")", indent_str, target),
+                        _ => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
+                    }
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
             // Save both state name AND state context so state vars are preserved on pop
-            match lang {
+            let push_code = match lang {
                 TargetLanguage::Python3 => format!("{}self._state_stack.append((self._state, self._state_context.copy()))", indent_str),
                 TargetLanguage::TypeScript => format!("{}this._state_stack.push({{state: this._state, context: {{...this._state_context}}}});", indent_str),
                 // Rust: Use compartment-based method if there are state vars, else simple push
@@ -1578,7 +1621,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 _ => format!("{}this._state_stack.push({{state: this._state, context: {{...this._state_context}}}});", indent_str),
-            }
+            };
+
+            format!("{}{}", push_code, transition_code)
         }
         FrameSegmentKindV3::StackPop => {
             // Restore state AND context - don't call _enter() since we're restoring, not freshly entering
@@ -1706,8 +1751,19 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 
 /// Extract transition target from transition text
 fn extract_transition_target(text: &str) -> String {
-    // Find $StateName in the transition text
-    if let Some(dollar_pos) = text.find('$') {
+    // Find $StateName after -> in the transition text
+    // This handles both "-> $State" and "$$[+] -> $State"
+    if let Some(arrow_pos) = text.find("->") {
+        let after_arrow = &text[arrow_pos + 2..];
+        if let Some(dollar_pos) = after_arrow.find('$') {
+            let after_dollar = &after_arrow[dollar_pos + 1..];
+            let end = after_dollar.find(|c: char| !c.is_alphanumeric() && c != '_')
+                .unwrap_or(after_dollar.len());
+            return after_dollar[..end].to_string();
+        }
+    }
+    // Fallback: find last $ (for simple "-> $State" without prefix)
+    if let Some(dollar_pos) = text.rfind('$') {
         let after_dollar = &text[dollar_pos + 1..];
         let end = after_dollar.find(|c: char| !c.is_alphanumeric() && c != '_')
             .unwrap_or(after_dollar.len());
@@ -1951,6 +2007,8 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             save_body.push_str("data = {\n");
             save_body.push_str("    '_state': self._state,\n");
             save_body.push_str("    '_state_context': dict(self._state_context),\n");
+            // Stack stores (state_name, context_dict) tuples - serializable
+            save_body.push_str("    '_state_stack': [(s, dict(c)) for s, c in self._state_stack],\n");
 
             // Add domain variables
             for var in &system.domain {
@@ -1979,7 +2037,8 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             restore_body.push_str(&format!("instance = object.__new__({})\n", system.name));
             restore_body.push_str("instance._state = data['_state']\n");
             restore_body.push_str("instance._state_context = dict(data['_state_context'])\n");
-            restore_body.push_str("instance._state_stack = []\n");
+            // Restore stack from saved (state_name, context_dict) tuples
+            restore_body.push_str("instance._state_stack = [(s, dict(c)) for s, c in data.get('_state_stack', [])]\n");
             restore_body.push_str("instance._return_value = None\n");
 
             // Restore domain variables
@@ -2011,6 +2070,8 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             save_body.push_str("return {\n");
             save_body.push_str("    _state: this._state,\n");
             save_body.push_str("    _state_context: { ...this._state_context },\n");
+            // Stack stores {state, context} objects - serializable
+            save_body.push_str("    _state_stack: this._state_stack.map(e => ({state: e.state, context: {...e.context}})),\n");
 
             // Add domain variables
             for var in &system.domain {
@@ -2038,7 +2099,8 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             restore_body.push_str(&format!("const instance = Object.create({}.prototype);\n", system.name));
             restore_body.push_str("instance._state = data._state;\n");
             restore_body.push_str("instance._state_context = { ...data._state_context };\n");
-            restore_body.push_str("instance._state_stack = [];\n");
+            // Restore stack from saved {state, context} objects
+            restore_body.push_str("instance._state_stack = (data._state_stack || []).map((e: any) => ({state: e.state, context: {...e.context}}));\n");
             restore_body.push_str("instance._return_value = null;\n");
 
             // Restore domain variables
@@ -2063,29 +2125,140 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             });
         }
         TargetLanguage::Rust => {
-            // Rust needs different approach - implement Serialize/Deserialize traits
-            // For now, generate basic to_state/from_state methods
-            let mut save_body = String::new();
-            save_body.push_str("// Manual state serialization for Rust\n");
-            save_body.push_str("let mut state = std::collections::HashMap::new();\n");
-            save_body.push_str("state.insert(\"_state\".to_string(), self._state.clone());\n");
+            // Check if serde is enabled via @@persist(serde)
+            let use_serde = system.persist_attr.as_ref()
+                .and_then(|p| p.library.as_deref())
+                == Some("serde");
 
-            // Domain variables would need more sophisticated handling for Rust
-            save_body.push_str("state");
+            // Check if any state has state variables (affects stack serialization)
+            let has_state_vars = system.machine.as_ref()
+                .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
+                .unwrap_or(false);
 
-            methods.push(CodegenNode::Method {
-                name: "save_state".to_string(),
-                params: vec![],
-                return_type: Some("std::collections::HashMap<String, String>".to_string()),
-                body: vec![CodegenNode::NativeBlock {
-                    code: save_body,
-                    span: None,
-                }],
-                is_async: false,
-                is_static: false,
-                visibility: Visibility::Public,
-                decorators: vec![],
-            });
+            if use_serde {
+                // Generate save_state that manually builds JSON
+                let mut save_body = String::new();
+
+                if has_state_vars {
+                    // With state vars, stack contains (String, Compartment) - can't fully serialize
+                    // Extract just state names for best-effort persistence
+                    save_body.push_str("let stack_states: Vec<&str> = self._state_stack.iter().map(|(s, _)| s.as_str()).collect();\n");
+                    save_body.push_str("serde_json::json!({\n");
+                    save_body.push_str("    \"_state\": self._state,\n");
+                    save_body.push_str("    \"_state_stack\": stack_states,\n");
+                } else {
+                    // Without state vars, stack is Vec<Box<dyn Any>> containing Strings
+                    // Extract state names by downcasting
+                    save_body.push_str("let stack_states: Vec<String> = self._state_stack.iter()\n");
+                    save_body.push_str("    .filter_map(|b| b.downcast_ref::<String>().cloned())\n");
+                    save_body.push_str("    .collect();\n");
+                    save_body.push_str("serde_json::json!({\n");
+                    save_body.push_str("    \"_state\": self._state,\n");
+                    save_body.push_str("    \"_state_stack\": stack_states,\n");
+                }
+
+                // Add domain variables
+                for var in &system.domain {
+                    save_body.push_str(&format!("    \"{}\": self.{},\n", var.name, var.name));
+                }
+
+                save_body.push_str("}).to_string()");
+
+                methods.push(CodegenNode::Method {
+                    name: "save_state".to_string(),
+                    params: vec![],
+                    return_type: Some("String".to_string()),
+                    body: vec![CodegenNode::NativeBlock {
+                        code: save_body,
+                        span: None,
+                    }],
+                    is_async: false,
+                    is_static: false,
+                    visibility: Visibility::Public,
+                    decorators: vec![],
+                });
+
+                // Generate restore_state that parses JSON and creates new instance
+                let mut restore_body = String::new();
+                restore_body.push_str("let data: serde_json::Value = serde_json::from_str(json).unwrap();\n");
+
+                if has_state_vars {
+                    // With state vars, we can only restore state names (context lost)
+                    // User would need to handle re-entering states with proper args
+                    restore_body.push_str("// Note: State stack restored with state names only; state vars lost\n");
+                    restore_body.push_str("let stack: Vec<(String, _)> = data[\"_state_stack\"].as_array()\n");
+                    restore_body.push_str("    .map(|arr| arr.iter()\n");
+                    restore_body.push_str("        .filter_map(|v| v.as_str().map(|s| (s.to_string(), Default::default())))\n");
+                    restore_body.push_str("        .collect())\n");
+                    restore_body.push_str("    .unwrap_or_default();\n");
+                } else {
+                    // Without state vars, restore as Vec<Box<dyn Any>> containing Strings
+                    restore_body.push_str("let stack: Vec<Box<dyn std::any::Any>> = data[\"_state_stack\"].as_array()\n");
+                    restore_body.push_str("    .map(|arr| arr.iter()\n");
+                    restore_body.push_str("        .filter_map(|v| v.as_str().map(|s| Box::new(s.to_string()) as Box<dyn std::any::Any>))\n");
+                    restore_body.push_str("        .collect())\n");
+                    restore_body.push_str("    .unwrap_or_default();\n");
+                }
+
+                restore_body.push_str(&format!("let mut instance = {} {{\n", system.name));
+                restore_body.push_str("    _state: data[\"_state\"].as_str().unwrap().to_string(),\n");
+                restore_body.push_str("    _state_stack: stack,\n");
+                restore_body.push_str("    _state_context: std::collections::HashMap::new(),\n");
+
+                // Restore domain variables
+                for var in &system.domain {
+                    let _type_str = type_to_string(&var.var_type);
+                    let json_extract = match &var.var_type {
+                        Type::Int => format!("data[\"{}\"].as_i64().unwrap() as i32", var.name),
+                        Type::Float => format!("data[\"{}\"].as_f64().unwrap()", var.name),
+                        Type::Bool => format!("data[\"{}\"].as_bool().unwrap()", var.name),
+                        Type::String => format!("data[\"{}\"].as_str().unwrap().to_string()", var.name),
+                        Type::Custom(name) if name == "i64" => format!("data[\"{}\"].as_i64().unwrap()", var.name),
+                        Type::Custom(name) if name == "f64" => format!("data[\"{}\"].as_f64().unwrap()", var.name),
+                        Type::Custom(name) if name == "String" => format!("data[\"{}\"].as_str().unwrap().to_string()", var.name),
+                        _ => format!("serde_json::from_value(data[\"{}\"].clone()).unwrap()", var.name),
+                    };
+                    restore_body.push_str(&format!("    {}: {},\n", var.name, json_extract));
+                }
+
+                restore_body.push_str("};\n");
+                restore_body.push_str("instance");
+
+                methods.push(CodegenNode::Method {
+                    name: "restore_state".to_string(),
+                    params: vec![Param::new("json").with_type("&str")],
+                    return_type: Some(system.name.clone()),
+                    body: vec![CodegenNode::NativeBlock {
+                        code: restore_body,
+                        span: None,
+                    }],
+                    is_async: false,
+                    is_static: true,
+                    visibility: Visibility::Public,
+                    decorators: vec![],
+                });
+            } else {
+                // Without serde, generate placeholder methods
+                let mut save_body = String::new();
+                save_body.push_str("// @@persist(serde) required for full Rust persistence\n");
+                save_body.push_str("let mut state = std::collections::HashMap::new();\n");
+                save_body.push_str("state.insert(\"_state\".to_string(), self._state.clone());\n");
+                save_body.push_str("state");
+
+                methods.push(CodegenNode::Method {
+                    name: "save_state".to_string(),
+                    params: vec![],
+                    return_type: Some("std::collections::HashMap<String, String>".to_string()),
+                    body: vec![CodegenNode::NativeBlock {
+                        code: save_body,
+                        span: None,
+                    }],
+                    is_async: false,
+                    is_static: false,
+                    visibility: Visibility::Public,
+                    decorators: vec![],
+                });
+            }
         }
         _ => {
             // Other languages not yet supported

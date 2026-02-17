@@ -293,6 +293,12 @@ impl SemanticPass {
         issues: &mut Vec<ValidationIssue>,
     ) {
         // E402: Check target state exists (basic check)
+        // Skip validation for pop-transition marker $$[-]
+        if transition.target == "$$[-]" {
+            // Pop-transition: target comes from stack at runtime
+            return;
+        }
+
         if !state_map.contains_key(&transition.target) {
             // Use Arcanum for "did you mean" suggestions
             let suggestion = arcanum.validate_transition(system_name, &transition.target)

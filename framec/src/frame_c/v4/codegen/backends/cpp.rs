@@ -26,7 +26,7 @@ impl LanguageBackend for CppBackend {
 
             CodegenNode::Import { module, .. } => format!("#include <{}>", module),
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
                 let mut result = String::new();
                 let extends = if base_classes.is_empty() {
                     String::new()

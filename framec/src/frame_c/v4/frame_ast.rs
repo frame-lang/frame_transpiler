@@ -70,6 +70,8 @@ pub struct PersistAttr {
     /// Optional custom restore method name. When None, language-specific
     /// defaults are used (e.g., restore_from_json / restoreFromJson).
     pub restore_name: Option<String>,
+    /// Serialization library for Rust (e.g., "serde")
+    pub library: Option<String>,
     pub span: Span,
 }
 

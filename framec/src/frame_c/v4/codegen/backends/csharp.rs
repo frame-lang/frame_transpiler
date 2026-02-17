@@ -28,7 +28,7 @@ impl LanguageBackend for CSharpBackend {
 
             CodegenNode::Import { module, items, alias } => format!("using {};", module),
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
                 let mut result = String::new();
                 let abstract_kw = if *is_abstract { "abstract " } else { "" };
                 let extends = if base_classes.is_empty() {

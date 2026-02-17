@@ -147,6 +147,11 @@ impl FrameValidator {
 
     /// Validate a transition using Arcanum's state resolution
     fn validate_transition_with_arcanum(&mut self, system_name: &str, trans: &TransitionAst, arcanum: &Arcanum) {
+        // Skip validation for pop-transition marker $$[-]
+        if trans.target == "$$[-]" {
+            return;  // Pop-transition: target comes from stack at runtime
+        }
+
         // Use Arcanum's validate_transition which includes "did you mean" suggestions
         if let Err(msg) = arcanum.validate_transition(system_name, &trans.target) {
             // Only add if not already reported by basic validation
@@ -457,6 +462,11 @@ impl FrameValidator {
         state_map: &HashMap<String, &StateAst>,
     ) {
         // E402: Check target state exists
+        // Skip validation for pop-transition marker $$[-]
+        if transition.target == "$$[-]" {
+            return;  // Pop-transition: target comes from stack at runtime
+        }
+
         if !state_map.contains_key(&transition.target) {
             self.errors.push(ValidationError::new(
                 "E402",

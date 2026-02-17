@@ -36,8 +36,13 @@ impl LanguageBackend for RustBackend {
                 }
             }
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, derives } => {
                 let mut result = String::new();
+
+                // Derive attributes (for serde, etc.)
+                if !derives.is_empty() {
+                    result.push_str(&format!("{}#[derive({})]\n", ctx.get_indent(), derives.join(", ")));
+                }
 
                 // Struct definition
                 result.push_str(&format!("{}pub struct {} {{\n", ctx.get_indent(), name));

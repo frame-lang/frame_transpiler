@@ -46,7 +46,7 @@ impl LanguageBackend for TypeScriptBackend {
                 }
             }
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
                 let mut result = String::new();
 
                 let abstract_kw = if *is_abstract { "abstract " } else { "" };
@@ -583,6 +583,7 @@ mod tests {
             methods: vec![],
             base_classes: vec![],
             is_abstract: false,
+            derives: vec![],
         };
 
         let result = backend.emit(&node, &mut ctx);

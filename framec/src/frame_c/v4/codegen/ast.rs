@@ -181,6 +181,8 @@ pub enum CodegenNode {
         methods: Vec<CodegenNode>,
         base_classes: Vec<String>,
         is_abstract: bool,
+        /// Derive attributes for Rust (e.g., ["Serialize", "Deserialize"])
+        derives: Vec<String>,
     },
 
     /// Enum definition

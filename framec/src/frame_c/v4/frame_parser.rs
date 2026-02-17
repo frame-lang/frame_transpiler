@@ -28,6 +28,8 @@ pub struct FrameParser {
     target: TargetLanguage,
     /// Whether @@persist was seen before current system
     persist_seen: bool,
+    /// Optional library for persist (e.g., "serde" for Rust)
+    persist_library: Option<String>,
 }
 
 impl FrameParser {
@@ -38,6 +40,7 @@ impl FrameParser {
             cursor: 0,
             target,
             persist_seen: false,
+            persist_library: None,
         }
     }
     
@@ -63,6 +66,9 @@ impl FrameParser {
 
         // Skip native preamble (imports, functions, etc.) until @@system
         self.skip_native_preamble();
+
+        // Check for @@ pragmas again (@@persist may come after native imports)
+        self.skip_pragmas();
 
         // Count @@system blocks to determine single vs multi-system
         let system_count = self.count_systems();
@@ -133,9 +139,10 @@ impl FrameParser {
                 eprintln!("[skip_native_preamble] cursor={}, preview={:?}", self.cursor, preview);
             }
 
-            // Stop if we're at @@system (V4 only recognizes @@system, not module)
-            if self.peek_string("@@system") {
-                if debug { eprintln!("[skip_native_preamble] Found @@system, stopping"); }
+            // Stop if we're at any @@ pragma (@@system, @@persist, etc.)
+            // These need to be processed by skip_pragmas, not skipped as native code
+            if self.peek_string("@@") {
+                if debug { eprintln!("[skip_native_preamble] Found @@ pragma, stopping"); }
                 break;
             }
 
@@ -176,8 +183,46 @@ impl FrameParser {
             }
 
             // Check for @@persist - set flag for next system
+            // Supports: @@persist or @@persist(library) e.g., @@persist(serde)
             if self.peek_string("@@persist") {
                 self.persist_seen = true;
+                self.persist_library = None;
+
+                // Check for @@persist(library)
+                let persist_start = self.cursor;
+                self.cursor += 9; // Skip "@@persist"
+                self.skip_whitespace_no_newline();
+
+                if self.cursor < self.source.len() && self.source[self.cursor] == b'(' {
+                    self.cursor += 1; // Skip '('
+                    self.skip_whitespace_no_newline();
+
+                    // Parse library name
+                    let lib_start = self.cursor;
+                    while self.cursor < self.source.len()
+                        && self.source[self.cursor] != b')'
+                        && self.source[self.cursor] != b'\n'
+                    {
+                        self.cursor += 1;
+                    }
+
+                    if lib_start < self.cursor {
+                        let lib_name = String::from_utf8_lossy(&self.source[lib_start..self.cursor])
+                            .trim()
+                            .to_string();
+                        if !lib_name.is_empty() {
+                            self.persist_library = Some(lib_name);
+                        }
+                    }
+
+                    // Skip closing paren if present
+                    if self.cursor < self.source.len() && self.source[self.cursor] == b')' {
+                        self.cursor += 1;
+                    }
+                }
+
+                // Reset cursor to skip the whole line
+                self.cursor = persist_start;
             }
 
             // Skip this pragma line (@@target, @@persist, @@run-expect, etc.)
@@ -278,9 +323,11 @@ impl FrameParser {
         // Build persist_attr if @@persist was seen before this system
         let persist_attr = if self.persist_seen {
             self.persist_seen = false;  // Reset for next system
+            let library = self.persist_library.take();  // Take and reset
             Some(PersistAttr {
                 save_name: None,
                 restore_name: None,
+                library,
                 span: Span::new(start, start),  // Span is approximate
             })
         } else {
@@ -655,7 +702,19 @@ impl FrameParser {
             }
         }
     }
-    
+
+    /// Skip whitespace but not newlines (for same-line parsing)
+    fn skip_whitespace_no_newline(&mut self) {
+        while self.cursor < self.source.len() {
+            let ch = self.source[self.cursor];
+            if ch == b' ' || ch == b'\t' {
+                self.cursor += 1;
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Peek at next character
     fn peek_char(&self, ch: char) -> bool {
         self.cursor < self.source.len() && self.source[self.cursor] == ch as u8
@@ -1049,22 +1108,33 @@ impl FrameParser {
     /// Parse transition statement
     fn parse_transition(&mut self) -> Result<Statement, ParseError> {
         let start = self.cursor;
-        
+
         // Skip ->
         self.cursor += 2;
         self.skip_whitespace();
-        
+
+        // Check for pop-transition: -> $$[-]
+        if self.peek_string("$$[-]") {
+            self.cursor += 5;
+            return Ok(Statement::Transition(TransitionAst {
+                target: "$$[-]".to_string(),  // Special marker for pop-transition
+                args: vec![],
+                span: Span::new(start, self.cursor),
+                indent: 0,
+            }));
+        }
+
         // Parse target state
         self.expect_char('$')?;
         let target = self.parse_identifier()?;
-        
+
         // Parse optional arguments
         let args = if self.peek_char('(') {
             self.parse_call_args()?
         } else {
             vec![]
         };
-        
+
         Ok(Statement::Transition(TransitionAst {
             target,
             args,
@@ -1815,8 +1885,14 @@ impl FrameParser {
     }
 
     /// Parse transition string: "-> $State" or "-> $State(args)" or "(exit) -> (enter) $State(args)"
+    /// Also handles pop-transition: "-> $$[-]"
     fn parse_transition_from_string(&self, content: &str) -> Result<(String, Vec<Expression>), ParseError> {
         let content = content.trim();
+
+        // Check for pop-transition: -> $$[-]
+        if content.contains("$$[-]") {
+            return Ok(("$$[-]".to_string(), vec![]));
+        }
 
         // Find the state name (after $)
         if let Some(dollar_pos) = content.rfind('$') {

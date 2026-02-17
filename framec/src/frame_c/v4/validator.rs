@@ -756,6 +756,10 @@ impl ValidatorV3 {
         let mut issues = Vec::new();
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
+                // Skip pop-transition marker - target comes from stack at runtime
+                if target == "$$[-]" {
+                    continue;
+                }
                 if !known_states.contains(target) {
                     issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
                 }
@@ -778,6 +782,10 @@ impl ValidatorV3 {
         let sys = system_name.unwrap_or("_");
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
+                // Skip pop-transition marker - target comes from stack at runtime
+                if target == "$$[-]" {
+                    continue;
+                }
                 let coarse_known = known_states.contains(target);
                 // Use the enhanced validation method for better error messages
                 if !coarse_known {

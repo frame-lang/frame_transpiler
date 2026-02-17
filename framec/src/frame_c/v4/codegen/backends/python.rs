@@ -50,7 +50,7 @@ impl LanguageBackend for PythonBackend {
                 }
             }
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
                 let mut result = String::new();
 
                 // Class declaration
@@ -649,6 +649,7 @@ mod tests {
             methods: vec![],
             base_classes: vec![],
             is_abstract: false,
+            derives: vec![],
         };
 
         let result = backend.emit(&node, &mut ctx);
