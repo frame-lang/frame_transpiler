@@ -2002,28 +2002,14 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
 
     match syntax.language {
         TargetLanguage::Python3 => {
-            // Generate save_state method
-            let mut save_body = String::new();
-            save_body.push_str("data = {\n");
-            save_body.push_str("    '_state': self._state,\n");
-            save_body.push_str("    '_state_context': dict(self._state_context),\n");
-            // Stack stores (state_name, context_dict) tuples - serializable
-            save_body.push_str("    '_state_stack': [(s, dict(c)) for s, c in self._state_stack],\n");
-
-            // Add domain variables
-            for var in &system.domain {
-                save_body.push_str(&format!("    '{}': self.{},\n", var.name, var.name));
-            }
-
-            save_body.push_str("}\n");
-            save_body.push_str("return data");
-
+            // Python uses pickle by default (stdlib, complete serialization)
+            // Generate save_state method - returns bytes
             methods.push(CodegenNode::Method {
                 name: "save_state".to_string(),
                 params: vec![],
-                return_type: Some("dict".to_string()),
+                return_type: Some("bytes".to_string()),
                 body: vec![CodegenNode::NativeBlock {
-                    code: save_body,
+                    code: "import pickle\nreturn pickle.dumps(self)".to_string(),
                     span: None,
                 }],
                 is_async: false,
@@ -2032,36 +2018,19 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 decorators: vec![],
             });
 
-            // Generate restore_state classmethod
-            let mut restore_body = String::new();
-            restore_body.push_str(&format!("instance = object.__new__({})\n", system.name));
-            restore_body.push_str("instance._state = data['_state']\n");
-            restore_body.push_str("instance._state_context = dict(data['_state_context'])\n");
-            // Restore stack from saved (state_name, context_dict) tuples
-            restore_body.push_str("instance._state_stack = [(s, dict(c)) for s, c in data.get('_state_stack', [])]\n");
-            restore_body.push_str("instance._return_value = None\n");
-
-            // Restore domain variables
-            for var in &system.domain {
-                restore_body.push_str(&format!("instance.{} = data['{}']\n", var.name, var.name));
-            }
-
-            restore_body.push_str("return instance");
-
-            // Note: @classmethod uses 'cls' as first param, but we pass explicit data
-            // Using @staticmethod is simpler for restore - just takes data dict
+            // Generate restore_state - takes bytes, returns instance
             methods.push(CodegenNode::Method {
                 name: "restore_state".to_string(),
-                params: vec![Param::new("data").with_type("dict")],
+                params: vec![Param::new("data").with_type("bytes")],
                 return_type: Some(format!("'{}'", system.name)),
                 body: vec![CodegenNode::NativeBlock {
-                    code: restore_body,
+                    code: "import pickle\nreturn pickle.loads(data)".to_string(),
                     span: None,
                 }],
                 is_async: false,
-                is_static: true,  // static method, not classmethod
+                is_static: true,
                 visibility: Visibility::Public,
-                decorators: vec![],  // is_static handles @staticmethod
+                decorators: vec![],
             });
         }
         TargetLanguage::TypeScript => {
@@ -2125,17 +2094,15 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             });
         }
         TargetLanguage::Rust => {
-            // Check if serde is enabled via @@persist(serde)
-            let use_serde = system.persist_attr.as_ref()
-                .and_then(|p| p.library.as_deref())
-                == Some("serde");
+            // Rust uses serde by default (requires serde, serde_json in Cargo.toml)
+            // Project owner is responsible for adding dependencies
 
             // Check if any state has state variables (affects stack serialization)
             let has_state_vars = system.machine.as_ref()
                 .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
                 .unwrap_or(false);
 
-            if use_serde {
+            {
                 // Generate save_state that manually builds JSON
                 let mut save_body = String::new();
 
@@ -2234,27 +2201,6 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                     }],
                     is_async: false,
                     is_static: true,
-                    visibility: Visibility::Public,
-                    decorators: vec![],
-                });
-            } else {
-                // Without serde, generate placeholder methods
-                let mut save_body = String::new();
-                save_body.push_str("// @@persist(serde) required for full Rust persistence\n");
-                save_body.push_str("let mut state = std::collections::HashMap::new();\n");
-                save_body.push_str("state.insert(\"_state\".to_string(), self._state.clone());\n");
-                save_body.push_str("state");
-
-                methods.push(CodegenNode::Method {
-                    name: "save_state".to_string(),
-                    params: vec![],
-                    return_type: Some("std::collections::HashMap<String, String>".to_string()),
-                    body: vec![CodegenNode::NativeBlock {
-                        code: save_body,
-                        span: None,
-                    }],
-                    is_async: false,
-                    is_static: false,
                     visibility: Visibility::Public,
                     decorators: vec![],
                 });
