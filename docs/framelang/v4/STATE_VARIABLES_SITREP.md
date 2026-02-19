@@ -13,7 +13,7 @@ Phase 1 (State Variables), Phase 2 (System Return), and Phase 3.1 (Transition En
 
 **Key accomplishments:**
 - All three backends correctly preserve state variables across push/pop operations
-- System return syntax (`^` and `system.return`) works across all PRT backends
+- System return syntax (`return <expr>` and `system.return`) works across all PRT backends
 - Transition enter args (`-> (args) $State`) passes arguments to enter handlers (Python/TypeScript)
 
 ---
@@ -55,7 +55,7 @@ Phase 1 (State Variables), Phase 2 (System Return), and Phase 3.1 (Transition En
 | 10 | state_var_basic | `$.varName` read/write |
 | 11 | state_var_reentry | State vars reinitialize on entry |
 | 12 | state_var_push_pop | State vars preserved across push/pop |
-| 13 | system_return | `^` and `system.return` syntax |
+| 13 | system_return | `return <expr>` and `system.return` syntax |
 | 14 | transition_enter_args | `-> (args) $State` enter arguments |
 
 ---
@@ -123,10 +123,10 @@ fn _enter(&mut self) {
 ```frame
 $State {
     handler(): int {
-        # Caret sugar - returns immediately
-        ^ 42
+        # Return sugar - returns immediately
+        return 42
 
-        # Equivalent full syntax
+        # Equivalent system.return syntax
         system.return = 42
     }
 }
@@ -134,15 +134,14 @@ $State {
 
 ### Behavior
 
-- `^ <expr>` - Sets return value and immediately returns from handler
-- `system.return = <expr>` - Sets return value and immediately returns
-- Both syntaxes are equivalent and expand to native `return <expr>`
-- State variables can be used in return expressions: `^ $.count`
+- `return <expr>` - Sets return value and immediately returns from handler (sugar syntax)
+- `system.return = <expr>` - Sets return value explicitly (can be used mid-handler)
+- State variables can be used in return expressions: `return $.count`
 
 ### Code Generation
 
-| Language | `^ expr` Expansion |
-|----------|-------------------|
+| Language | `return expr` Expansion |
+|----------|------------------------|
 | Python | `return expr` |
 | TypeScript | `return expr;` |
 | Rust | `return expr;` |
@@ -317,7 +316,7 @@ Source (.frm)
 Per `frame_v4_plan.md`:
 
 ### ~~Phase 2: System Return~~ ✅ COMPLETE
-- ~~Implement `^` return statement for returning from system~~
+- ~~Implement `return <expr>` and `system.return` for returning values from interface methods~~
 - ~~Track return types through handler chain~~
 
 ### Phase 3: Event Parameters
@@ -337,7 +336,7 @@ Per `frame_v4_plan.md`:
 
 2. **Native code semicolons** - Document that Rust handlers require proper Rust syntax (semicolons on non-final statements)
 
-3. **Continue to Phase 2** - System return (`^`) is next in the plan
+3. **Continue to Phase 3** - Event parameters are next in the plan
 
 ---
 
