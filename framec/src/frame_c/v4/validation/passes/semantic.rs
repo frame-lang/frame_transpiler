@@ -294,7 +294,7 @@ impl SemanticPass {
     ) {
         // E402: Check target state exists (basic check)
         // Skip validation for pop-transition marker $$[-]
-        if transition.target == "$$[-]" {
+        if transition.target == "pop$" {
             // Pop-transition: target comes from stack at runtime
             return;
         }

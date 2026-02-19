@@ -242,13 +242,13 @@ pub enum Statement {
     TransitionForward(TransitionForwardAst),
     /// Frame forward to parent (=>)
     Forward(ForwardAst),
-    /// Frame stack push ($$[+])
+    /// Frame stack push (push$)
     StackPush(StackPushAst),
-    /// Frame stack pop ($$[-])
+    /// Frame stack pop (pop$)
     StackPop(StackPopAst),
-    /// Frame return (^)
+    /// Frame return (return <expr>)
     Return(ReturnAst),
-    /// Frame continue (^>)
+    /// Frame continue (deprecated)
     Continue(ContinueAst),
     /// Frame if statement
     If(IfAst),
@@ -288,7 +288,7 @@ pub struct ForwardAst {
     pub indent: usize,
 }
 
-/// Stack push ($$[+])
+/// Stack push (push$)
 #[derive(Debug, Clone)]
 pub struct StackPushAst {
     pub span: Span,
@@ -296,7 +296,7 @@ pub struct StackPushAst {
     pub indent: usize,
 }
 
-/// Stack pop ($$[-])
+/// Stack pop (pop$)
 #[derive(Debug, Clone)]
 pub struct StackPopAst {
     pub span: Span,
@@ -304,7 +304,7 @@ pub struct StackPopAst {
     pub indent: usize,
 }
 
-/// Return statement (^)
+/// Return statement (return <expr>)
 #[derive(Debug, Clone)]
 pub struct ReturnAst {
     pub value: Option<Expression>,

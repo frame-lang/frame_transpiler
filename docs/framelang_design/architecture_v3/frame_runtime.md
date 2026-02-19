@@ -61,7 +61,7 @@ Every V3 system is expressed as a native class with a small, fixed runtime API:
 ```pseudocode
 class SystemName:
     _compartment: FrameCompartment
-    _stack: list<FrameCompartment>   # for $$[+]/$$[-]
+    _stack: list<FrameCompartment>   # for push$/pop$
 
     def __init__(self, ...systemParams...):
         # create initial compartment, apply system parameters
@@ -197,7 +197,7 @@ Handlers can:
 - Use Frame statements:
   - `-> $State(args...)` transitions.
   - `=> $^` parent forward.
-  - `$$[+]` and `$$[-]` stack operations.
+  - `push$` and `pop$` stack operations.
   - `system.return = value` to set interface return values.
 - Call other system methods (subject to the V3 rule that `system.method()`
   used as a Frame‑aware system call must target an interface method; see
@@ -270,7 +270,7 @@ For Py/TS/Rust, the parent‑availability check is Arcanum‑backed:
 - If a handler contains a `Forward` MIR item but the Arcanum indicates no
   parent for the enclosing state, E403 is emitted in the V3 module/CLI paths.
 
-### 2.5 Stack Operations (`$$[+]`, `$$[-]`)
+### 2.5 Stack Operations (`push$`, `pop$`)
 
 Push:
 

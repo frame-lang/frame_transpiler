@@ -77,8 +77,8 @@ Normalization invariants to keep across targets:
 ## 5) State Stack (Push/Pop)
 
 5.1 Semantics
-- `$$[+]`: snapshot current state/compartment onto a stack; continues execution.
-- `$$[-]`: pop the previous snapshot; transition to the popped state; return immediately (unreachable code afterward).
+- `push$`: snapshot current state/compartment onto a stack; continues execution.
+- `pop$` / `-> pop$`: pop the previous snapshot; transition to the popped state; return immediately (unreachable code afterward).
 
 5.2 Runtime glue
 - Py: maintain `self.return_stack` (for returns) and a separate `state_stack` (if not present, add); glue sets next compartment and returns.

@@ -94,7 +94,7 @@ enum ActionBody {
 
 ## Determinism & Token Rules
 
-- Allowlist only for Frame starters at the body top‑level: `->`, `=>`, `$$[+]`, `$$[-]`, and any recognized header tokens (though headers typically won’t appear inside a body).
+- Allowlist only for Frame starters at the body top‑level: `->`, `=>`, `push$`, `pop$`, and any recognized header tokens (though headers typically won't appear inside a body).
 - Always preserve braces `{` `}` and track depth; do not classify native lines—treat them as `NativeSegment` unless a Frame token is matched at depth 0 and not inside strings/templates/comments.
 - Strings: `'...'`, `"..."` with escapes; template literals `` `...${...}` `` with nested `${...}` tracked.
 - Comments: `//` and `/* ... */` recognized and ignored for Frame tokenization.

@@ -34,6 +34,10 @@ pub trait NativeRegionScannerV3 {
     fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3>;
 }
 
+// Unified scanner architecture - Frame statement detection is shared,
+// only language-specific syntax skipping differs
+pub mod unified;
+
 pub mod python;
 pub mod typescript;
 pub mod csharp;

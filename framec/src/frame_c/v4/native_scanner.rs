@@ -154,12 +154,14 @@ impl NativeScanner for PythonScanner {
                     }
                 }
                 
-                // Stack operations: $$[+] or $$[-]
-                if b == b'$' && i + 3 < end && bytes[i + 1] == b'$' && bytes[i + 2] == b'[' {
-                    let is_push = i + 3 < end && bytes[i + 3] == b'+';
-                    let is_pop = i + 3 < end && bytes[i + 3] == b'-';
-                    
-                    if (is_push || is_pop) && i + 4 < end && bytes[i + 4] == b']' {
+                // Stack operations: push$ or pop$
+                if b == b'p' && i + 4 < end {
+                    let is_push = &bytes[i..i+5] == b"push$";
+                    let is_pop = i + 3 < end && &bytes[i..i+4] == b"pop$";
+
+                    if is_push || is_pop {
+                        let token_len = if is_push { 5 } else { 4 };
+
                         // Save native text before
                         if segment_start < i - indent {
                             let content = std::str::from_utf8(&bytes[segment_start..i - indent])
@@ -170,10 +172,10 @@ impl NativeScanner for PythonScanner {
                                 span: RegionSpan { start: segment_start, end: i - indent },
                             });
                         }
-                        
+
                         let stack_start = i;
-                        i += 5; // Skip "$$[+]" or "$$[-]"
-                        
+                        i += token_len; // Skip "push$" or "pop$"
+
                         let item = if is_push {
                             MirItem::StackPush {
                                 span: RegionSpan { start: stack_start, end: i },
@@ -183,7 +185,7 @@ impl NativeScanner for PythonScanner {
                                 span: RegionSpan { start: stack_start, end: i },
                             }
                         };
-                        
+
                         block.regions.push(Region::FrameSegment {
                             item,
                             span: RegionSpan { start: stack_start, end: i },

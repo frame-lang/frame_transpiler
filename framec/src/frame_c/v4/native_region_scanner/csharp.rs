@@ -1,134 +1,145 @@
 use super::*;
+use super::unified::*;
 use crate::frame_c::v4::body_closer::csharp::BodyCloserCsV3;
 use crate::frame_c::v4::body_closer::BodyCloserV3;
 
 pub struct NativeRegionScannerCsV3;
 
-impl NativeRegionScannerV3 for NativeRegionScannerCsV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        let mut closer = BodyCloserCsV3;
-        let close = closer.close_byte(bytes, open_brace_index).map_err(|e| ScanErrorV3{ kind: ScanErrorV3Kind::UnterminatedProtected, message: format!("{:?}", e) })?;
-        let mut regions: Vec<RegionV3> = Vec::new();
-        let mut i = open_brace_index + 1; let end = close; let mut seg_start=i; let mut at_sol=true; let mut indent=0usize;
-        while i<end {
-            let b=bytes[i];
-            if at_sol {
-                if b==b' ' || b==b'\t' { indent+=1; i+=1; continue; }
-                if b==b'#' { while i<end && bytes[i]!=b'\n' { i+=1; } at_sol=true; indent=0; continue; }
-                if b == b'-' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
-                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                    let mut j=i; j = find_frame_line_end_c_like(bytes, j, end);
-                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Transition, indent });
-                    i=j; seg_start=i; at_sol=true; indent=0; continue;
-                }
-                if b == b'=' && i+3<end && bytes[i+1]==b'>' && bytes[i+2]==b' ' && bytes[i+3]==b'$' {
-                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                    let mut j=i; j = find_frame_line_end_c_like(bytes, j, end);
-                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind: FrameSegmentKindV3::Forward, indent });
-                    i=j; seg_start=i; at_sol=true; indent=0; continue;
-                }
-                if b == b'$' && i+2<end && bytes[i+1]==b'$' && bytes[i+2]==b'[' {
-                    if seg_start<i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                    let mut j=i; j = find_frame_line_end_c_like(bytes, j, end);
-                    let kind = if i+3<end && bytes[i+3]==b'+' { FrameSegmentKindV3::StackPush } else { FrameSegmentKindV3::StackPop };
-                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: i, end: j }, kind, indent });
-                    i=j; seg_start=i; at_sol=true; indent=0; continue;
-                }
-                at_sol=false; indent=0;
+/// C# syntax skipper - handles //, /* */, preprocessor #, strings, verbatim @"", interpolated $""
+struct CSharpSkipper;
+
+impl SyntaxSkipper for CSharpSkipper {
+    fn body_closer(&self) -> Box<dyn BodyCloserV3> {
+        Box::new(BodyCloserCsV3)
+    }
+
+    fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
+        // Preprocessor directive
+        if bytes[i] == b'#' {
+            let mut j = i + 1;
+            while j < end && bytes[j] != b'\n' {
+                j += 1;
             }
-            match b {
-                b'\n' => { at_sol=true; indent=0; i+=1; }
-                b'/' if i+1<end && bytes[i+1]==b'/' => { i+=2; while i<end && bytes[i]!=b'\n' { i+=1; } }
-                b'/' if i+1<end && bytes[i+1]==b'*' => { i+=2; while i+1<end { if bytes[i]==b'*' && bytes[i+1]==b'/' { i+=2; break; } i+=1; } }
-                b'\'' => { i+=1; while i<end { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'\'' { i+=1; break; } i+=1; } }
-                b'"' => { // normal string
-                    i+=1; while i<end { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'"' { i+=1; break; } i+=1; }
-                }
-                b'@' if i+1<end && bytes[i+1]==b'"' => { // verbatim or @$""
-                    i+=2; loop { if i>=end { break; } if i+1<end && bytes[i]==b'"' && bytes[i+1]==b'"' { i+=2; continue; } if bytes[i]==b'"' { i+=1; break; } i+=1; }
-                }
-                b'$' => {
-                    // Check for state variable reference first: $.varName
-                    if i+1 < end && bytes[i+1] == b'.' {
-                        if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                        let var_start = i;
-                        i += 2; // Skip "$."
-                        while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') { i += 1; }
-                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start: var_start, end: i }, kind: FrameSegmentKindV3::StateVar, indent: 0 });
-                        seg_start = i;
-                        continue;
-                    }
-                    // $"..." or raw $"""...""" (with N quotes) or $@"..." handled via @ branch after this if `$@`.
-                    let mut j=i; let mut _dollars=0; while j<end && bytes[j]==b'$' { _dollars+=1; j+=1; }
-                    // if next is '@', fall through so '@' handler consumes verbatim string
-                    if j<end && bytes[j]==b'@' { i+=1; continue; }
-                    // count quotes for potential raw string
-                    let mut k=j; let mut quotes=0; while k<end && bytes[k]==b'"' { quotes+=1; k+=1; }
-                    if quotes>=3 { // raw string with possible interpolation
-                        i = k; // inside raw; consume until we see quotes>=N
-                        loop {
-                            if i>=end { break; }
-                            if bytes[i]==b'"' {
-                                let mut q=0; let mut p=i; while p<end && bytes[p]==b'"' { q+=1; p+=1; }
-                                if q>=quotes { i=p; break; }
-                                i=p; continue;
-                            }
-                            i+=1;
-                        }
-                    } else if j<end && bytes[j]==b'"' { // interpolated normal string $"..."
-                        i = j+1; while i<end { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'"' { i+=1; break; } i+=1; }
-                    } else {
-                        i+=1;
-                    }
-                }
-                // System return: system.return = <expr> or system.return
-                b's' if i+12 < end && &bytes[i..i+13] == b"system.return" => {
-                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                    let start = i;
-                    i += 13; // Skip "system.return"
-                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
-                    if i < end && bytes[i] == b'=' && (i+1 >= end || bytes[i+1] != b'=') {
-                        i += 1;
-                        i = find_frame_line_end_c_like(bytes, i, end);
-                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent: 0 });
-                    } else {
-                        regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturnExpr, indent: 0 });
-                    }
-                    seg_start = i;
-                }
-                // Return value sugar: ^ (caret) - returns from handler
-                b'^' => {
-                    if seg_start < i { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end: i } }); }
-                    let start = i;
-                    i += 1;
-                    while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') { i += 1; }
-                    i = find_frame_line_end_c_like(bytes, i, end);
-                    regions.push(RegionV3::FrameSegment{ span: RegionSpan{ start, end: i }, kind: FrameSegmentKindV3::SystemReturn, indent: 0 });
-                    seg_start = i;
-                }
-                _ => { i+=1; }
-            }
+            return Some(j);
         }
-        if seg_start<end { regions.push(RegionV3::NativeText{ span: RegionSpan{ start: seg_start, end } }); }
-        Ok(ScanResultV3{ close_byte: close, regions })
+        if let Some(j) = skip_line_comment(bytes, i, end) {
+            return Some(j);
+        }
+        skip_block_comment(bytes, i, end)
+    }
+
+    fn skip_string(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
+        let b = bytes[i];
+
+        // Verbatim string @"..." (doubled quotes for escape)
+        if b == b'@' && i + 1 < end && bytes[i + 1] == b'"' {
+            return skip_verbatim_string(bytes, i, end);
+        }
+
+        // Interpolated string $"..." or $@"..." or raw $"""..."""
+        if b == b'$' {
+            return skip_csharp_interpolated(bytes, i, end);
+        }
+
+        // Simple strings
+        skip_simple_string(bytes, i, end)
+    }
+
+    fn find_line_end(&self, bytes: &[u8], start: usize, end: usize) -> usize {
+        find_line_end_c_like(bytes, start, end)
+    }
+
+    fn balanced_paren_end(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
+        balanced_paren_end_c_like(bytes, i, end)
     }
 }
 
-fn find_frame_line_end_c_like(bytes: &[u8], mut j: usize, end: usize) -> usize {
-    let mut in_s: Option<u8> = None;
+/// Skip C# verbatim string @"..." where "" is escaped quote
+fn skip_verbatim_string(bytes: &[u8], i: usize, end: usize) -> Option<usize> {
+    if i + 1 >= end || bytes[i] != b'@' || bytes[i + 1] != b'"' {
+        return None;
+    }
+
+    let mut j = i + 2;
     while j < end {
-        let b = bytes[j];
-        if b == b'\n' { break; }
-        if let Some(q) = in_s {
-            if b == b'\\' { j += 2; continue; }
-            if b == q { in_s = None; j += 1; continue; }
-            j += 1; continue;
+        if bytes[j] == b'"' {
+            if j + 1 < end && bytes[j + 1] == b'"' {
+                j += 2; // Escaped quote
+                continue;
+            }
+            return Some(j + 1);
         }
-        if b == b';' { break; }
-        if b == b'/' && j+1 < end && bytes[j+1] == b'/' { break; }
-        if b == b'/' && j+1 < end && bytes[j+1] == b'*' { break; }
-        if b == b'\'' || b == b'"' { in_s = Some(b); j += 1; continue; }
         j += 1;
     }
-    j
+    Some(end)
+}
+
+/// Skip C# interpolated strings: $"...", $@"...", or raw $"""..."""
+fn skip_csharp_interpolated(bytes: &[u8], i: usize, end: usize) -> Option<usize> {
+    if bytes[i] != b'$' {
+        return None;
+    }
+
+    let mut j = i + 1;
+
+    // Skip additional $ for raw strings
+    while j < end && bytes[j] == b'$' {
+        j += 1;
+    }
+
+    // Check for @
+    if j < end && bytes[j] == b'@' {
+        j += 1;
+    }
+
+    // Count opening quotes
+    let mut quotes = 0;
+    while j < end && bytes[j] == b'"' {
+        quotes += 1;
+        j += 1;
+    }
+
+    if quotes == 0 {
+        return None;
+    }
+
+    // Raw string (3+ quotes)
+    if quotes >= 3 {
+        while j < end {
+            if bytes[j] == b'"' {
+                let mut q = 0;
+                let mut p = j;
+                while p < end && bytes[p] == b'"' {
+                    q += 1;
+                    p += 1;
+                }
+                if q >= quotes {
+                    return Some(p);
+                }
+                j = p;
+                continue;
+            }
+            j += 1;
+        }
+        return Some(end);
+    }
+
+    // Normal interpolated string
+    while j < end {
+        if bytes[j] == b'\\' {
+            j += 2;
+            continue;
+        }
+        if bytes[j] == b'"' {
+            return Some(j + 1);
+        }
+        j += 1;
+    }
+    Some(end)
+}
+
+impl NativeRegionScannerV3 for NativeRegionScannerCsV3 {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
+        scan_native_regions(&CSharpSkipper, bytes, open_brace_index)
+    }
 }

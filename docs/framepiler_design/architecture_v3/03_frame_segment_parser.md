@@ -4,7 +4,7 @@ Purpose
 - Parse SOL‑anchored Frame statement slices into MIR items. Only three Frame statements are supported in native regions:
   - Transition: `(exit_args)? -> (enter_args)? $State(state_params?)`
   - Parent forward: `=> $^`
-  - Stack ops: `$$[+]` / `$$[-]`
+  - Stack ops: `push$` / `pop$`
   
 Inline separation policy
 - Frame statements follow the host language’s multi‑statement rules when they share a physical line with native code:
@@ -30,8 +30,8 @@ enter_opt    ::= /* empty */ | "(" arg_text ")"
 state_params_opt ::= /* empty */ | "(" arg_text ")"
 label_opt    ::= /* empty */ | ident WS*
 forward      ::= "=" ">" WS+ "$" "^"
-stackpush    ::= "$" "$" "[" "+" "]"
-stackpop     ::= "$" "$" "[" "-" "]"
+stackpush    ::= "push" "$"
+stackpop     ::= "pop" "$"
 state_ident  ::= [A-Za-z_][A-Za-z0-9_]*  /* align with common grammar for $State */
 WS           ::= space | tab
 ```
@@ -45,13 +45,13 @@ Errors
 - Unbalanced parentheses in `args_opt`.
 - Missing `$` or invalid state identifier after `->`.
 - Trailing non‑whitespace tokens after a Frame statement line when no inline separator is present.
-- Malformed heads for non‑transition statements: any forward head other than `$^` is invalid; any stack head other than `$$[+]` or `$$[-]` is invalid.
+- Malformed heads for non‑transition statements: any forward head other than `$^` is invalid; any stack head other than `push$` or `pop$` is invalid.
 
 Validation notes (negatives)
 - Identifier rule tightened: `state_ident` must begin with a letter or underscore and continue with `[A-Za-z0-9_]*`. Fixtures cover invalid starts (digits, symbols) and empty names.
 - Malformed head coverage extends to all Frame statements, not only transitions:
   - Forward negatives such as `=> $B` (must be `=> $^`).
-  - Stack negatives for any head not exactly `$$[+]` or `$$[-]`.
+  - Stack negatives for any head not exactly `push$` or `pop$`.
 - Inline separation is enforced by the scanner; without a top‑level separator (`;` or line comment), any trailing tokens on the same line produce a trailing‑tokens error.
 
 Complexity

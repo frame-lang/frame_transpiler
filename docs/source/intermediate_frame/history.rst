@@ -96,9 +96,9 @@ special operators:
 
     * - Operator
       - Name
-    * - $$[+]
+    * - push$
       - State Stack Push
-    * - $$[-]
+    * - pop$
       - State Stack Pop
 
 Let’s see how these are used:
@@ -110,13 +110,13 @@ Let’s see how these are used:
       -machine-
 
         $A
-            |gotoC| $$[+] -> "$$[+]" $C ^
+            |gotoC| push$ -> "push$" $C ^
 
         $B
-            |gotoC| $$[+] -> "$$[+]" $C ^
+            |gotoC| push$ -> "push$" $C ^
 
         $C
-            |return| -> "$$[-]" $$[-] ^
+            |return| -> "pop$" pop$ ^
 
     ##
 
@@ -127,13 +127,13 @@ new state:
 
 .. code-block::
 
-    $$[+] -> $NewState
+    push$ -> $NewState
 
 while the state stack pop operator produces the state to be transitioned into:
 
 .. code-block::
 
-    -> $$[-]
+    -> pop$
 
 Recalling that FrameState is a delegate typedef in C# to allow references to
 methods, we can see that Frame generates a _stateStack_ variable which is
@@ -198,16 +198,16 @@ From there both states have an identical handler to transition to `$C`.
        $A
            |>| print("In $A") ^
            |gotoB| print("|gotoB|") -> $B ^
-           |gotoC| print("|gotoC|") $$[+] -> "$$[+]" $C ^
+           |gotoC| print("|gotoC|") push$ -> "push$" $C ^
 
        $B
            |>| print("In $B") ^
            |gotoA| print("|gotoA|") -> $A ^
-           |gotoC| print("|gotoC|") $$[+] -> "$$[+]" $C ^
+           |gotoC| print("|gotoC|") push$ -> "push$" $C ^
 
        $C
            |>| print("In $C") ^
-           |goBack| print("|goBack|") -> "$$[-]" $$[-] ^
+           |goBack| print("|goBack|") -> "pop$" pop$ ^
 
        -actions-
 
@@ -252,11 +252,11 @@ Now lets refactor the common event handler into a new base state.
            |gotoA| print("|gotoA|") -> $A ^
 
        $AB
-           |gotoC| print("|gotoC| in $AB") $$[+] -> "$$[+]" $C ^
+           |gotoC| print("|gotoC| in $AB") push$ -> "push$" $C ^
 
        $C
            |>| print("In $C") ^
-           |goBack| print("|goBack|") -> "$$[-]" $$[-] ^
+           |goBack| print("|goBack|") -> "pop$" pop$ ^
 
        -actions-
 

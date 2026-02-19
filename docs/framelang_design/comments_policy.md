@@ -21,7 +21,7 @@ Decision: A Frame source file uses the target language’s native comment syntax
 
 ## Frame Tokens & Comments
 
-- Frame tokens (e.g., `-> $State`, `-> $$[+]`, `-> $$[-]`, `=> $^`) inside comments are ignored and have no effect.
+- Frame tokens (e.g., `-> $State`, `push$`, `pop$`, `=> $^`) inside comments are ignored and have no effect.
 - Strings containing `->` or `=>` are also ignored by the interleaver.
 
 ## Rationale

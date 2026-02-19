@@ -757,7 +757,7 @@ impl ValidatorV3 {
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
                 // Skip pop-transition marker - target comes from stack at runtime
-                if target == "$$[-]" {
+                if target == "pop$" {
                     continue;
                 }
                 if !known_states.contains(target) {
@@ -783,7 +783,7 @@ impl ValidatorV3 {
         for m in mir {
             if let MirItemV3::Transition{ target, .. } = m {
                 // Skip pop-transition marker - target comes from stack at runtime
-                if target == "$$[-]" {
+                if target == "pop$" {
                     continue;
                 }
                 let coarse_known = known_states.contains(target);

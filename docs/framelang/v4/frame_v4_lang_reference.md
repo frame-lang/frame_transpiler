@@ -68,20 +68,20 @@ Optional. Must appear after `@@target` and before `@@system`. Configures code ge
 
 | Key | Values | Default | Meaning |
 |-----|--------|---------|---------|
-| `frame_event` | `on` \| `off` | `off` | Generate FrameEvent class |
-| `state_stack` | `on` \| `off` | `on` | Generate state stack infrastructure |
+| `frame_event` | `on` \| `off` | `off` | Generate FrameEvent class for event metadata |
 
-Trailing comma after last entry is permitted. Unknown keys are warnings. The Framepiler auto-enables features when the spec requires them, overriding explicit `off` with a warning:
+Trailing comma after last entry is permitted. Unknown keys are warnings.
 
-| Feature in spec | Forces |
-|----------------|--------|
-| Enter/exit parameters on any transition | `frame_event = on` |
-| Event forwarding (`-> =>`) | `frame_event = on` |
-| `system.return` usage | `frame_event = on` |
-| Interface methods with return values | `frame_event = on` |
-| `push$` or `-> pop$` | `state_stack = on` |
+**Auto-enable:** The compiler auto-enables `frame_event` (with W401 warning if explicit `off`) when the spec requires it:
 
-**Note:** Frame V4 always uses kernel runtime (deferred transitions). There is no simple/inline mode.
+| Feature in spec | Forces `frame_event = on` |
+|----------------|---------------------------|
+| Enter/exit parameters on any transition | Yes |
+| Event forwarding (`-> =>`) | Yes |
+| `system.return` usage | Yes |
+| Interface methods with return values | Yes |
+
+**Note:** State stack generation is managed internally by the compiler and is not user-configurable.
 
 ### 2.3 Annotations
 

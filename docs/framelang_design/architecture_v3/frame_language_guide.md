@@ -212,14 +212,14 @@ Grammar:
 - `frame_stmt ::= sol ( transition | parent_forward | stack_op )`
 - `transition ::= '->' WS* '$' IDENT args_opt`
 - `parent_forward ::= '=>' WS* '$^'`
-- `stack_op ::= '$$[+]' | '$$[-]'`
+- `stack_op ::= 'push$' | 'pop$'`
 
 Semantics:
 
 - Transitions are **terminal** within a handler (E400): nothing but comments
   may follow after a transition in the same block.
 - Parent forward (E403) requires a parent state.
-- Stack operations manage a state stack (`$$[+]` push, `$$[-]` pop). V3 tests
+- Stack operations manage a state stack (`push$` push, `pop$` pop). V3 tests
   cover both inline and block‑level usages.
 
 ## 6. Actions, Operations, and Attributes

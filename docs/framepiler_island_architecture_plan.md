@@ -220,7 +220,7 @@ Goal: Introduce Frame statements one at a time and confirm glue emission + early
 
 13. III‑3: State stack push/pop
 - Fixture: `typescript_islands/13_stack_push_pop.frm`
-- Body contains only: `-> $$[+]` then `-> $$[-]` in separate handlers.
+- Body contains only: `push$` then `-> pop$` in separate handlers.
 - Acceptance:
   - [ ] Transpile succeeds; stack helpers wired; early return maintained
 

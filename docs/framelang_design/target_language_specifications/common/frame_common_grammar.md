@@ -30,7 +30,7 @@ Related specifications:
 - After the prolog, the entire file uses the target language’s native comment syntax — both in the Frame shell (systems, states, transitions, signatures) and in target bodies (member code).
   - TypeScript: `// line`, `/* block */`
   - Python: `# line` (triple quotes `''' … '''` / `""" … """` are strings/docstrings, not comments)
-- Core tokens (e.g., `-> $State`, `=> $^`, `-> $$[+]/$$[-]`) are ignored inside comments. Frame tokens are recognized only at the top level of target bodies (never inside strings/comments or nested native constructs).
+- Core tokens (e.g., `-> $State`, `=> $^`, `push$`, `pop$`) are ignored inside comments. Frame tokens are recognized only at the top level of target bodies (never inside strings/comments or nested native constructs).
 - Rationale: consistent developer experience, idiomatic target files, and simpler per‑language parsing once the target is known.
 
 ## High-Level Structure
@@ -128,7 +128,7 @@ The parser recognises the following concepts across targets. Each backend maps t
 | --- | --- | --- |
 | Expression statement | Evaluate an expression for side effects | Target determines exact statement form |
 | Assignment | Bind a value to a variable/domain field | Simple `=` semantics in AST |
-| Transition | Change state (`->`) including stack push/pop (`$$[+]`, `$$[-]`) | Must invoke kernel hooks |
+| Transition | Change state (`->`) including stack push/pop (`push$`, `pop$`) | Must invoke kernel hooks |
 | Forward | Queue event for parent/next cycle (`=> $^`) | Uses kernel-forward APIs |
 | Return | Exit handler/action optionally with value | AST carries optional expression |
 | Conditional | If/else branching | Target chooses native conditional syntax |
@@ -154,6 +154,7 @@ The parser recognises the following concepts across targets. Each backend maps t
 - Core constructs are recognized only at statement start (ignoring leading whitespace/comments) and never inside strings/comments.
 - Transition `->` is core only when it begins a statement and the follow matches: optional exit args, optional enter args, optional string label, then `$State` with optional state params. Otherwise, `->` belongs to the target body.
 - Parent forward is the exact statement `=> $^`.
+- Stack operations: `push$` and `pop$` for state stack push/pop.
 - State headers with `$Child => $Parent` appear only in `machine:` headers; `$` occurrences inside bodies belong to the target.
 - Enter/exit selectors `$>()` and `<$()` are parsed only in state bodies as handler selectors.
 

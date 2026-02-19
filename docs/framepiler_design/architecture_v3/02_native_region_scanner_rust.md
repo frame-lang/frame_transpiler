@@ -7,7 +7,7 @@ Protected Regions
 - `//`, nested `/* ... */`, strings `"..."`, chars `'c'`, raw `r#" ... "#` with N `#`.
 
 SOL Patterns
-- `-> $State(args?)`, `=> $^`, `$$[+/-]` at SOL only.
+- `-> $State(args?)`, `=> $^`, `push$`, `pop$` at SOL only.
 
 Rules
 - Must-advance; ignore tokens inside comments/strings/raw; emit NativeText and FrameSegment with indent.

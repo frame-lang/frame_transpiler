@@ -50,7 +50,7 @@ Source mapping in the Frame transpiler provides line-by-line correspondence betw
   - BlockStmtNode
   - StateStackOperationNode
 - **Coverage Improvement**: From 11.4% to ~50-70% of user code
-- **State Stack Operations**: Complete mapping for `$$[+]` push and `$$[-]` pop operations
+- **State Stack Operations**: Complete mapping for `push$` push and `pop$` pop operations
 
 #### v0.78.14 - Source Map Completion
 - **Achievement**: Functionally complete source mapping for effective debugging

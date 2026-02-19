@@ -2710,21 +2710,21 @@ Frame v0.20 provides comprehensive state stack operations for implementing histo
 ```frame
 // State stack push - saves current state
 gotoModal() {
-    $$[+]          // Push current state onto stack
+    push$          // Push current state onto stack
     -> $ModalState // Transition to new state
     return
 }
 
 // State stack pop - returns to saved state
 closeModal() {
-    -> $$[-]       // Pop and transition to previous state
+    -> pop$        // Pop and transition to previous state
     return
 }
 ```
 
 **State Stack Operators:**
-- **`$$[+]`** - Push current state compartment onto stack (preserves variables)
-- **`$$[-]`** - Pop state compartment from stack and use as transition target
+- **`push$`** - Push current state compartment onto stack (preserves variables)
+- **`pop$`** - Pop state compartment from stack and use as transition target
 
 **Key Features:**
 - **State Preservation**: Variables maintain their values when using stack operations

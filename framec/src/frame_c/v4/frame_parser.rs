@@ -1057,41 +1057,20 @@ impl FrameParser {
         } else if self.peek_string("=>") {
             // Forward
             Ok(Some(self.parse_forward()?))
-        } else if self.peek_string("$$[+]") {
+        } else if self.peek_string("push$") {
             // Stack push
             self.cursor += 5;
             Ok(Some(Statement::StackPush(StackPushAst {
                 span: Span::new(self.cursor - 5, self.cursor),
                 indent: 0,
             })))
-        } else if self.peek_string("$$[-]") {
-            // Stack pop
-            self.cursor += 5;
+        } else if self.peek_string("pop$") {
+            // Stack pop (standalone - discard)
+            self.cursor += 4;
             Ok(Some(Statement::StackPop(StackPopAst {
-                span: Span::new(self.cursor - 5, self.cursor),
+                span: Span::new(self.cursor - 4, self.cursor),
                 indent: 0,
             })))
-        } else if self.peek_char('^') {
-            // Return or continue
-            self.cursor += 1;
-            if self.peek_char('>') {
-                self.cursor += 1;
-                Ok(Some(Statement::Continue(ContinueAst {
-                    span: Span::new(self.cursor - 2, self.cursor),
-                })))
-            } else {
-                // Parse optional return value
-                self.skip_whitespace();
-                let value = if !self.peek_char(';') && !self.peek_char('}') && !self.peek_char('\n') {
-                    Some(self.parse_expression()?)
-                } else {
-                    None
-                };
-                Ok(Some(Statement::Return(ReturnAst {
-                    value,
-                    span: Span::new(self.cursor - 1, self.cursor),
-                })))
-            }
         } else {
             Ok(None)
         }
@@ -1101,8 +1080,8 @@ impl FrameParser {
     fn is_frame_statement_start(&self) -> bool {
         self.peek_string("->") ||
         self.peek_string("=>") ||
-        self.peek_string("$$[") ||
-        self.peek_char('^')
+        self.peek_string("push$") ||
+        self.peek_string("pop$")
     }
     
     /// Parse transition statement
@@ -1113,11 +1092,11 @@ impl FrameParser {
         self.cursor += 2;
         self.skip_whitespace();
 
-        // Check for pop-transition: -> $$[-]
-        if self.peek_string("$$[-]") {
-            self.cursor += 5;
+        // Check for pop-transition: -> pop$
+        if self.peek_string("pop$") {
+            self.cursor += 4;
             return Ok(Statement::Transition(TransitionAst {
-                target: "$$[-]".to_string(),  // Special marker for pop-transition
+                target: "pop$".to_string(),  // Special marker for pop-transition
                 args: vec![],
                 span: Span::new(start, self.cursor),
                 indent: 0,
@@ -1885,13 +1864,13 @@ impl FrameParser {
     }
 
     /// Parse transition string: "-> $State" or "-> $State(args)" or "(exit) -> (enter) $State(args)"
-    /// Also handles pop-transition: "-> $$[-]"
+    /// Also handles pop-transition: "-> pop$"
     fn parse_transition_from_string(&self, content: &str) -> Result<(String, Vec<Expression>), ParseError> {
         let content = content.trim();
 
-        // Check for pop-transition: -> $$[-]
-        if content.contains("$$[-]") {
-            return Ok(("$$[-]".to_string(), vec![]));
+        // Check for pop-transition: -> pop$
+        if content.contains("pop$") {
+            return Ok(("pop$".to_string(), vec![]));
         }
 
         // Find the state name (after $)

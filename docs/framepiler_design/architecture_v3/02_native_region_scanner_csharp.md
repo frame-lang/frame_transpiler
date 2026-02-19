@@ -16,7 +16,7 @@ SOL Detection (C#)
 - Patterns:
   - Transition: `-> $State(args?)`
   - Forward: `=> $^`
-  - Stack ops: `$$[+]`, `$$[-]`
+  - Stack ops: `push$`, `pop$`
 - Do not match in protected regions (strings/comments/preprocessor)
 
 Protected Regions

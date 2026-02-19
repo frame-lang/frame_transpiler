@@ -142,10 +142,17 @@ impl LanguageBackend for PythonBackend {
                 ctx.push_indent();
 
                 // Method body - check if it only contains comments/empty nodes/empty native blocks
+                // For Python, a native block with only comment lines is not executable code
                 let has_executable_code = body.iter().any(|stmt| {
                     match stmt {
                         CodegenNode::Comment { .. } | CodegenNode::Empty => false,
-                        CodegenNode::NativeBlock { code, .. } => !code.trim().is_empty(),
+                        CodegenNode::NativeBlock { code, .. } => {
+                            // Check if native block has any non-comment, non-whitespace lines
+                            code.lines().any(|line| {
+                                let trimmed = line.trim();
+                                !trimmed.is_empty() && !trimmed.starts_with('#')
+                            })
+                        },
                         _ => true,
                     }
                 });

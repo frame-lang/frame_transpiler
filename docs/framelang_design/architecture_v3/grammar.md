@@ -12,7 +12,7 @@ Scope (What remains Frame)
 - SOL‑anchored Frame statements embedded in native bodies:
   - Transition: `-> $State(args?)`
   - Parent forward: `=> $^`
-  - Stack ops: `$$[+]` and `$$[-]`
+  - Stack ops: `push$` and `pop$`
 
 Not Frame (Native)
 - All bodies (handler/action/operation) are native text
@@ -146,7 +146,7 @@ function_decl ::= attributes? 'fn' IDENT '(' param_list? ')' native_body
 
 Notes
 - The function body is `native_body`: it is scanned and spliced using the same DPDA + MIR + expander
-  pipeline as handler bodies, so embedded Frame statements (`->`, `=> $^`, `$$[+/-]`) inside functions
+  pipeline as handler bodies, so embedded Frame statements (`->`, `=> $^`, `push$/pop$`) inside functions
   are handled identically to those in handlers.
 - Functions may appear anywhere after the prolog, interleaved with systems and native items.
 - `fn main` rule:
@@ -167,7 +167,7 @@ args_opt       ::= '(' arg_bytes* ')' | /* empty */
 
 parent_forward ::= '=>' WS* '$^'
 
-stack_op       ::= '$$[+]' | '$$[-]'
+stack_op       ::= 'push$' | 'pop$'
 ```
 Notes
 - `arg_bytes*` is not Frame‑parsed; Stage 03 performs balanced‑paren + string‑aware splitting; Stage 07 (runtime‑optional) may parse args natively for diagnostics.
@@ -181,7 +181,7 @@ Lexical/Scanning Policy
 Reserved Terms (Frame)
 - Keywords (outline): `@target`, `system`, `machine:`, `interface:`, `actions:`, `operations:`
 - Header symbols (states/handlers): `$` (state), `$>`, `<$`, `=>` (state inheritance)
-- Statements (embedded ops): `->` (transition), `=> $^` (parent forward), `$$[+]`, `$$[-]` (stack ops)
+- Statements (embedded ops): `->` (transition), `=> $^` (parent forward), `push$`, `pop$` (stack ops)
 - Note: “handler” is a concept only; there is no `handler` keyword in the grammar
 
 System Return and System Calls (Native Patterns)

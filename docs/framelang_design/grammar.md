@@ -2740,26 +2740,25 @@ machine:
 
 ### State Stack Operations
 
-Frame v0.20 provides comprehensive state stack operations for implementing history mechanisms and state preservation. These operations are **fully validated** and working correctly:
+Frame provides comprehensive state stack operations for implementing history mechanisms and state preservation:
 
 ```frame
 // State stack push - saves current state
 gotoModal() {
-    $$[+]          // Push current state onto stack
+    push$          // Push current state onto stack
     -> $ModalState // Transition to new state
-    return
 }
 
 // State stack pop - returns to saved state
 closeModal() {
-    -> $$[-]       // Pop and transition to previous state
-    return
+    -> pop$        // Pop and transition to previous state
 }
 ```
 
 **State Stack Operators:**
-- **`$$[+]`** - Push current state compartment onto stack (preserves variables)
-- **`$$[-]`** - Pop state compartment from stack and use as transition target
+- **`push$`** - Push current state compartment onto stack (preserves variables)
+- **`pop$`** - Pop compartment from stack (discard)
+- **`-> pop$`** - Pop compartment and transition to it (with full lifecycle)
 
 **Key Features:**
 - **State Preservation**: Variables maintain their values when using stack operations

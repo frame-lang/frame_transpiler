@@ -106,7 +106,7 @@ enum ScanAction {
     ConsumeTriple,         // Consume """ or '''
     FlushAndTransition,    // -> $State detected
     FlushAndForward,       // => $^ detected  
-    FlushAndStack,         // $$[+/-] detected
+    FlushAndStack,         // push$/pop$ detected
 }
 ```
 
@@ -140,7 +140,7 @@ impl PythonScanState {
                 (Normal, ScanAction::FlushAndTransition),
             (AtSOL, '=') if lookahead.starts_with("> $^") =>
                 (Normal, ScanAction::FlushAndForward),
-            (AtSOL, '$') if lookahead.starts_with("$[+]") || lookahead.starts_with("$[-]") =>
+            (AtSOL, 'p') if lookahead.starts_with("ush$") || lookahead.starts_with("op$") =>
                 (Normal, ScanAction::FlushAndStack),
             (AtSOL, ch) if !ch.is_whitespace() =>
                 (Normal, ScanAction::Continue),
@@ -198,8 +198,8 @@ pub enum Segment {
 pub enum FrameSegmentKind {
     Transition,    // -> $State(args)
     Forward,       // => $^
-    StackPush,     // $$[+] 
-    StackPop,      // $$[-]
+    StackPush,     // push$
+    StackPop,      // pop$
 }
 ```
 
@@ -613,8 +613,8 @@ pub trait SolDetector {
 pub enum FrameStatementPattern {
     Transition,    // "-> $" (require $ to avoid conflicts)
     Forward,       // "=> $^" (require $^ to avoid conflicts)
-    StackPush,     // "$$[+]" or "$$+" 
-    StackPop,      // "$$[-]" or "$$-"
+    StackPush,     // "push$"
+    StackPop,      // "pop$"
 }
 ```
 
@@ -655,8 +655,8 @@ impl SolDetector for PythonRegionScanner {
     fn check_frame_statement_pattern(&self) -> Option<FrameStatementKind> {
         if self.matches_exact("-> $") { Some(Transition) }
         else if self.matches_exact("=> $^") { Some(Forward) }
-        else if self.matches_exact("$$[+]") || self.matches_exact("$$+") { Some(StackPush) }
-        else if self.matches_exact("$$[-]") || self.matches_exact("$$-") { Some(StackPop) }
+        else if self.matches_exact("push$") { Some(StackPush) }
+        else if self.matches_exact("pop$") { Some(StackPop) }
         else { None }
     }
 }
@@ -667,8 +667,8 @@ impl SolDetector for TypeScriptRegionScanner {
         // Same patterns, but more strict about "=> $^" to avoid arrow function conflicts
         if self.matches_exact("-> $") { Some(Transition) }
         else if self.matches_exact("=> $^") { Some(Forward) }  // Require $^ after =>
-        else if self.matches_exact("$$[+]") || self.matches_exact("$$+") { Some(StackPush) }
-        else if self.matches_exact("$$[-]") || self.matches_exact("$$-") { Some(StackPop) }
+        else if self.matches_exact("push$") { Some(StackPush) }
+        else if self.matches_exact("pop$") { Some(StackPop) }
         else { None }
     }
 }
@@ -679,8 +679,8 @@ impl SolDetector for CppRegionScanner {
         // More restrictive: require space and $ after -> to avoid ptr->field conflicts
         if self.matches_exact("-> $") { Some(Transition) }  // Require space + $
         else if self.matches_exact("=> $^") { Some(Forward) }
-        else if self.matches_exact("$$[+]") || self.matches_exact("$$+") { Some(StackPush) }
-        else if self.matches_exact("$$[-]") || self.matches_exact("$$-") { Some(StackPop) }
+        else if self.matches_exact("push$") { Some(StackPush) }
+        else if self.matches_exact("pop$") { Some(StackPop) }
         else { None }
     }
 }
@@ -1594,7 +1594,7 @@ Future considerations and edge cases.
 - FIRST‑set at SOL (outside protected regions):
   - Transition: `->` WS+ `$` state
   - Parent forward: `=>` WS+ `$^`
-  - Stack: `$$[+]` and `$$[-]` (canonical)
+  - Stack: `push$` and `pop$`
 - Protected regions: strings/comments/templates per target; no detection inside them.
 - Newline handling: LF and CRLF normalize the same for SOL.
 - Unicode whitespace at SOL: tabs, ASCII space, NBSP (U+00A0), common Zs (U+2000..U+200B, U+202F, U+205F, U+3000); BOM at body start is skipped.

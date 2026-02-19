@@ -49,7 +49,7 @@ Below is the living index of the most relevant specs and plans across `framelang
 - MixedBody FIRST‑Set Indexing: docs/framepiler_design/stages/native_mixed_body_first_set_indexing.md
 
 ### Going Native — Key Policies
-- Native bodies by default; Frame statements (->, => $^, $$[+/-], system.return) are SOL‑anchored and recognized only in handlers.
+- Native bodies by default; Frame statements (->, => $^, push$/pop$, system.return) are SOL‑anchored and recognized only in handlers.
 - Actions/operations are native‑only; use `system.return` for returns as needed.
 - Per‑language boundary detection via DPDAs (TS template/backtick‑aware; Py triple‑quote/f‑string‑aware).
 - Transitions are terminal: a terminal MIR statement must be last in a handler body (validator enforced).

@@ -45,7 +45,7 @@ When in doubt, open those files and follow their rules, not your own intuition.
      - SOL‑anchored Frame statements inside native bodies:
        - `-> $State(args?)`
        - `=> $^`
-       - `$$[+]` / `$$[-]`
+       - `push$` / `pop$`
    - **Everything else** in bodies is native syntax for the target language.
 
 4. **Block order matters**
@@ -236,8 +236,8 @@ Patterns to use:
   ```
 - Stack operations:
   ```frame
-  $$[+]
-  $$[-]
+  push$
+  pop$
   ```
 
 Constraints:
@@ -282,7 +282,7 @@ Generation rules:
   - The compiler will translate `: usize` in the Frame header into `-> usize` in the generated Rust (or equivalent for other languages).
 - At most one `fn main` per module; duplicates produce an error (E115).
 - Function bodies are native and share the same MIR/expander pipeline as handlers:
-  - You may embed `-> $State`, `=> $^`, `$$[+]`, `$$[-]` inside Fn bodies.
+  - You may embed `-> $State`, `=> $^`, `push$`, `pop$` inside Fn bodies.
 
 When generating Frame helpers that eventually become Rust functions (e.g., in `.frs`):
 

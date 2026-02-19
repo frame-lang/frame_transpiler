@@ -1488,8 +1488,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
     match kind {
         FrameSegmentKindV3::Transition => {
             // Parse transition: (exit_args)? -> (enter_args)? $State(state_args)?
-            // Check for pop-transition: -> $$[-]
-            if segment_text.contains("$$[-]") {
+            // Check for pop-transition: -> pop$
+            if segment_text.contains("pop$") {
                 // Pop-transition: pop state from stack and transition to it
                 match lang {
                     TargetLanguage::Python3 => format!(
@@ -1589,7 +1589,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKindV3::StackPush => {
-            // Check if this is a push-then-transition: $$[+] -> $State
+            // Check if this is a push-then-transition: push$ -> $State
             let has_transition = segment_text.contains("->");
             let transition_code = if has_transition {
                 // Extract target state and generate transition

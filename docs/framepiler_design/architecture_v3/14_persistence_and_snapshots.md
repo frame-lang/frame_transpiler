@@ -15,7 +15,7 @@ Scope
 - Persistence covers **system state** only, not arbitrary application data:
   - Current state identifier and state parameters.
   - Domain/state variables owned by the system.
-  - The state stack (for `$$[+]` / `$$[-]`).
+  - The state stack (for `push$` / `pop$`).
   - Any additional runtime fields that are semantically relevant to the
     resumed behavior.
 

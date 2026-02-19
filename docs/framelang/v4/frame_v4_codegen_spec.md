@@ -73,9 +73,8 @@ pub struct ModuleAst {
 }
 
 pub struct CodegenConfig {
-    pub frame_event: Option<bool>,       // None = use default
-    pub state_stack: Option<bool>,
-    pub runtime: Option<RuntimeMode>,    // Kernel | Simple
+    pub frame_event: Option<bool>,       // User-configurable: None = use default (off)
+    // Note: state_stack is computed internally based on push$/pop$ usage, not user-configurable
 }
 
 pub enum Annotation {

@@ -415,10 +415,10 @@ The Python runtime implements state stacks as a list of compartments:
 # Initialize in constructor
 self.__state_stack = []
 
-# Push operation ($$[+])
+# Push operation (push$)
 self.__state_stack.append(self.__compartment)
 
-# Pop operation ($$[-])
+# Pop operation (pop$)
 if self.__state_stack:
     restored_compartment = self.__state_stack.pop()
     self.__transition(restored_compartment)

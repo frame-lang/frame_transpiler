@@ -52,7 +52,7 @@ $Child1(a, b) {
 - `parent_enter`: default arguments forwarded to the parent on child enter/exit when applicable.
 
 ### Handlers
-Unchanged. SOL Frame statements (`-> $State(...)`, `=> $^`, `$$[±]`, `return`) remain valid inside `$>()`, `$<()`, and event handlers.
+Unchanged. SOL Frame statements (`-> $State(...)`, `=> $^`, `push$/pop$`, `return`) remain valid inside `$>()`, `$<()`, and event handlers.
 
 ### Constructors and Destructors (New Hooks)
 - `$>>()` — state compartment constructor; runs when a state’s compartment is created while entering a new ancestor chain (one‑time per creation, not per event).

@@ -42,7 +42,7 @@ V4 is a **pure preprocessor** for `@@system` blocks. All native code passes thro
 ### "Oceans Model"
 - **Native code is the ocean** - imports, helper functions, test harnesses pass through unchanged
 - **`@@system` blocks are islands** - expanded to target language classes
-- Frame statements inside handlers (`->`, `=>`, `$$[+]`, `$$[-]`) are expanded to method calls
+- Frame statements inside handlers (`->`, `=> $^`, `push$`, `pop$`, `$.var`) are expanded to method calls
 
 ### V4 Pipeline
 ```

@@ -39,7 +39,7 @@ Algorithm
   - While `at_sol`, skip Unicode whitespace (see invariants); capture `indent` span; then test FIRST‑set:
     - Transition: `->` WS+ `$` state
     - Forward: `=>` WS+ `$^`
-    - Stack op: `$$[+]` or `$$[-]` (canonical)
+    - Stack op: `push$` or `pop$`
   - On match: flush preceding `NativeText` [region_start, sol_idx+indent_len), then find end of the Frame statement line (to `\n` or `close_byte`), emit `FrameSegment { start, end, kind_hint, indent }`, set `region_start = end`, continue with `i = end`.
 - Update protected‑region states as in the Python body closer.
 

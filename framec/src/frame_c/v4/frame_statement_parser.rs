@@ -61,10 +61,10 @@ impl FrameStatementParserV3 {
             while i<n && line[i].is_ascii_whitespace() { i+=1; }
         }
         // Check for pop-transition: -> $$[-]
-        if i+5<=n && &line[i..i+5] == b"$$[-]" {
+        if i+5<=n && &line[i..i+5] == b"pop$" {
             // Pop-transition - target comes from stack at runtime
             return Ok(MirItemV3::Transition{
-                target: "$$[-]".to_string(),
+                target: "pop$".to_string(),
                 exit_args: exit_args,
                 enter_args: enter_args,
                 state_args: vec![],

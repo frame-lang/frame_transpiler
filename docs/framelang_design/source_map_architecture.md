@@ -377,7 +377,7 @@ self.add_source_mapping(frame_line);  // Maps to N+1 (where code is)
 #### Should Generate Mappings:
 - **Event Handlers**: `$>() {` → `def __handle_state_enter(...)`
 - **Statements**: `print(x)` → `print(x)`
-- **Transitions**: `-> $State` → `_ChangeState(...)`
+- **Transitions**: `-> $State` → `_transition(...)`
 - **Function Definitions**: `fn foo() {` → `def foo():`
 - **Action Calls**: `self.action()` → `self._action()`
 

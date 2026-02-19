@@ -148,7 +148,7 @@ impl FrameValidator {
     /// Validate a transition using Arcanum's state resolution
     fn validate_transition_with_arcanum(&mut self, system_name: &str, trans: &TransitionAst, arcanum: &Arcanum) {
         // Skip validation for pop-transition marker $$[-]
-        if trans.target == "$$[-]" {
+        if trans.target == "pop$" {
             return;  // Pop-transition: target comes from stack at runtime
         }
 
@@ -463,7 +463,7 @@ impl FrameValidator {
     ) {
         // E402: Check target state exists
         // Skip validation for pop-transition marker $$[-]
-        if transition.target == "$$[-]" {
+        if transition.target == "pop$" {
             return;  // Pop-transition: target comes from stack at runtime
         }
 

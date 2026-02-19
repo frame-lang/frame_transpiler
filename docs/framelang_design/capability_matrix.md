@@ -33,7 +33,7 @@
 |-----------|--------|---------------------|--------------|
 | Basic transitions (`-> $State`) | ✅ | Python/TS: `v3_systems/positive/transition_basic_exec.frm`, `while_inline_forward_stack_then_transition_exec.frm` | `common/tests/systems/test_just_transition*.frm`, `test_basic_transition_demo.frm` |
 | Parent forward (`=> $^`) | ✅ | Python/TS/Rust: `v3_systems/positive/child_forwards_then_transition_exec.frm`, `nested_parent_forward_then_transition_exec.frm` (E403 coverage) | `common/tests/systems/test_parent_dispatch*.frm` |
-| Stack operations (`$$[+]`, `$$[-]`) | ✅ | Python/Rust: `v3_systems/positive/parent_forward_then_stack_then_transition_exec.frm`, `while_inline_forward_stack_then_transition_exec.frm` | `common/tests/systems/test_state_stack.frm.bak` (legacy) |
+| Stack operations (`push$`, `pop$`) | ✅ | Python/Rust: `v3_systems/positive/parent_forward_then_stack_then_transition_exec.frm`, `while_inline_forward_stack_then_transition_exec.frm` | `common/tests/systems/test_state_stack.frm.bak` (legacy) |
 
 ### Parameters & Arguments
 
@@ -295,8 +295,8 @@ They are no longer tracked one‑feature‑per‑row in this matrix. The legacy 
 
 | Feature | Test File | Status | Notes |
 |---------|-----------|--------|--------|
-| Push State | test_state_push.frm | ❓ | $$[+] operator |
-| Pop State | test_state_pop.frm | ❓ | $$[-] operator |
+| Push State | test_state_push.frm | ❓ | push$ operator |
+| Pop State | test_state_pop.frm | ❓ | pop$ operator |
 | State History | test_state_history.frm | ❓ | History mechanism |
 
 ### Special Syntax

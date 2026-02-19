@@ -25,7 +25,7 @@ Stages
     - TypeScript/C#/C/C++/Java/Rust: `=> $^; native();` and `=> $^ // comment` are valid; without a top‑level `;` or comment start, trailing tokens after a Frame statement are invalid.
 
 - 03 Frame Segment Parser
-  - `FrameStatementParserV3` parses `-> $State(args)`, `=> $^`, `$$[+]`/`$$[-]` with balanced‑paren, string‑aware arg splitting.
+  - `FrameStatementParserV3` parses `-> $State(args)`, `=> $^`, `push$`/`pop$` with balanced‑paren, string‑aware arg splitting.
 
 - 04 MIR Assembly
   - `MirAssemblerV3` builds `MixedBody` preserving origin spans. Validator enforces “terminal‑last”.

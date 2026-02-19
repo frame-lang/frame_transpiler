@@ -7,7 +7,7 @@ Protected Regions
 - `//`, `/* ... */`, strings `"..."`, chars `'c'`.
 
 SOL Patterns
-- `-> $State(args?)`, `=> $^`, `$$[+/-]` at SOL only.
+- `-> $State(args?)`, `=> $^`, `push$`, `pop$` at SOL only.
 
 Rules
 - Must-advance; emit NativeText and FrameSegment with indent.

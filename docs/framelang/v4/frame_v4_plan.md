@@ -159,18 +159,39 @@ All 4 tests pass for PRT
 
 **Status:** NOT IMPLEMENTED
 
+### Purpose
+
+The `@@codegen` directive allows users to explicitly request FrameEvent class generation. This is the ONLY user-controllable codegen option. State stack generation is internal compiler logic and not user-configurable.
+
+### Syntax
+
+```frame
+@@target python_3
+
+@@codegen {
+    frame_event: on
+}
+
+@@system MySystem { ... }
+```
+
 ### 4.1 Write Tests First
 
 | Test File | Validates |
 |-----------|-----------|
-| `21_codegen_auto_enable.frm` | Using `push$` auto-enables `state_stack` |
+| `26_codegen_frame_event.frm` | `frame_event: on` generates FrameEvent class |
 
 ### 4.2 Implementation Tasks
 
-1. Parse `@@codegen { key: value }` after `@@target`
-2. Add `CodegenConfig` to AST
-3. Implement auto-enable logic in Arcanum
-4. Generate W400/W401 warnings for overrides
+1. Parse `@@codegen { frame_event: on|off }` after `@@target`
+2. Add `codegen_config` field to `FrameAst`
+3. Generate FrameEvent class when `frame_event: on` or auto-enabled
+4. Auto-enable `frame_event` when spec requires it:
+   - Enter/exit args on transitions
+   - Event forwarding (`-> =>`)
+   - `system.return` usage
+   - Interface methods with return values
+5. Generate W401 warning when auto-enable overrides explicit `off`
 
 ### 4.3 Verify
 

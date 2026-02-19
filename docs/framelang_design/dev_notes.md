@@ -103,7 +103,7 @@ self.setValue(42)     // Proper method call with args
 Frame v0.78.11 completes the source mapping work to provide effective debugging support for Frame-to-Python transpilation.
 
 **Fixed Issues:**
-1. **State Stack Operations Unmapped** - `$$[+]` (push) and `$$[-]` (pop) operations now properly mapped ✅
+1. **State Stack Operations Unmapped** - `push$` (push) and `pop$` (pop) operations now properly mapped ✅
 2. **Missing Line Fields in AST** - Added line field to StateStackOperationNode for accurate mapping ✅
 3. **Incomplete Coverage of User Code** - All critical user constructs now have source mapping ✅
 
@@ -2186,7 +2186,7 @@ system Validator {
 ### 2025-01-25: State Stack Operations
 
 #### State Stack Implementation
-- **Operators**: `$$[+]` (push state), `$$[-]` (pop state)
+- **Operators**: `push$` (push state), `pop$` (pop state)
 - **Use Case**: History mechanisms and modal state preservation
 - **Validation**: All state stack tests passing including complex nested sequences
 - **Variable Preservation**: State variables maintain values through push/pop cycles

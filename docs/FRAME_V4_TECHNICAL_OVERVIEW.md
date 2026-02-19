@@ -104,9 +104,9 @@ State machines are fundamental to robust software but are tedious and error-pron
 | Actions | `actions:` | Private helper methods |
 | Operations | `operations:` | Methods with return values |
 | Domain | `domain:` | Instance variables |
-| Forward | `>>` | Forward event to parent state (HSM) |
-| Stack Push | `$$[+]` | Push current state to stack |
-| Stack Pop | `$$[-]` | Pop and return to previous state |
+| Forward | `=> $^` | Forward event to parent state (HSM) |
+| Stack Push | `push$` | Push current state to stack |
+| Stack Pop | `pop$` / `-> pop$` | Pop from stack / Pop and transition |
 
 ### 1.5 Generated Code Structure
 
@@ -339,10 +339,9 @@ pub struct HandlerAst {
 
 pub enum Statement {
     Transition(TransitionStmt),      // -> $State
-    Forward(ForwardStmt),            // >> or >>^
-    StackPush(StackPushStmt),        // $$[+]
-    StackPop(StackPopStmt),          // $$[-]
-    ChangeState(ChangeStateStmt),    // ->> $State
+    Forward(ForwardStmt),            // => $^
+    StackPush(StackPushStmt),        // push$
+    StackPop(StackPopStmt),          // pop$ or -> pop$
     // Native code is NOT a statement - it's preserved via spans
 }
 ```
@@ -483,10 +482,9 @@ Scans handler bodies for Frame segments:
 pub enum RegionV3 {
     Native(RegionSpan),           // Pass-through native code
     Transition(RegionSpan),       // -> $State
-    Forward(RegionSpan),          // >> or >>^
-    StackPush(RegionSpan),        // $$[+]
-    StackPop(RegionSpan),         // $$[-]
-    ChangeState(RegionSpan),      // ->> $State
+    Forward(RegionSpan),          // => $^
+    StackPush(RegionSpan),        // push$
+    StackPop(RegionSpan),         // pop$ or -> pop$
 }
 
 pub trait NativeRegionScannerV3 {

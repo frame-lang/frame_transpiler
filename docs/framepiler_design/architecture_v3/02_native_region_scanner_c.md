@@ -7,7 +7,7 @@ SOL Detection
 - At SOL only (space/tab allowed):
   - `-> $State(args?)`
   - `=> $^`
-  - `$$[+]`, `$$[-]`
+  - `push$`, `pop$`
 
 Protected Regions
 - `//`, `/* ... */`, strings `"..."`, chars `'c'`.

@@ -34,8 +34,8 @@ pub enum TokenType {
     Transition,         // ->
     ChangeState,        // :> (if still supported)
     Forward,            // =>
-    StackPush,          // $$[+]
-    StackPop,           // $$[-]
+    StackPush,          // push$
+    StackPop,           // pop$
     Parent,             // =>
     
     // Delimiters

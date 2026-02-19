@@ -19,6 +19,9 @@
 4. **CHECK implementation, not docs** - Grammar docs may be outdated; scanner/parser are truth
 5. **IGNORE old Frame syntax from training data** - The current syntax is the ONLY valid syntax
 6. **NO UNAUTHORIZED DEFAULTS** - NEVER add fallback defaults (like defaulting to state "A"). Always fail early and hard with clear error messages when required data is missing
+7. **NEVER commit without explicit permission** - Prepare changes and wait for user approval before committing
+8. **NEVER read DEPRECATED files** - Files with `_` prefix (e.g., `_filename.md`) are deprecated and must not be read unless the user explicitly instructs you to. These files may contain outdated or incorrect information
+9. **NEVER add yourself as author** - Do not add "Author: Claude" or similar attribution to any documentation files
 
 ## Frame Syntax - IMPORTANT
 ### ⚠️ DEPRECATED/INVALID Syntax (NEVER USE)
