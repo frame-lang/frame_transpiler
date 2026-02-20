@@ -186,6 +186,10 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
 
 /// Match Frame statements at start of line.
 /// Returns Some((new_position, kind)) if matched, None otherwise.
+///
+/// Handles both:
+/// - Direct Frame statements: `-> $State`, `push$`, etc.
+/// - Backtick-prefixed statements: `` `push$ ``, `` `-> pop$ `` (V4 embedded syntax)
 fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     skipper: &S,
     bytes: &[u8],
@@ -193,11 +197,27 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     end: usize,
     _indent: usize,
 ) -> Option<(usize, FrameSegmentKindV3)> {
-    let b = bytes[i];
+    let mut pos = i;
+
+    // Check for backtick prefix (V4 embedded Frame statement syntax)
+    // e.g., `push$, `-> pop$, `-> $State
+    if pos < end && bytes[pos] == b'`' {
+        pos += 1;
+        // Skip optional whitespace after backtick
+        while pos < end && (bytes[pos] == b' ' || bytes[pos] == b'\t') {
+            pos += 1;
+        }
+    }
+
+    if pos >= end {
+        return None;
+    }
+
+    let b = bytes[pos];
 
     // Transition variants: -> $State, -> (args) $State, -> pop$, -> => $State
-    if b == b'-' && i + 1 < end && bytes[i + 1] == b'>' {
-        let mut k = i + 2;
+    if b == b'-' && pos + 1 < end && bytes[pos + 1] == b'>' {
+        let mut k = pos + 2;
 
         // Skip whitespace after ->
         while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') {
@@ -237,13 +257,13 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     }
 
     // Forward: => $^
-    if b == b'=' && i + 3 < end && bytes[i + 1] == b'>' && bytes[i + 2] == b' ' && bytes[i + 3] == b'$' {
-        return Some((i + 4, FrameSegmentKindV3::Forward));
+    if b == b'=' && pos + 3 < end && bytes[pos + 1] == b'>' && bytes[pos + 2] == b' ' && bytes[pos + 3] == b'$' {
+        return Some((pos + 4, FrameSegmentKindV3::Forward));
     }
 
     // Transition with leading exit args: (exit_args) -> (enter_args) $State
     if b == b'(' {
-        if let Some(mut k) = skipper.balanced_paren_end(bytes, i, end) {
+        if let Some(mut k) = skipper.balanced_paren_end(bytes, pos, end) {
             while k < end && (bytes[k] == b' ' || bytes[k] == b'\t') {
                 k += 1;
             }
@@ -269,27 +289,27 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     }
 
     // Stack push: push$
-    if b == b'p' && i + 4 < end
-        && bytes[i + 1] == b'u'
-        && bytes[i + 2] == b's'
-        && bytes[i + 3] == b'h'
-        && bytes[i + 4] == b'$'
+    if b == b'p' && pos + 4 < end
+        && bytes[pos + 1] == b'u'
+        && bytes[pos + 2] == b's'
+        && bytes[pos + 3] == b'h'
+        && bytes[pos + 4] == b'$'
     {
-        return Some((i + 5, FrameSegmentKindV3::StackPush));
+        return Some((pos + 5, FrameSegmentKindV3::StackPush));
     }
 
     // Stack pop (standalone): pop$
-    if b == b'p' && i + 3 < end
-        && bytes[i + 1] == b'o'
-        && bytes[i + 2] == b'p'
-        && bytes[i + 3] == b'$'
+    if b == b'p' && pos + 3 < end
+        && bytes[pos + 1] == b'o'
+        && bytes[pos + 2] == b'p'
+        && bytes[pos + 3] == b'$'
     {
-        return Some((i + 4, FrameSegmentKindV3::StackPop));
+        return Some((pos + 4, FrameSegmentKindV3::StackPop));
     }
 
     // Return sugar: return <expr> at start of line
-    if b == b'r' && i + 6 <= end && &bytes[i..i + 6] == b"return" {
-        let after_return = i + 6;
+    if b == b'r' && pos + 6 <= end && &bytes[pos..pos + 6] == b"return" {
+        let after_return = pos + 6;
         if after_return < end && (bytes[after_return] == b' ' || bytes[after_return] == b'\t') {
             return Some((after_return, FrameSegmentKindV3::SystemReturn));
         }

@@ -7,6 +7,68 @@
 
 ---
 
+## 0. Compartment Architecture (Canonical)
+
+The **compartment** is the central data structure in Frame's runtime model. It serves as "a closure concept for states that preserve the state itself, the data from the various scopes as well as runtime data needed for Frame machine semantics."
+
+### 0.1 Compartment Structure (6 Fields)
+
+Per the official Frame documentation, a compartment contains:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `state` | string | Current state identifier |
+| `state_args` | dict | Arguments passed to the state (state parameters) |
+| `state_vars` | dict | State variables declared with `$.varName` |
+| `enter_args` | dict | Arguments passed via `-> (args) $State` |
+| `exit_args` | dict | Arguments passed via `(args) -> $State` |
+| `forward_event` | FrameEvent? | Runtime data for event forwarding (`-> =>`) |
+
+### 0.2 Reference Example (Go from docs)
+
+```go
+type SomeCompartment struct {
+    State          SomeState
+    StateArgs      map[string]interface{}
+    StateVars      map[string]interface{}
+    EnterArgs      map[string]interface{}
+    ExitArgs       map[string]interface{}
+    _forwardEvent_ *framelang.FrameEvent
+}
+```
+
+### 0.3 State Variable Access
+
+State variables (`$.varName`) are stored in the compartment's `state_vars` dict:
+
+| Language | Access Pattern |
+|----------|---------------|
+| Python | `self._compartment.state_vars["varName"]` |
+| TypeScript | `this._compartment.stateVars["varName"]` |
+| Rust | `self._compartment.state_vars["varName"]` (with appropriate typing) |
+
+### 0.4 State Stack (History)
+
+The state stack stores **compartments**, not just state names. This is what enables state variables to be preserved across push/pop:
+
+```
+push$           → saves entire compartment to stack
+-> pop$         → restores compartment from stack (including state_vars)
+```
+
+This gives Frame the power of a **Pushdown Automaton**.
+
+### 0.5 Key Insight: Compartment = State Closure
+
+The compartment captures everything needed to fully describe and restore a state's context:
+- Which state we're in (`state`)
+- What data was passed to get here (`state_args`, `enter_args`)
+- What data the state is tracking (`state_vars`)
+- What to do when leaving (`exit_args`)
+- Whether to forward an event after entering (`forward_event`)
+
+---
+
 ## 1. Pipeline Overview
 
 ```

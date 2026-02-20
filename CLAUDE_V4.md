@@ -10,6 +10,42 @@
 
 **Frame does NOT parse native code.** That's the target compiler's job.
 
+## Compartment Architecture
+
+See `docs/framelang/v4/frame_v4_lang_reference.md` Section 5.7 for the canonical compartment model.
+
+**Key point:** The compartment is a 6-field closure for states. State variables live in `compartment.state_vars`, and the state stack stores entire compartments (enabling push/pop to preserve state vars).
+
+**Official docs:** https://frame-transpiler.readthedocs.io
+
+## Test Infrastructure
+
+**ALWAYS use the test crate infrastructure for V4 tests, not /tmp.**
+
+```
+framepiler_test_env/
+├── rust_test_crate/       # cargo run --bin <test>
+│   ├── Cargo.toml         # serde, serde_json deps
+│   └── tests/             # Generated .rs files
+├── typescript_test_crate/ # npx ts-node tests/<test>.ts
+│   ├── package.json       # ts-node, @types/node
+│   └── tests/             # Generated .ts files
+├── python_test_crate/     # python3 tests/<test>.py
+│   └── tests/             # Generated .py files
+```
+
+### Running Tests
+
+| Language | Command |
+|----------|---------|
+| Rust | `cd rust_test_crate && cargo run --bin <name>` |
+| TypeScript | `cd typescript_test_crate && npx ts-node tests/<name>.ts` |
+| Python | `python3 python_test_crate/tests/<name>.py` |
+
+### When to Use /tmp
+
+Only for quick one-off experiments. For any test that should be validated or committed, generate into the test crate so dependencies (serde, etc.) are available.
+
 ## Key Documents
 
 Read these for complete understanding:

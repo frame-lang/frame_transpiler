@@ -347,6 +347,64 @@ The splicer distinguishes handler context from action context.
 
 ---
 
+## 5.7 Compartment: The Runtime Model
+
+The **compartment** is Frame's central runtime data structure. Per the official Frame documentation, it is "a closure concept for states that preserve the state itself, the data from the various scopes as well as runtime data needed for Frame machine semantics."
+
+### Compartment Structure
+
+Every compartment has 6 fields:
+
+| Field | Purpose |
+|-------|---------|
+| `state` | Current state identifier |
+| `state_args` | Arguments passed to the state via `$State(args)` |
+| `state_vars` | State variables declared with `$.varName` |
+| `enter_args` | Arguments passed via `-> (args) $State` |
+| `exit_args` | Arguments passed via `(args) -> $State` |
+| `forward_event` | Stashed event for `-> =>` forwarding |
+
+### State Variable Storage
+
+State variables are always stored in `compartment.state_vars`:
+
+```
+$.counter = 5    →   self._compartment.state_vars["counter"] = 5
+```
+
+### State Stack = Compartment Stack
+
+The state stack stores **entire compartments**, not just state names. This is what enables state variable preservation:
+
+```frame
+$StateA {
+    $.counter: int = 0
+
+    save_and_go() {
+        $.counter = 10
+        push$               // saves entire compartment (with counter=10)
+        -> $StateB
+    }
+}
+
+$StateB {
+    restore() {
+        -> pop$             // restores compartment (counter is still 10)
+    }
+}
+```
+
+### Reentry vs History
+
+| Transition Type | State Var Behavior |
+|----------------|-------------------|
+| `-> $State` (normal) | State vars **reset** to initial values |
+| `-> pop$` (history) | State vars **preserved** from saved compartment |
+
+This distinction is fundamental to Frame's expressive power.
+
+---
+
 ## 6. `actions:` Section
 
 Private helper methods on the system class.

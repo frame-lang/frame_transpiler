@@ -37,65 +37,69 @@
 
 ---
 
-## Phase 1: State Variables (`$.varName`)
+## Phase 1: State Variables (`$.varName`) & Compartment Architecture
 
-**Status:** NOT IMPLEMENTED
+**Status:** PARTIALLY IMPLEMENTED (basic works, push/pop needs compartment refactor)
 
-### 1.1 Write Tests First
+### 1.0 Compartment Architecture (from Frame docs)
 
-| Test File | Validates |
-|-----------|-----------|
-| `10_state_var_basic.frm` | `$.var` declaration, init, read, write |
-| `11_state_var_reentry.frm` | `$.var` reinitialized when state re-entered |
-| `12_state_var_push_pop.frm` | `$.var` preserved across push$/pop$ |
+Per the official Frame documentation, the **compartment** is a 6-field closure for states:
 
-**Test template:**
-```frame
-@@target python_3
+| Field | Purpose |
+|-------|---------|
+| `state` | Current state identifier |
+| `state_args` | State parameters |
+| `state_vars` | State variables (`$.varName`) |
+| `enter_args` | Enter transition arguments |
+| `exit_args` | Exit transition arguments |
+| `forward_event` | Event forwarding support |
 
-@@system StateVarTest {
-    interface:
-        test(): bool
+**Key behaviors:**
+- State vars **reset** on normal reentry (`-> $State`)
+- State vars **preserve** on history return (`-> pop$`)
+- State stack stores **entire compartments**
 
-    machine:
-        $Start {
-            $.counter: int = 0
+### 1.1 Tests
 
-            test(): bool {
-                $.counter = $.counter + 1
-                return $.counter == 1
-            }
-        }
+| Test File | Status | Validates |
+|-----------|--------|-----------|
+| `10_state_var_basic.frm` | ✅ PASS | `$.var` declaration, init, read, write |
+| `11_state_var_reentry.frm` | ✅ PASS | `$.var` reinitialized when state re-entered |
+| `12_state_var_push_pop.frm` | ❌ FAIL | `$.var` preserved across push$/pop$ |
 
-    domain:
-        var result = False
-}
+Tests 10 & 11 pass because basic state var access works.
+Test 12 fails because `push$`/`pop$` aren't expanded yet.
 
-if __name__ == '__main__':
-    t = StateVarTest()
-    if t.test():
-        print("PASS")
-    else:
-        print("FAIL")
-        raise AssertionError()
-```
+### 1.2 Current Implementation
 
-### 1.2 Implementation Tasks
+**What works:**
+- Declaration parsing: `$.varName: type = init`
+- Reference detection: `$.varName` as Frame segment
+- Expansion: `$.count` → `self._state_context["count"]` (Python/TS)
+- Initialization in `_enter()` method
 
-1. Add `StateVarAst` to `frame_ast.rs`
-2. Parse `$.varName: type = init` in `frame_parser.rs`
-3. Add `$.varName` to `native_region_scanner.rs`
-4. Expand to `self.__compartment.state_vars["varName"]` in splicer
-5. Generate state var init in compartment creation
-6. Add E420 validation (duplicate state var)
+**What needs refactoring:**
+- Replace `_state_context` with proper `_compartment.state_vars`
+- Implement `push$` → save compartment to stack
+- Implement `-> pop$` → restore compartment from stack
 
-### 1.3 Verify
+### 1.3 Implementation Tasks (Compartment Refactor)
+
+1. **Generate Compartment class** with 6 fields per official spec
+2. **Replace `_state_context`** with `_compartment.state_vars`
+3. **Update state var access** to use `_compartment.state_vars["name"]`
+4. **Implement `push$`** → `_state_stack.append(copy(_compartment))`
+5. **Implement `-> pop$`** → `_compartment = _state_stack.pop()`
+6. **Update transitions** to create new compartment with initialized state_vars
+
+### 1.4 Verify
 
 ```bash
-frame-docker-runner python_3 10_state_var_basic
-frame-docker-runner python_3 11_state_var_reentry
-frame-docker-runner python_3 12_state_var_push_pop
-# Repeat for typescript and rust
+# Already passing:
+./target/release/framec test.fpy | python3  # tests 10, 11
+
+# Must pass after refactor:
+./target/release/framec test.fpy | python3  # test 12
 ```
 
 ---

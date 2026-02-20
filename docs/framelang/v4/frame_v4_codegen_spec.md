@@ -7,6 +7,39 @@
 
 ---
 
+## 0. Compartment Architecture (Canonical)
+
+The **compartment** is the central data structure in Frame's runtime model. Per the official Frame documentation, it serves as "a closure concept for states that preserve the state itself, the data from the various scopes as well as runtime data needed for Frame machine semantics."
+
+### 0.1 Compartment Structure (6 Fields)
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `state` | string | Current state identifier |
+| `state_args` | dict | Arguments passed to the state (state parameters) |
+| `state_vars` | dict | State variables declared with `$.varName` |
+| `enter_args` | dict | Arguments passed via `-> (args) $State` |
+| `exit_args` | dict | Arguments passed via `(args) -> $State` |
+| `forward_event` | FrameEvent? | Runtime data for event forwarding (`-> =>`) |
+
+### 0.2 State Variable Behavior
+
+- **Initialization:** State vars initialize when entering a state
+- **Reentry:** State vars **reset** to initial values on reentry (normal transition)
+- **History:** State vars are **preserved** when returning via `pop$` (historical state)
+- **Storage:** Always in `compartment.state_vars["name"]`, never separate fields
+
+### 0.3 State Stack = Compartment Stack
+
+The state stack stores **entire compartments**, enabling full state restoration:
+
+```
+push$     → _state_stack.push(copy_of_current_compartment)
+-> pop$   → _compartment = _state_stack.pop()  // restores state + state_vars
+```
+
+---
+
 ## 1. Pipeline Overview
 
 ```
@@ -616,21 +649,63 @@ pub struct EmitContext {
 
 ### 6.2 Backend-Specific Dispatch Patterns
 
-| Backend | Router | State dispatch | Variable access |
+| Backend | Router | State dispatch | State var access |
 |---------|--------|---------------|-----------------|
-| Python | `if/elif` on `self.__compartment.state` | `if/elif` on `e._message` | `self.__compartment.state_vars["name"]` |
-| TypeScript | `switch (this.#compartment.state)` | `switch (e.message)` | `this.#compartment.stateVars["name"]` |
-| Rust | `match self._state.as_str()` | `match e.message.as_str()` | `if let FooCompartment::State(ctx) = &self._compartment { ctx.name }` |
+| Python | `if/elif` on `self._compartment.state` | `if/elif` on event | `self._compartment.state_vars["name"]` |
+| TypeScript | `switch (this._compartment.state)` | `switch` on event | `this._compartment.stateVars["name"]` |
+| Rust | `match self._compartment.state.as_str()` | `match` on event | `self._compartment.state_vars.get("name")` |
 
 ### 6.3 Backend-Specific Compartment
 
-| Backend | Compartment type | State vars storage | State stack type |
-|---------|-----------------|-------------------|-----------------|
-| Python | Class instance | `dict` | `list` of compartment instances |
-| TypeScript | Class instance | `Record<string, any>` | `Array` of compartment instances |
-| Rust | Enum-of-structs | Typed struct fields per state | `Vec<(String, FooCompartment)>` — fully typed, no `Box<dyn Any>` |
+**All backends use the canonical 6-field compartment structure:**
 
-**Rust enum-of-structs pattern:** The Rust backend generates one context struct per state that has state variables, and an enum wrapping all variants. This provides compile-time type safety, direct field access (no runtime downcasting), and correct push/pop preservation (the entire enum value moves onto/off the stack). See the Codegen Spec for full details.
+```python
+# Python
+class Compartment:
+    def __init__(self, state: str):
+        self.state = state
+        self.state_args = {}
+        self.state_vars = {}
+        self.enter_args = {}
+        self.exit_args = {}
+        self.forward_event = None
+```
+
+```typescript
+// TypeScript
+interface Compartment {
+    state: string;
+    stateArgs: Record<string, any>;
+    stateVars: Record<string, any>;
+    enterArgs: Record<string, any>;
+    exitArgs: Record<string, any>;
+    forwardEvent: FrameEvent | null;
+}
+```
+
+```rust
+// Rust
+struct Compartment {
+    state: String,
+    state_args: HashMap<String, serde_json::Value>,
+    state_vars: HashMap<String, serde_json::Value>,
+    enter_args: HashMap<String, serde_json::Value>,
+    exit_args: HashMap<String, serde_json::Value>,
+    forward_event: Option<FrameEvent>,
+}
+```
+
+| Backend | Compartment | State vars | State stack |
+|---------|-------------|------------|-------------|
+| Python | Class instance | `dict` via `state_vars` | `list` of compartments |
+| TypeScript | Object | `Record` via `stateVars` | `Array` of compartments |
+| Rust | Struct instance | `HashMap` via `state_vars` | `Vec<Compartment>` |
+
+**Benefits of unified approach:**
+- Same mental model across all languages
+- Push/pop trivially copies/restores entire compartment
+- Serialization natural (compartment is already a data structure)
+- Consistent access pattern: `compartment.state_vars["name"]`
 
 ### 6.4 Native Code Re-indentation
 
