@@ -693,7 +693,60 @@ pub struct EmitContext {
 | TypeScript | Class instance | `Record<string, any>` | `Record<string, any>` |
 | Rust | Struct instance | `HashMap<String, Box<dyn Any>>` | `HashMap<String, Box<dyn Any>>` |
 
-### 6.4 Native Code Re-indentation
+### 6.4 Generated Compartment Class (Python/TypeScript)
+
+For Python and TypeScript, a `{System}Compartment` class is generated before the main system class:
+
+**Python:**
+```python
+class FooCompartment:
+    def __init__(self, state: str):
+        self.state = state
+        self.state_args = {}
+        self.state_vars = {}
+        self.enter_args = {}
+        self.exit_args = {}
+        self.forward_event = None
+
+    def copy(self) -> 'FooCompartment':
+        c = FooCompartment(self.state)
+        c.state_args = self.state_args.copy()
+        c.state_vars = self.state_vars.copy()
+        c.enter_args = self.enter_args.copy()
+        c.exit_args = self.exit_args.copy()
+        c.forward_event = self.forward_event
+        return c
+```
+
+**TypeScript:**
+```typescript
+class FooCompartment {
+    state: string;
+    state_args: Record<string, any> = {};
+    state_vars: Record<string, any> = {};
+    enter_args: Record<string, any> = {};
+    exit_args: Record<string, any> = {};
+    forward_event: any = null;
+
+    constructor(state: string) {
+        this.state = state;
+    }
+
+    copy(): FooCompartment {
+        const c = new FooCompartment(this.state);
+        c.state_args = {...this.state_args};
+        c.state_vars = {...this.state_vars};
+        c.enter_args = {...this.enter_args};
+        c.exit_args = {...this.exit_args};
+        c.forward_event = this.forward_event;
+        return c;
+    }
+}
+```
+
+The `copy()` method enables push/pop to preserve state variables by storing entire compartment copies on the state stack.
+
+### 6.5 Native Code Re-indentation
 
 When emitting `NativeBlock` nodes, the backend must adjust indentation to match the current emit context. The algorithm:
 

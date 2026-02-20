@@ -6,7 +6,7 @@
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::utils::RunError;
 use super::config::{PipelineConfig, CompileMode};
-use crate::frame_c::v4::codegen::{generate_system, generate_rust_compartment_types, get_backend, EmitContext};
+use crate::frame_c::v4::codegen::{generate_system, generate_rust_compartment_types, generate_compartment_class, get_backend, EmitContext};
 use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
 
 /// Result of module compilation
@@ -273,12 +273,17 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                 result.push('\n');
             }
 
-            // For Rust: Generate compartment types (enum and context structs) first
+            // Generate compartment class/types BEFORE the main system class
+            // Rust: Uses enum-of-structs pattern (specialized)
+            // Python/TypeScript: Use the canonical 6-field Compartment class
             if matches!(config.target, TargetLanguage::Rust) {
                 let compartment_types = generate_rust_compartment_types(system);
                 if !compartment_types.is_empty() {
                     result.push_str(&compartment_types);
                 }
+            } else if let Some(compartment_node) = generate_compartment_class(system, config.target) {
+                result.push_str(&backend.emit(&compartment_node, &mut ctx));
+                result.push_str("\n\n");
             }
 
             // Generated system code
@@ -331,12 +336,17 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                     }
                 }
 
-                // For Rust: Generate compartment types (enum and context structs) first
+                // Generate compartment class/types BEFORE the main system class
+                // Rust: Uses enum-of-structs pattern (specialized)
+                // Python/TypeScript: Use the canonical 6-field Compartment class
                 if matches!(config.target, TargetLanguage::Rust) {
                     let compartment_types = generate_rust_compartment_types(system);
                     if !compartment_types.is_empty() {
                         result.push_str(&compartment_types);
                     }
+                } else if let Some(compartment_node) = generate_compartment_class(system, config.target) {
+                    result.push_str(&backend.emit(&compartment_node, &mut ctx));
+                    result.push_str("\n\n");
                 }
 
                 // Generated system code
