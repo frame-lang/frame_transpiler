@@ -10,11 +10,11 @@
 ## Current Status
 
 **Test Results (2026-02-20):**
-- Python: 28/28 tests passing (100%)
-- TypeScript: 28/28 tests passing (100%)
-- Rust: 28/28 tests passing (100%)
+- Python: 29/29 tests passing (100%)
+- TypeScript: 29/29 tests passing (100%)
+- Rust: 29/29 tests passing (100%)
 
-**Total: 84/84 tests passing (100%)**
+**Total: 87/87 tests passing (100%)**
 
 ---
 
@@ -133,22 +133,25 @@ impl System {
 
 ## Remaining Implementation Work
 
-### Phase 7.2: HSM Parent Access (Planned)
+### Phase 7.2: HSM Parent Access ✅
 
 **Completed:**
 - `$Child => $Parent` syntax parsing ✅
 - `=> $^` generates direct parent call ✅
 - State-level `=> $^` forwards unhandled events ✅
-- Test 08_hsm, 30_hsm_default_forward passing ✅
+- `parent_compartment` field set when creating child state compartment ✅
+- `$^.varName` parent state_vars access (Python/TypeScript) ✅
+- Rust uses explicit forwarding for parent state access ✅
+- Test 31 passing (all languages) ✅
 
-**Needs Implementation:**
-1. **parent_compartment field** — Set when creating child state compartment
-2. **Parent state_vars access** — Child accessing `$^.varName` for parent state vars
+**Implementation Notes:**
+- Python/TypeScript: `$^.varName` → `self.__compartment.parent_compartment.state_vars["varName"]`
+- Rust: Uses explicit method forwarding (`=> $^`) instead of direct parent var access
 
 **Test Coverage:**
-- `08_hsm.fpy` — Basic explicit forward ✅
-- `30_hsm_default_forward.fpy` — State-level `=> $^` ✅
-- Need: `31_hsm_parent_vars.frm` — Accessing parent state vars
+- `08_hsm` — Basic explicit forward ✅
+- `30_hsm_default_forward` — State-level `=> $^` ✅
+- `31_hsm_parent_vars` — Parent state variable access ✅
 
 ### Phase 9: Rust Compartment Architecture
 
@@ -201,11 +204,7 @@ impl System {
 | 26 | `26_state_params` | ✅ | State parameters |
 | 29 | `29_forward_enter_first` | ✅ | Send $> before non-$> forward |
 | 30 | `30_hsm_default_forward` | ✅ | State-level `=> $^` |
-
-**Planned Additional Tests:**
-| # | Test File | Phase | Validates |
-|---|-----------|-------|-----------|
-| 31 | `31_hsm_parent_vars` | 7.2 | Parent state var access |
+| 31 | `31_hsm_parent_vars` | ✅ | Parent state variable access |
 
 ---
 
@@ -214,7 +213,7 @@ impl System {
 **V4 Test Runner:**
 ```bash
 cd framepiler_test_env/common/test-frames/v4/prt
-./run_tests.sh   # Runs all 28 tests for Python, TypeScript, Rust
+./run_tests.sh   # Runs all 29 tests for Python, TypeScript, Rust
 ```
 
 **Single Language:**
@@ -235,11 +234,10 @@ cat framepiler_test_env/python_test_crate/tests/08_hsm.py
 | 0-6 | 01-26 | ✅ 78/78 passing |
 | 7.1 | 30 | ✅ 3/3 passing |
 | 8 | 29 | ✅ 3/3 passing |
-| 7.2 | 31 | Planned |
-| 9 | N/A | Architecture |
+| 7.2 | 31 | ✅ 3/3 passing |
+| 9 | N/A | Architecture (Planned) |
 
-**Current:** 84/84 (100%)
-**Target:** 87/87 (with Phase 7.2 tests)
+**Current:** 87/87 (100%)
 
 ---
 

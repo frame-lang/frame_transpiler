@@ -6,6 +6,7 @@ pub enum FrameSegmentKindV3 {
     StackPush,
     StackPop,
     StateVar,
+    ParentStateVar,    // $^.varName - access parent state variable
     SystemReturn,      // system.return = <expr> or return <expr> (sugar)
     SystemReturnExpr,  // bare system.return (read current value)
 }

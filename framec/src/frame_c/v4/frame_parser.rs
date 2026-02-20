@@ -1752,9 +1752,10 @@ impl FrameParser {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
                 RegionV3::FrameSegment { span, kind, indent } => {
-                    // StateVar, SystemReturn, and SystemReturnExpr segments are inline expressions
+                    // StateVar, ParentStateVar, SystemReturn, and SystemReturnExpr segments are inline expressions
                     // handled by the splicer during code generation
                     if *kind == FrameSegmentKindV3::StateVar
+                        || *kind == FrameSegmentKindV3::ParentStateVar
                         || *kind == FrameSegmentKindV3::SystemReturn
                         || *kind == FrameSegmentKindV3::SystemReturnExpr
                     {
@@ -1831,6 +1832,11 @@ impl FrameParser {
                 // State variables are expanded inline by the splicer
                 // No separate statement needed - return an error that will be handled
                 Err(ParseError::Expected("StateVar handled by splicer".to_string()))
+            }
+            FrameSegmentKindV3::ParentStateVar => {
+                // Parent state variables ($^.varName) are expanded inline by the splicer
+                // No separate statement needed - return an error that will be handled
+                Err(ParseError::Expected("ParentStateVar handled by splicer".to_string()))
             }
             FrameSegmentKindV3::SystemReturn => {
                 // system.return = <expr> or ^ <expr>

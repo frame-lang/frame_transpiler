@@ -36,6 +36,8 @@ struct HandlerContext {
     pub parent_state: Option<String>,
     /// True if the system has states with state variables (for Rust compartment-based push/pop)
     pub has_state_vars: bool,
+    /// Map of state names to their parent state (for HSM child state transitions)
+    pub state_parents: std::collections::HashMap<String, String>,
 }
 
 /// Generate a complete CodegenNode for a Frame system
@@ -1707,6 +1709,7 @@ fn generate_state_method(
         event_name: String::new(), // Will be set per-handler
         parent_state: parent_state.map(|s| s.to_string()),
         has_state_vars,
+        state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
     };
 
     // Generate the dispatch body based on __e._message
@@ -1984,6 +1987,7 @@ fn generate_handler_from_arcanum(
         event_name: handler.event.clone(),
         parent_state: parent_state.map(|s| s.to_string()),
         has_state_vars,
+        state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
     };
 
     // Splice the handler body: preserve native code, expand Frame segments
@@ -2328,8 +2332,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             code.push_str(&format!("{}self.__compartment.exit_args = {{str(i): v for i, v in enumerate(({},))}}\n", indent_str, exit));
                         }
 
-                        // Create new compartment
-                        code.push_str(&format!("{}__compartment = {}Compartment(\"{}\")\n", indent_str, ctx.system_name, target));
+                        // Create new compartment with parent_compartment for HSM support
+                        code.push_str(&format!("{}__compartment = {}Compartment(\"{}\", parent_compartment=self.__compartment.copy())\n", indent_str, ctx.system_name, target));
 
                         // Set state_args if present
                         if let Some(ref state) = state_str {
@@ -2361,8 +2365,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             code.push_str(&format!("{}this.__compartment.exit_args = Object.fromEntries([{}].map((v, i) => [String(i), v]));\n", indent_str, exit));
                         }
 
-                        // Create new compartment
-                        code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\");\n", indent_str, ctx.system_name, target));
+                        // Create new compartment with parent_compartment for HSM support
+                        code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\", this.__compartment.copy());\n", indent_str, ctx.system_name, target));
 
                         // Set state_args if present
                         if let Some(ref state) = state_str {
@@ -2391,7 +2395,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     _ => {
                         // Default: same as TypeScript
                         let mut code = String::new();
-                        code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\");\n", indent_str, ctx.system_name, target));
+                        code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\", this.__compartment.copy());\n", indent_str, ctx.system_name, target));
                         code.push_str(&format!("{}this.__transition(__compartment);", indent_str));
                         code
                     }
@@ -2408,7 +2412,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => {
                     // Create compartment with forward_event set to current event
                     let mut code = String::new();
-                    code.push_str(&format!("{}__compartment = {}Compartment(\"{}\")\n", indent_str, ctx.system_name, target));
+                    code.push_str(&format!("{}__compartment = {}Compartment(\"{}\", parent_compartment=self.__compartment.copy())\n", indent_str, ctx.system_name, target));
                     code.push_str(&format!("{}__compartment.forward_event = __e\n", indent_str));
                     code.push_str(&format!("{}self.__transition(__compartment)\n", indent_str));
                     code.push_str(&format!("{}return", indent_str));
@@ -2417,7 +2421,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::TypeScript => {
                     // Create compartment with forward_event set to current event
                     let mut code = String::new();
-                    code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\");\n", indent_str, ctx.system_name, target));
+                    code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\", this.__compartment.copy());\n", indent_str, ctx.system_name, target));
                     code.push_str(&format!("{}__compartment.forward_event = __e;\n", indent_str));
                     code.push_str(&format!("{}this.__transition(__compartment);\n", indent_str));
                     code.push_str(&format!("{}return;", indent_str));
@@ -2434,7 +2438,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => {
                     // Default: same as TypeScript
                     let mut code = String::new();
-                    code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\");\n", indent_str, ctx.system_name, target));
+                    code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\", this.__compartment.copy());\n", indent_str, ctx.system_name, target));
                     code.push_str(&format!("{}__compartment.forward_event = __e;\n", indent_str));
                     code.push_str(&format!("{}this.__transition(__compartment);\n", indent_str));
                     code.push_str(&format!("{}return;", indent_str));
@@ -2543,6 +2547,21 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     format!("self._sv_{}", var_name)
                 },
                 _ => format!("this.__compartment.state_vars[\"{}\"]", var_name),
+            }
+        }
+        FrameSegmentKindV3::ParentStateVar => {
+            // Extract variable name from "$^.varName"
+            let var_name = extract_parent_state_var_name(&segment_text);
+            // Parent state variables are stored in compartment.parent_compartment.state_vars
+            match lang {
+                TargetLanguage::Python3 => format!("self.__compartment.parent_compartment.state_vars[\"{}\"]", var_name),
+                TargetLanguage::TypeScript => format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name),
+                TargetLanguage::Rust => {
+                    // For Rust, parent state vars would need different handling
+                    // For now, generate a comment indicating this feature needs implementation
+                    format!("/* TODO: parent state var access */ self._sv_parent_{}", var_name)
+                },
+                _ => format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name),
             }
         }
         FrameSegmentKindV3::SystemReturn => {
@@ -2762,6 +2781,19 @@ fn extract_state_var_name(text: &str) -> String {
     }
 }
 
+/// Extract parent state variable name from "$^.varName"
+fn extract_parent_state_var_name(text: &str) -> String {
+    // Skip "$^." prefix and get identifier
+    if text.starts_with("$^.") {
+        let after_prefix = &text[3..];
+        let end = after_prefix.find(|c: char| !c.is_alphanumeric() && c != '_')
+            .unwrap_or(after_prefix.len());
+        after_prefix[..end].to_string()
+    } else {
+        "unknown".to_string()
+    }
+}
+
 /// Extract expression from system.return = <expr> or return <expr>
 fn extract_system_return_expr(text: &str) -> String {
     let text = text.trim();
@@ -2781,7 +2813,7 @@ fn extract_system_return_expr(text: &str) -> String {
     String::new()
 }
 
-/// Expand state variable references ($.varName) in an expression string
+/// Expand state variable references ($.varName and $^.varName) in an expression string
 /// Uses compartment.state_vars for Python/TypeScript
 fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
     let mut result = String::new();
@@ -2789,7 +2821,22 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
     let mut i = 0;
 
     while i < bytes.len() {
-        if i + 1 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'.' {
+        // Check for parent state var ($^.varName) first - more specific
+        if i + 2 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'^' && bytes[i + 2] == b'.' {
+            // Found $^.varName
+            i += 3; // Skip "$^."
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            let var_name = String::from_utf8_lossy(&bytes[start..i]).to_string();
+            match lang {
+                TargetLanguage::Python3 => result.push_str(&format!("self.__compartment.parent_compartment.state_vars[\"{}\"]", var_name)),
+                TargetLanguage::TypeScript => result.push_str(&format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name)),
+                TargetLanguage::Rust => result.push_str(&format!("/* TODO: parent state var */ self._sv_parent_{}", var_name)),
+                _ => result.push_str(&format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name)),
+            }
+        } else if i + 1 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'.' {
             // Found $.varName
             i += 2; // Skip "$."
             let start = i;
