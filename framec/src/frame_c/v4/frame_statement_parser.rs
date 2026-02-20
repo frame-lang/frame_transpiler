@@ -28,11 +28,6 @@ impl FrameStatementParserV3 {
                 // No MIR item needed - just pass through
                 Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "state var handled by splicer"))
             }
-            FrameSegmentKindV3::ParentStateVar => {
-                // Parent state variables ($^.varName) are handled inline by the splicer expansion
-                // No MIR item needed - just pass through
-                Err(ParseErrorV3::err(ParseErrorV3Kind::InvalidHead, "parent state var handled by splicer"))
-            }
             FrameSegmentKindV3::SystemReturn => self.parse_system_return(text, span),
             FrameSegmentKindV3::SystemReturnExpr => {
                 // bare system.return - just returns the current value

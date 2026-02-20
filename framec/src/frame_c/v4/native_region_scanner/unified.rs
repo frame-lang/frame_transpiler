@@ -113,26 +113,6 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
 
             // ===== MID-LINE FRAME CONSTRUCTS =====
 
-            // Parent state variable reference: $^.varName (must match before $.)
-            b'$' if i + 2 < end && bytes[i + 1] == b'^' && bytes[i + 2] == b'.' => {
-                if seg_start < i {
-                    regions.push(RegionV3::NativeText {
-                        span: RegionSpan { start: seg_start, end: i }
-                    });
-                }
-                let var_start = i;
-                i += 3; // Skip "$^."
-                while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                    i += 1;
-                }
-                regions.push(RegionV3::FrameSegment {
-                    span: RegionSpan { start: var_start, end: i },
-                    kind: FrameSegmentKindV3::ParentStateVar,
-                    indent: 0,
-                });
-                seg_start = i;
-            }
-
             // State variable reference: $.varName
             b'$' if i + 1 < end && bytes[i + 1] == b'.' => {
                 if seg_start < i {

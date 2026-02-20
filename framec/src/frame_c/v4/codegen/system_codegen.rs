@@ -2549,21 +2549,6 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => format!("this.__compartment.state_vars[\"{}\"]", var_name),
             }
         }
-        FrameSegmentKindV3::ParentStateVar => {
-            // Extract variable name from "$^.varName"
-            let var_name = extract_parent_state_var_name(&segment_text);
-            // Parent state variables are stored in compartment.parent_compartment.state_vars
-            match lang {
-                TargetLanguage::Python3 => format!("self.__compartment.parent_compartment.state_vars[\"{}\"]", var_name),
-                TargetLanguage::TypeScript => format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name),
-                TargetLanguage::Rust => {
-                    // For Rust, parent state vars would need different handling
-                    // For now, generate a comment indicating this feature needs implementation
-                    format!("/* TODO: parent state var access */ self._sv_parent_{}", var_name)
-                },
-                _ => format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name),
-            }
-        }
         FrameSegmentKindV3::SystemReturn => {
             // system.return = <expr> or return <expr>
             // return <expr> is sugar for system.return = <expr>; return (early exit)
@@ -2781,19 +2766,6 @@ fn extract_state_var_name(text: &str) -> String {
     }
 }
 
-/// Extract parent state variable name from "$^.varName"
-fn extract_parent_state_var_name(text: &str) -> String {
-    // Skip "$^." prefix and get identifier
-    if text.starts_with("$^.") {
-        let after_prefix = &text[3..];
-        let end = after_prefix.find(|c: char| !c.is_alphanumeric() && c != '_')
-            .unwrap_or(after_prefix.len());
-        after_prefix[..end].to_string()
-    } else {
-        "unknown".to_string()
-    }
-}
-
 /// Extract expression from system.return = <expr> or return <expr>
 fn extract_system_return_expr(text: &str) -> String {
     let text = text.trim();
@@ -2813,7 +2785,7 @@ fn extract_system_return_expr(text: &str) -> String {
     String::new()
 }
 
-/// Expand state variable references ($.varName and $^.varName) in an expression string
+/// Expand state variable references ($.varName) in an expression string
 /// Uses compartment.state_vars for Python/TypeScript
 fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
     let mut result = String::new();
@@ -2821,22 +2793,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
     let mut i = 0;
 
     while i < bytes.len() {
-        // Check for parent state var ($^.varName) first - more specific
-        if i + 2 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'^' && bytes[i + 2] == b'.' {
-            // Found $^.varName
-            i += 3; // Skip "$^."
-            let start = i;
-            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                i += 1;
-            }
-            let var_name = String::from_utf8_lossy(&bytes[start..i]).to_string();
-            match lang {
-                TargetLanguage::Python3 => result.push_str(&format!("self.__compartment.parent_compartment.state_vars[\"{}\"]", var_name)),
-                TargetLanguage::TypeScript => result.push_str(&format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name)),
-                TargetLanguage::Rust => result.push_str(&format!("/* TODO: parent state var */ self._sv_parent_{}", var_name)),
-                _ => result.push_str(&format!("this.__compartment.parent_compartment!.state_vars[\"{}\"]", var_name)),
-            }
-        } else if i + 1 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'.' {
+        if i + 1 < bytes.len() && bytes[i] == b'$' && bytes[i + 1] == b'.' {
             // Found $.varName
             i += 2; // Skip "$."
             let start = i;
