@@ -15,4 +15,4 @@ pub mod backends;
 
 pub use ast::CodegenNode;
 pub use backend::{LanguageBackend, EmitContext, ClassSyntax, get_backend};
-pub use system_codegen::{generate_system, generate_rust_compartment_types, generate_compartment_class};
+pub use system_codegen::{generate_system, generate_rust_compartment_types, generate_compartment_class, generate_frame_event_class};

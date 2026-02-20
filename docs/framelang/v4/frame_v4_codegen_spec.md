@@ -831,9 +831,16 @@ foo_state_A(event):
         "$<"        → foo_state_A_exit(event)
         "start"     → foo_state_A_start(event)
         "process"   → foo_state_A_process(event)
-        _           → foo_state_Parent(event)     // HSM: forward to parent
-                    // or: do nothing              // no parent
+        _           → // EXPLICIT FORWARD ONLY (V4 semantics)
+                      // If state has `=> $^` at state level: foo_state_Parent(event)
+                      // Otherwise: do nothing (unhandled events are ignored)
 ```
+
+**V4 HSM Semantics (explicit-only forwarding):**
+- Unhandled events are **NOT** automatically forwarded to parent
+- `=> $^` must be used explicitly in handlers OR at state level
+- State-level `=> $^` adds default forward to else clause
+- Handler-level `=> $^` generates direct parent method call
 
 ### 8.5 Handler Method
 
@@ -909,7 +916,7 @@ framec/src/frame_c/
 │   │       ├── python.rs         # Python emitter
 │   │       ├── typescript.rs     # TypeScript emitter
 │   │       └── rust_backend.rs   # Rust emitter
-│   └── pipeline/
+│   └── pipeline/![img.png](img.png)
 │       ├── config.rs             # Pipeline configuration
 │       ├── compiler.rs           # Orchestrates parse → arcanum → validate → codegen → emit
 │       └── traits.rs             # Pipeline traits

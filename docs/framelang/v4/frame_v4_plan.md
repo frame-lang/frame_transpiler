@@ -1,324 +1,254 @@
 # Frame V4 Implementation Plan
 
-**Version:** 1.2
+**Version:** 2.0
 **Date:** February 2026
 **Status:** Active Development
 **Approach:** Test-Driven (PRT: Python, Rust, TypeScript)
 
 ---
 
-## Test Audit Summary
+## Current Status
 
-**Existing:** 9 core tests + 365 migrated tests
-**Required:** 24 tests per codegen spec
-**Gap:** 8 tests missing, 3 need dedicated versions
+**Test Results (2026-02-20):**
+- Python: 28/28 tests passing (100%)
+- TypeScript: 28/28 tests passing (100%)
+- Rust: 28/28 tests passing (100%)
 
----
-
-## Phase 0: Baseline Validation
-
-**Status:** COMPLETE
-
-**Goal:** Verify existing tests pass for all PRT languages
-
-**Results:**
-- Python: 9/9 tests pass
-- TypeScript: 7/7 tests pass
-- Rust: 9/9 tests pass (created 2026-02-15)
-
-**Rust Implementation Notes:**
-- Added match-based event dispatch for interface methods
-- Added match-based dispatch for enter/exit handlers
-- Added V4 syntax support to native region scanner (`push$`, `-> pop$`)
-- Fixed handler return types and tail expressions
-- Fixed state stack boxing/unboxing for `Any` type
-
-**Acceptance:** PASSED - All core tests pass for all 3 languages
+**Total: 84/84 tests passing (100%)**
 
 ---
 
-## Phase 1: State Variables (`$.varName`) & Compartment Architecture
+## Completed Phases
 
-**Status:** PARTIALLY IMPLEMENTED (basic works, push/pop needs compartment refactor)
+### Phase 0: Baseline Validation ✅
+- All PRT languages passing core tests
+- Basic transitions, enter/exit, domain vars
 
-### 1.0 Compartment Architecture (from Frame docs)
+### Phase 1: Compartment Architecture ✅
+- 6-field Compartment: state, state_args, state_vars, enter_args, exit_args, forward_event
+- State variable storage in `compartment.state_vars`
+- State stack stores entire compartments (push$/pop$)
+- Tests 10-12 passing
 
-Per the official Frame documentation, the **compartment** is a 6-field closure for states:
+### Phase 2: System Return ✅
+- `system.return = value` sets interface return
+- `return expr` sugar in handlers
+- `_return_value` field for return chain
+- Tests 13-16 passing
 
-| Field | Purpose |
-|-------|---------|
-| `state` | Current state identifier |
-| `state_args` | State parameters |
-| `state_vars` | State variables (`$.varName`) |
-| `enter_args` | Enter transition arguments |
-| `exit_args` | Exit transition arguments |
-| `forward_event` | Event forwarding support |
+### Phase 3: Extended Transitions ✅
+- Enter args: `-> (args) $State`
+- Exit args: `(args) -> $State`
+- Event forwarding: `-> => $State`
+- Pop transition: `-> pop$`
+- Tests 17-20 passing
 
-**Key behaviors:**
-- State vars **reset** on normal reentry (`-> $State`)
-- State vars **preserve** on history return (`-> pop$`)
-- State stack stores **entire compartments**
+### Phase 4: Actions & Operations ✅
+- Actions: private helpers with state/domain access
+- Operations: public methods bypassing state machine
+- Tests 21-22 passing
 
-### 1.1 Tests
+### Phase 5: Persistence ✅
+- `@@persist` generates save_state/restore_state
+- Language-native serialization (pickle, JSON, serde)
+- State stack serialization
+- Tests 23-25 passing
 
-| Test File | Status | Validates |
-|-----------|--------|-----------|
-| `10_state_var_basic.frm` | ✅ PASS | `$.var` declaration, init, read, write |
-| `11_state_var_reentry.frm` | ✅ PASS | `$.var` reinitialized when state re-entered |
-| `12_state_var_push_pop.frm` | ❌ FAIL | `$.var` preserved across push$/pop$ |
+### Phase 6: State Parameters ✅
+- `-> $State(args)` passes to state_args
+- Constructor `$(params)` for start state
+- Test 26 passing
 
-Tests 10 & 11 pass because basic state var access works.
-Test 12 fails because `push$`/`pop$` aren't expanded yet.
+### Phase 7.1: State-Level Default Forward ✅
+- `=> $^` at state level forwards ALL unhandled events to parent
+- Adds else clause in state dispatch for child states
+- Test 30 passing
 
-### 1.2 Current Implementation
+### Phase 8: Forward Event Refinements ✅
+- Kernel sends `$>` before non-`$>` forward events
+- `-> =>` properly initializes state before forwarding
+- Test 29 passing
 
-**What works:**
-- Declaration parsing: `$.varName: type = init`
-- Reference detection: `$.varName` as Frame segment
-- Expansion: `$.count` → `self._state_context["count"]` (Python/TS)
-- Initialization in `_enter()` method
+### Phase 10: Test Infrastructure ✅
+- Tests output to proper test crates (not /tmp)
+- Python: `python_test_crate/tests/`
+- TypeScript: `typescript_test_crate/tests/`
+- Rust: `rust_test_crate/tests/`
+- Rust tests run via cargo for dependency support
 
-**What needs refactoring:**
-- Replace `_state_context` with proper `_compartment.state_vars`
-- Implement `push$` → save compartment to stack
-- Implement `-> pop$` → restore compartment from stack
+---
 
-### 1.3 Implementation Tasks (Compartment Refactor)
+## Runtime Architecture (Implemented)
 
-1. **Generate Compartment class** with 6 fields per official spec
-2. **Replace `_state_context`** with `_compartment.state_vars`
-3. **Update state var access** to use `_compartment.state_vars["name"]`
-4. **Implement `push$`** → `_state_stack.append(copy(_compartment))`
-5. **Implement `-> pop$`** → `_compartment = _state_stack.pop()`
-6. **Update transitions** to create new compartment with initialized state_vars
+### Python & TypeScript Runtime
 
-### 1.4 Verify
+Full kernel/router/transition pattern:
 
-```bash
-# Already passing:
-./target/release/framec test.fpy | python3  # tests 10, 11
+```python
+class System:
+    __compartment: Compartment           # Current state
+    __next_compartment: Compartment?     # Deferred transition
+    _state_stack: list[Compartment]      # History stack
+    _return_value: any                   # Return chain
 
-# Must pass after refactor:
-./target/release/framec test.fpy | python3  # test 12
+    def __kernel(self, __e):
+        self.__router(__e)
+        while self.__next_compartment is not None:
+            # Process deferred transition
+            # Exit current, switch, enter new (or forward)
+
+    def __router(self, __e):
+        # Dynamic dispatch to _state_X method
+
+    def __transition(self, compartment):
+        self.__next_compartment = compartment  # Deferred
 ```
 
----
+### Rust Runtime
 
-## Phase 2: System Return
+Match-based dispatch (no dynamic dispatch):
 
-**Status:** PARTIALLY IMPLEMENTED (validation only)
+```rust
+impl System {
+    _state: String,
+    _state_stack: Vec<Box<dyn Any>>,
 
-### 2.1 Write Tests First
+    pub fn method(&mut self) {
+        match self._state.as_str() {
+            "StateA" => self._s_StateA_method(),
+            "StateB" => self._s_StateB_method(),
+            _ => {}
+        }
+    }
 
-| Test File | Validates |
-|-----------|-----------|
-| `13_system_return_basic.frm` | `system.return = value` sets interface return |
-| `14_system_return_default.frm` | Default return when handler doesn't set |
-| `15_system_return_chain.frm` | Last writer wins across transitions |
-| `16_system_return_reentrant.frm` | Nested interface calls maintain separate returns |
-
-### 2.2 Implementation Tasks
-
-1. Parse default returns: `method(): type = default`
-2. Generate return stack field
-3. Generate push (with default) in interface methods
-4. Generate pop and return in interface methods
-5. Expand `system.return = expr` in splicer
-6. Expand `return expr` sugar in handlers (not actions)
-
-### 2.3 Verify
-
-All 4 tests pass for Python, TypeScript, Rust
-
----
-
-## Phase 3: Extended Transitions
-
-**Status:** PARTIAL
-
-### 3.1 Write Tests First
-
-| Test File | Validates |
-|-----------|-----------|
-| `17_transition_enter_args.frm` | `-> (args) $State` passes to enter handler |
-| `18_transition_exit_args.frm` | `(args) -> $State` passes to exit handler |
-| `19_event_forwarding.frm` | `-> => $State` forwards current event |
-| `20_transition_pop.frm` | `-> pop$` transitions with lifecycle |
-
-### 3.2 Implementation Tasks
-
-1. Parse `-> pop$` in `frame_statement_parser.rs`
-2. Add `TransitionTarget::Pop` to AST
-3. Generate pop transition in splicer
-4. Test enter/exit arg passing (may already work)
-5. Test event forwarding (may already work)
-
-### 3.3 Verify
-
-All 4 tests pass for PRT
-
----
-
-## Phase 4: @@codegen Directive
-
-**Status:** NOT IMPLEMENTED
-
-### Purpose
-
-The `@@codegen` directive allows users to explicitly request FrameEvent class generation. This is the ONLY user-controllable codegen option. State stack generation is internal compiler logic and not user-configurable.
-
-### Syntax
-
-```frame
-@@target python_3
-
-@@codegen {
-    frame_event: on
+    fn _transition(&mut self, target: &str) {
+        self._exit();
+        self._state = target.to_string();
+        self._enter();
+    }
 }
-
-@@system MySystem { ... }
 ```
 
-### 4.1 Write Tests First
-
-| Test File | Validates |
-|-----------|-----------|
-| `26_codegen_frame_event.frm` | `frame_event: on` generates FrameEvent class |
-
-### 4.2 Implementation Tasks
-
-1. Parse `@@codegen { frame_event: on|off }` after `@@target`
-2. Add `codegen_config` field to `FrameAst`
-3. Generate FrameEvent class when `frame_event: on` or auto-enabled
-4. Auto-enable `frame_event` when spec requires it:
-   - Enter/exit args on transitions
-   - Event forwarding (`-> =>`)
-   - `system.return` usage
-   - Interface methods with return values
-5. Generate W401 warning when auto-enable overrides explicit `off`
-
-### 4.3 Verify
-
-Test passes for PRT
-
 ---
 
-## Phase 5: Static Operations
+## Remaining Implementation Work
 
-**Status:** NOT IMPLEMENTED
+### Phase 7.2: HSM Parent Access (Planned)
 
-### 5.1 Write Tests First
+**Completed:**
+- `$Child => $Parent` syntax parsing ✅
+- `=> $^` generates direct parent call ✅
+- State-level `=> $^` forwards unhandled events ✅
+- Test 08_hsm, 30_hsm_default_forward passing ✅
 
-| Test File | Validates |
-|-----------|-----------|
-| `22_static_operations.frm` | `static op()` has no self/this |
+**Needs Implementation:**
+1. **parent_compartment field** — Set when creating child state compartment
+2. **Parent state_vars access** — Child accessing `$^.varName` for parent state vars
 
-### 5.2 Implementation Tasks
+**Test Coverage:**
+- `08_hsm.fpy` — Basic explicit forward ✅
+- `30_hsm_default_forward.fpy` — State-level `=> $^` ✅
+- Need: `31_hsm_parent_vars.frm` — Accessing parent state vars
 
-1. Parse `static` keyword in operations
-2. Validate no instance access
-3. Generate `@staticmethod` / `static`
+### Phase 9: Rust Compartment Architecture
 
-### 5.3 Verify
+**Current State:**
+- Rust uses simplified match-based dispatch
+- No FrameEvent/Compartment classes
+- Tests passing via direct state tracking
 
-Test passes for PRT
+**Should Implement:**
+1. **Rust Compartment struct** with typed fields
+2. **Rust FrameEvent struct** for event metadata
+3. **Kernel pattern** matching Python/TypeScript architecture
 
----
-
-## Phase 6: Persistence
-
-**Status:** NOT IMPLEMENTED
-
-### 6.1 Write Tests First
-
-| Test File | Validates |
-|-----------|-----------|
-| `23_persist_basic.frm` | `@@persist` generates save/restore |
-| `24_persist_roundtrip.frm` | Save → restore preserves state + domain |
-
-### 6.2 Implementation Tasks
-
-1. Generate `_save()` method
-2. Generate `_restore(data)` class method
-3. Handle state stack serialization
-4. Handle field filtering (`domain=[...]`, `exclude=[...]`)
-
-### 6.3 Verify
-
-Tests pass for PRT
-
----
-
-## Phase 7: Service Pattern
-
-**Status:** NOT TESTED
-
-### 7.1 Write Tests First
-
-| Test File | Validates |
-|-----------|-----------|
-| `25_service_pattern.frm` | Enter handler chains don't stack overflow |
-
-### 7.2 Implementation Tasks
-
-Kernel already handles this. Just need test validation.
-
-### 7.3 Verify
-
-Test passes for PRT
+**Trade-offs:**
+- More code but consistent cross-language model
+- Better support for complex features (forward event, parent_compartment)
+- Required for full HSM and event forwarding semantics
 
 ---
 
 ## Test Summary
 
-| # | Test File | Phase | Feature |
-|---|-----------|-------|---------|
-| 10 | `10_state_var_basic.frm` | 1 | State variables |
-| 11 | `11_state_var_reentry.frm` | 1 | State var reentry |
-| 12 | `12_state_var_push_pop.frm` | 1 | State var + stack |
-| 13 | `13_system_return_basic.frm` | 2 | system.return |
-| 14 | `14_system_return_default.frm` | 2 | Default returns |
-| 15 | `15_system_return_chain.frm` | 2 | Return chaining |
-| 16 | `16_system_return_reentrant.frm` | 2 | Return reentrancy |
-| 17 | `17_transition_enter_args.frm` | 3 | Enter args |
-| 18 | `18_transition_exit_args.frm` | 3 | Exit args |
-| 19 | `19_event_forwarding.frm` | 3 | `-> =>` |
-| 20 | `20_transition_pop.frm` | 3 | `-> pop$` |
-| 21 | `21_codegen_auto_enable.frm` | 4 | @@codegen |
-| 22 | `22_static_operations.frm` | 5 | Static ops |
-| 23 | `23_persist_basic.frm` | 6 | @@persist |
-| 24 | `24_persist_roundtrip.frm` | 6 | Persistence |
-| 25 | `25_service_pattern.frm` | 7 | Enter chains |
+| # | Test File | Status | Validates |
+|---|-----------|--------|-----------|
+| 01 | `01_minimal` | ✅ | Basic system instantiation |
+| 02 | `02_interface` | ✅ | Interface method definitions |
+| 03 | `03_transition` | ✅ | State transitions |
+| 04 | `04_native_code` | ✅ | Native language integration |
+| 05 | `05_enter_exit` | ✅ | State entry/exit handlers |
+| 06 | `06_domain_vars` | ✅ | Domain variables |
+| 07 | `07_params` | ✅ | Event parameters |
+| 08 | `08_hsm` | ✅ | HSM explicit forward |
+| 09 | `09_stack` | ✅ | State stack operations |
+| 10 | `10_state_var_basic` | ✅ | State variables basics |
+| 11 | `11_state_var_reentry` | ✅ | State variable reentry |
+| 12 | `12_state_var_push_pop` | ✅ | State var push/pop |
+| 13 | `13_system_return` | ✅ | System return values |
+| 14 | `14_system_return_default` | ✅ | Default return values |
+| 15 | `15_system_return_chain` | ✅ | Chained return values |
+| 16 | `16_system_return_reentrant` | ✅ | Reentrant returns |
+| 17 | `17_transition_enter_args` | ✅ | Enter transition args |
+| 18 | `18_transition_exit_args` | ✅ | Exit transition args |
+| 19 | `19_transition_forward` | ✅ | Forward transitions |
+| 20 | `20_transition_pop` | ✅ | Pop transitions |
+| 21 | `21_actions_basic` | ✅ | Basic actions |
+| 22 | `22_operations_basic` | ✅ | Basic operations |
+| 23 | `23_persist_basic` | ✅ | Basic persistence |
+| 24 | `24_persist_roundtrip` | ✅ | Persistence roundtrip |
+| 25 | `25_persist_stack` | ✅ | Persistence with stack |
+| 26 | `26_state_params` | ✅ | State parameters |
+| 29 | `29_forward_enter_first` | ✅ | Send $> before non-$> forward |
+| 30 | `30_hsm_default_forward` | ✅ | State-level `=> $^` |
+
+**Planned Additional Tests:**
+| # | Test File | Phase | Validates |
+|---|-----------|-------|-----------|
+| 31 | `31_hsm_parent_vars` | 7.2 | Parent state var access |
 
 ---
 
 ## Validation Commands
 
-**Single test:**
+**V4 Test Runner:**
 ```bash
-frame-docker-runner python_3 10_state_var_basic --framec ./target/release/framec
+cd framepiler_test_env/common/test-frames/v4/prt
+./run_tests.sh   # Runs all 28 tests for Python, TypeScript, Rust
 ```
 
-**All tests:**
+**Single Language:**
 ```bash
-for lang in python_3 typescript rust; do
-    frame-docker-runner $lang --all --framec ./target/release/framec
-done
+# Python only
+./run_tests.sh 2>&1 | grep python_3
+
+# Check specific test output
+cat framepiler_test_env/python_test_crate/tests/08_hsm.py
 ```
 
 ---
 
 ## Success Criteria
 
-| Phase | Tests | Must Pass |
-|-------|-------|-----------|
-| 0 | 01-09 | All PRT |
-| 1 | 10-12 | All PRT |
-| 2 | 13-16 | All PRT |
-| 3 | 17-20 | All PRT |
-| 4 | 21 | All PRT |
-| 5 | 22 | All PRT |
-| 6 | 23-24 | All PRT |
-| 7 | 25 | All PRT |
+| Phase | Tests | Status |
+|-------|-------|--------|
+| 0-6 | 01-26 | ✅ 78/78 passing |
+| 7.1 | 30 | ✅ 3/3 passing |
+| 8 | 29 | ✅ 3/3 passing |
+| 7.2 | 31 | Planned |
+| 9 | N/A | Architecture |
 
-**Final:** 25 tests × 3 languages = 75 test passes
+**Current:** 84/84 (100%)
+**Target:** 87/87 (with Phase 7.2 tests)
+
+---
+
+## Documentation
+
+| Document | Status |
+|----------|--------|
+| [frame_v4_lang_reference.md](frame_v4_lang_reference.md) | ✅ Complete |
+| [frame_v4_architecture.md](frame_v4_architecture.md) | ✅ Complete |
+| [frame_v4_codegen_spec.md](frame_v4_codegen_spec.md) | ✅ Complete |
+| [frame_v4_runtime.md](frame_v4_runtime.md) | ✅ NEW - Runtime specification |
+| [frame_v4_error_codes.md](frame_v4_error_codes.md) | ✅ Complete |

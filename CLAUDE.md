@@ -22,6 +22,7 @@
 7. **NEVER commit without explicit permission** - Prepare changes and wait for user approval before committing
 8. **NEVER read DEPRECATED files** - Files with `_` prefix (e.g., `_filename.md`) are deprecated and must not be read unless the user explicitly instructs you to. These files may contain outdated or incorrect information
 9. **NEVER add yourself as author** - Do not add "Author: Claude" or similar attribution to any documentation files
+10. **USE TEST REPO INFRASTRUCTURE** - Always use the language-specific test crates in `framepiler_test_env/` for generated output. Never use `/tmp` except for quick experiments. The test crates have proper dependencies (e.g., Rust crate has serde_json)
 
 ## Frame Syntax - IMPORTANT
 ### ⚠️ DEPRECATED/INVALID Syntax (NEVER USE)
@@ -76,21 +77,28 @@ system SystemName {
 ## Current State
 - **Version**: v0.87.2 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
-- **V4 Test Status**: Python 9/9, Rust 9/9, TypeScript 2/9 (TS failures due to Python syntax in test native code)
+- **V4 Test Status**: Python 26/26, TypeScript 26/26, Rust 26/26 (78/78 total - 100%)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 
-## Test Infrastructure (IMPORTANT - READ GETTING_STARTED.md)
-- **All tests in shared environment** - No test infrastructure in transpiler repo
+## Test Infrastructure (CRITICAL - USE TEST REPO ONLY)
+
+🚨 **ALWAYS use the test repo infrastructure** - NEVER use `/tmp` for test output except for quick experiments.
+
+**Test Crates (use these for all V4 testing):**
+- `framepiler_test_env/python_test_crate/tests/` - Python generated output
+- `framepiler_test_env/typescript_test_crate/tests/` - TypeScript generated output
+- `framepiler_test_env/rust_test_crate/tests/` - Rust generated output (has Cargo.toml with serde)
+
+**Test Sources:**
+- **V4 tests**: `framepiler_test_env/common/test-frames/v4/prt/` (26 tests × 3 languages)
 - **V3 tests (legacy)**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
-- **V4 tests**: `framepiler_test_env/common/test-frames/v4/prt/` (9 tests per language)
 
 ### V4 Test Runner (Primary for V4 work)
 ```bash
 cd framepiler_test_env/common/test-frames/v4/prt
-./run_tests.sh   # Runs all 9 tests for Python, TypeScript, Rust
+./run_tests.sh   # Runs all 26 tests for Python, TypeScript, Rust
 ```
-Output: `/tmp/v4_prt_tests/` - Generated code for inspection
 
 ### V3 Docker Test Runner (Legacy)
 ```bash

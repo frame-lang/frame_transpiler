@@ -241,18 +241,35 @@ $< ( <params>? ) {
 
 Called when the state is exited via a transition. Parameters come from the transition's exit args.
 
-### 4.6 Default Forward (HSM)
+### 4.6 HSM Parent Forward (`=> $^`)
 
-A state with a parent may include a bare forward as its last entry:
+**V4 uses explicit-only forwarding.** Unhandled events are NOT automatically forwarded to parent states.
+
+**In-handler forward:** Forwards the current event to parent at that point in the handler:
+
+```
+$Child => $Parent {
+    event_a() {
+        log("Child processing")
+        => $^   // Forward to Parent's event_a handler
+    }
+}
+```
+
+**State-level default forward:** A bare `=> $^` as the last entry forwards ALL unhandled events:
 
 ```
 $Child => $Parent {
     specific_event() { ... }
-    => $^                       // all other events forward to parent
+    => $^                       // All other events forward to parent
 }
 ```
 
-This is shorthand: any event not explicitly handled in this state is forwarded to the parent state's dispatch function.
+**Key V4 semantics:**
+- `:>` (continue operator) is **deprecated** — no longer exists in V4
+- `=> $^` is the **only** way to forward to parent
+- `=> $^` can appear **anywhere** in a handler, not just at the end
+- Without `=> $^`, unhandled events are **ignored**, not forwarded
 
 ---
 

@@ -550,6 +550,7 @@ impl FrameParser {
         let mut handlers = vec![];
         let mut enter = None;
         let mut exit = None;
+        let mut default_forward = false;
 
         loop {
             self.skip_whitespace();
@@ -571,6 +572,12 @@ impl FrameParser {
             } else if self.peek_string("$.") {
                 // State variable ($.varName: type = init)
                 state_vars.push(self.parse_state_var()?);
+            } else if self.peek_string("=>") {
+                // State-level default forward (=> $^)
+                self.cursor += 2;
+                self.skip_whitespace();
+                self.expect_string("$^")?;
+                default_forward = true;
             } else if self.peek_identifier() {
                 // Event handler
                 handlers.push(self.parse_handler()?);
@@ -591,6 +598,7 @@ impl FrameParser {
             handlers,
             enter,
             exit,
+            default_forward,
             span: Span::new(start, self.cursor),
             body_span: Span::new(start, end), // Body span before closing brace
         })

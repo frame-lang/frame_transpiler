@@ -175,6 +175,8 @@ pub struct StateAst {
     pub handlers: Vec<HandlerAst>,
     pub enter: Option<EnterHandler>,
     pub exit: Option<ExitHandler>,
+    /// State-level default forward to parent (bare `=> $^` at state level)
+    pub default_forward: bool,
     pub span: Span,
     /// Body span (inside braces only, for precise error reporting)
     pub body_span: Span,
@@ -573,6 +575,7 @@ impl StateAst {
             handlers: vec![],
             enter: None,
             exit: None,
+            default_forward: false,
             span: span.clone(),
             body_span: span,
         }

@@ -11,6 +11,7 @@
 | Document | Purpose |
 |----------|---------|
 | [frame_v4_lang_reference.md](frame_v4_lang_reference.md) | Complete language specification |
+| [frame_v4_runtime.md](frame_v4_runtime.md) | Runtime architecture and semantics |
 | [frame_v4_architecture.md](frame_v4_architecture.md) | Transpiler architecture and pipeline |
 | [frame_v4_codegen_spec.md](frame_v4_codegen_spec.md) | Generated code specification for all targets |
 | [frame_v4_error_codes.md](frame_v4_error_codes.md) | Error and warning code reference |
