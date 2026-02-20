@@ -103,9 +103,13 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
     let mut fields = Vec::new();
 
     // State field - stores current state name as string
-    fields.push(Field::new("_state")
-        .with_visibility(Visibility::Private)
-        .with_type("str"));
+    // For Python/TypeScript: removed in Phase 14.6, use _compartment.state instead
+    // For Rust: keep _state field (Rust uses different compartment pattern)
+    if matches!(syntax.language, TargetLanguage::Rust) {
+        fields.push(Field::new("_state")
+            .with_visibility(Visibility::Private)
+            .with_type("str"));
+    }
 
     // State stack - for push/pop state operations
     // For Rust with state vars: Vec<(String, {System}Compartment)> - fully typed
@@ -519,17 +523,19 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
         }
     }
 
-    // Set initial state as string (first state in machine)
+    // Set initial state (first state in machine)
     if let Some(ref machine) = system.machine {
         if let Some(first_state) = machine.states.first() {
-            body.push(CodegenNode::assign(
-                CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                CodegenNode::string(&first_state.name),
-            ));
-
-            // Initialize compartment with initial state (for Python/TypeScript)
-            // The compartment starts with the initial state name
-            if !matches!(syntax.language, TargetLanguage::Rust) {
+            // For Rust: set _state field
+            // For Python/TypeScript: use _compartment.state (no _state field)
+            if matches!(syntax.language, TargetLanguage::Rust) {
+                body.push(CodegenNode::assign(
+                    CodegenNode::field(CodegenNode::self_ref(), "_state"),
+                    CodegenNode::string(&first_state.name),
+                ));
+            } else {
+                // Initialize compartment with initial state (for Python/TypeScript)
+                // The compartment holds the state via compartment.state
                 let compartment_class = format!("{}Compartment", system.name);
                 body.push(CodegenNode::assign(
                     CodegenNode::field(CodegenNode::self_ref(), "_compartment"),
@@ -595,7 +601,8 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
         _ => CodegenNode::ident("target_state"),
     };
     // Language-specific _transition body that passes args to _exit and _enter
-    // For Python/TypeScript: create new compartment and sync legacy _state field
+    // For Python/TypeScript: create new compartment (state is in compartment.state, no _state field)
+    // For Rust: set _state field directly
     let compartment_class = format!("{}Compartment", system.name);
     let transition_body = match lang {
         TargetLanguage::Python3 => {
@@ -606,7 +613,6 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
 else:
     self._exit()
 self._compartment = {}(target_state)
-self._state = target_state
 if enter_args:
     self._enter(*enter_args)
 else:
@@ -625,7 +631,6 @@ else:
     this._exit();
 }}
 this._compartment = new {}(target_state);
-this._state = target_state;
 if (enter_args) {{
     this._enter(...enter_args);
 }} else {{
@@ -637,7 +642,7 @@ if (enter_args) {{
             }]
         }
         TargetLanguage::Rust => {
-            // Rust doesn't support variable args yet, use simple dispatch
+            // Rust uses _state field directly (no compartment object)
             vec![
                 CodegenNode::ExprStmt(Box::new(
                     CodegenNode::method_call(CodegenNode::self_ref(), "_exit", vec![]),
@@ -652,6 +657,7 @@ if (enter_args) {{
             ]
         }
         _ => {
+            // Default: same as TypeScript
             vec![CodegenNode::NativeBlock {
                 code: format!(
                     r#"if (exit_args) {{
@@ -660,7 +666,6 @@ if (enter_args) {{
     this._exit();
 }}
 this._compartment = new {}(target_state);
-this._state = target_state;
 if (enter_args) {{
     this._enter(...enter_args);
 }} else {{
@@ -689,12 +694,14 @@ if (enter_args) {{
 
     // _dispatch_event method - routes events to current state's handler
     // Language-specific dynamic dispatch implementation
+    // Python/TypeScript: use _compartment.state (no _state field)
+    // Rust: use _state field directly
     let (dispatch_params, dispatch_body) = match lang {
         TargetLanguage::Python3 => {
             (
                 vec![Param::new("event"), Param::new("*args")],
                 vec![CodegenNode::NativeBlock {
-                    code: "handler_name = f\"_s_{self._state}_{event}\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    return handler(*args)".to_string(),
+                    code: "handler_name = f\"_s_{self._compartment.state}_{event}\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    return handler(*args)".to_string(),
                     span: None,
                 }],
             )
@@ -706,7 +713,7 @@ if (enter_args) {{
                     Param::new("...args").with_type("any[]"),
                 ],
                 vec![CodegenNode::NativeBlock {
-                    code: "const handler_name = `_s_${this._state}_${event}`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    return handler.apply(this, args);\n}".to_string(),
+                    code: "const handler_name = `_s_${this._compartment.state}_${event}`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    return handler.apply(this, args);\n}".to_string(),
                     span: None,
                 }],
             )
@@ -900,7 +907,7 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
                     String::new()
                 };
                 let handler_code = if has_enter_handlers {
-                    "handler_name = f\"_s_{self._state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)"
+                    "handler_name = f\"_s_{self._compartment.state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)"
                 } else {
                     ""
                 };
@@ -916,7 +923,7 @@ fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codege
                     String::new()
                 };
                 let handler_code = if has_enter_handlers {
-                    "const handler_name = `_s_${this._state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}"
+                    "const handler_name = `_s_${this._compartment.state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}"
                 } else {
                     ""
                 };
@@ -971,13 +978,13 @@ fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> Codegen
         match lang {
             TargetLanguage::Python3 => {
                 vec![CodegenNode::NativeBlock {
-                    code: "handler_name = f\"_s_{self._state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)".to_string(),
+                    code: "handler_name = f\"_s_{self._compartment.state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)".to_string(),
                     span: None,
                 }]
             }
             TargetLanguage::TypeScript => {
                 vec![CodegenNode::NativeBlock {
-                    code: "const handler_name = `_s_${this._state}_exit`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}".to_string(),
+                    code: "const handler_name = `_s_${this._compartment.state}_exit`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}".to_string(),
                     span: None,
                 }]
             }
@@ -1023,10 +1030,11 @@ fn generate_state_var_init(system: &SystemAst, lang: TargetLanguage) -> String {
                 continue;
             }
 
+            // Python/TypeScript: use _compartment.state (no _state field)
             let condition = if first {
-                format!("if {}._state == \"{}\":", self_ref, state.name)
+                format!("if {}._compartment.state == \"{}\":", self_ref, state.name)
             } else {
-                format!("elif {}._state == \"{}\":", self_ref, state.name)
+                format!("elif {}._compartment.state == \"{}\":", self_ref, state.name)
             };
             first = false;
 
@@ -1046,9 +1054,9 @@ fn generate_state_var_init(system: &SystemAst, lang: TargetLanguage) -> String {
                 }
                 TargetLanguage::TypeScript => {
                     let ts_condition = if code.is_empty() {
-                        format!("if ({}._state === \"{}\") {{\n", self_ref, state.name)
+                        format!("if ({}._compartment.state === \"{}\") {{\n", self_ref, state.name)
                     } else {
-                        format!("}} else if ({}._state === \"{}\") {{\n", self_ref, state.name)
+                        format!("}} else if ({}._compartment.state === \"{}\") {{\n", self_ref, state.name)
                     };
                     code.push_str(&ts_condition);
                     for var in &state.state_vars {
@@ -1848,15 +1856,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
         FrameSegmentKindV3::StackPop => {
             // Restore compartment from stack - preserves state vars
             // Call _exit() on current state, then restore compartment (no _enter since we're restoring)
-            // Phase 14.6: No _state_context sync needed - state vars live in compartment.state_vars
+            // Phase 14.6: No _state field for Python/TypeScript - state lives in compartment.state
             match lang {
                 TargetLanguage::Python3 => format!(
-                    "{}self._exit()\n{}self._compartment = self._state_stack.pop()\n{}self._state = self._compartment.state\n{}return",
-                    indent_str, indent_str, indent_str, indent_str
+                    "{}self._exit()\n{}self._compartment = self._state_stack.pop()\n{}return",
+                    indent_str, indent_str, indent_str
                 ),
                 TargetLanguage::TypeScript => format!(
-                    "{}this._exit();\n{}this._compartment = this._state_stack.pop()!;\n{}this._state = this._compartment.state;\n{}return;",
-                    indent_str, indent_str, indent_str, indent_str
+                    "{}this._exit();\n{}this._compartment = this._state_stack.pop()!;\n{}return;",
+                    indent_str, indent_str, indent_str
                 ),
                 // Rust: Use compartment-based method if there are state vars, else simple pop
                 TargetLanguage::Rust => {
@@ -1870,8 +1878,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 _ => format!(
-                    "{}this._exit();\n{}this._compartment = this._state_stack.pop()!;\n{}this._state = this._compartment.state;\n{}return;",
-                    indent_str, indent_str, indent_str, indent_str
+                    "{}this._exit();\n{}this._compartment = this._state_stack.pop()!;\n{}return;",
+                    indent_str, indent_str, indent_str
                 ),
             }
         }
@@ -2253,10 +2261,9 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
         }
         TargetLanguage::TypeScript => {
             // Generate saveState method
-            // Phase 14.6: Serialize compartment structure (no _state_context)
+            // Phase 14.6: Serialize compartment structure (no _state field, state lives in compartment)
             let mut save_body = String::new();
             save_body.push_str("return {\n");
-            save_body.push_str("    _state: this._state,\n");
             save_body.push_str("    _compartment: this._compartment.copy(),\n");
             // Stack stores compartment objects
             save_body.push_str("    _state_stack: this._state_stack.map(c => c.copy()),\n");
@@ -2283,11 +2290,10 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             });
 
             // Generate restoreState static method
-            // Phase 14.6: Restore compartment structure (no _state_context)
+            // Phase 14.6: Restore compartment structure (no _state field, state lives in compartment)
             let mut restore_body = String::new();
             restore_body.push_str(&format!("const instance = Object.create({}.prototype);\n", system.name));
-            restore_body.push_str("instance._state = data._state;\n");
-            // Restore compartment - create fresh instance and copy properties
+            // Restore compartment - create fresh instance and copy properties (state is in compartment.state)
             restore_body.push_str(&format!("instance._compartment = new {}Compartment(data._compartment.state);\n", system.name));
             restore_body.push_str("instance._compartment.state_args = {...(data._compartment.state_args || {})};\n");
             restore_body.push_str("instance._compartment.state_vars = {...(data._compartment.state_vars || {})};\n");
