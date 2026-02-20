@@ -166,11 +166,19 @@ impl Arcanum {
             .map(|s| s.params.len())
     }
 
-    /// Get enter handler parameter count for transition arg validation (E405)
-    /// Transition args (-> $State(args)) go to the enter handler ($>), not state params
+    /// Get enter handler parameter count for transition arg validation (E417)
+    /// Enter args (-> (args) $State) go to the enter handler ($>)
     pub fn get_enter_handler_param_count(&self, system: &str, state: &str) -> Option<usize> {
         self.get_enhanced_state(system, state)
             .and_then(|s| s.handlers.get("$>"))
+            .map(|h| h.params.len())
+    }
+
+    /// Get exit handler parameter count for transition arg validation (E419)
+    /// Exit args ((args) -> $State) go to the exit handler ($<)
+    pub fn get_exit_handler_param_count(&self, system: &str, state: &str) -> Option<usize> {
+        self.get_enhanced_state(system, state)
+            .and_then(|s| s.handlers.get("$<"))
             .map(|h| h.params.len())
     }
 
@@ -178,6 +186,13 @@ impl Arcanum {
     pub fn has_enter_handler(&self, system: &str, state: &str) -> bool {
         self.get_enhanced_state(system, state)
             .map(|s| s.handlers.contains_key("$>"))
+            .unwrap_or(false)
+    }
+
+    /// Check if state has an exit handler
+    pub fn has_exit_handler(&self, system: &str, state: &str) -> bool {
+        self.get_enhanced_state(system, state)
+            .map(|s| s.handlers.contains_key("$<"))
             .unwrap_or(false)
     }
 

@@ -8,6 +8,8 @@
 //! - E113: System blocks out of order
 //! - E114: Duplicate section block in system
 //! - E115: Multiple 'fn main' functions in module
+//! - E116: Duplicate state name in machine
+//! - E117: Duplicate handler in state
 //!
 //! ## Semantic Errors (E4xx)
 //! - E400: Transition must be last statement in block
@@ -15,11 +17,28 @@
 //! - E402: Unknown state in transition
 //! - E403: Invalid parent forwards in HSM
 //! - E404: Handler body must be inside a state block
-//! - E405: State parameter arity mismatch
-//! - E406: Invalid interface method calls
+//! - E405: State parameter arity mismatch (-> $State(args))
+//! - E406: Interface handler parameter count mismatch
+//! - E410: Duplicate state variable in state ($.varName)
+//! - E413: Cyclic HSM parent relationship
 //! - E416: Start params must match start state params
-//! - E417: Enter params must match $>() handler params
+//! - E417: Enter args must match $>() handler params (-> (args) $State)
 //! - E418: Domain param has no matching variable
+//! - E419: Exit args must match $<() handler params ((args) -> $State)
+//! - E420: Forward event not handled by parent state
+//!
+//! ## Warnings (W4xx)
+//! - W414: Unreachable state from start state
+//!
+//! ## Compartment Field Mapping (Canonical 6-field model)
+//!
+//! | Syntax                  | Field           | Error Code |
+//! |-------------------------|-----------------|------------|
+//! | `-> $State(args)`       | state_args      | E405       |
+//! | `-> (args) $State`      | enter_args      | E417       |
+//! | `(args) -> $State`      | exit_args       | E419       |
+//! | `-> => $State`          | forward_event   | E420       |
+//! | `$.varName`             | state_vars      | E410       |
 
 use super::frame_ast::*;
 use super::arcanum::Arcanum;

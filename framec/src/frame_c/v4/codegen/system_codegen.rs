@@ -574,7 +574,8 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
 fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSyntax, lang: TargetLanguage) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
 
-    // _transition method - takes state name as string
+    // _transition method - takes state name as string, plus optional args
+    // Parameters: target_state, exit_args, enter_args, state_args
     // Language-specific parameter types
     let transition_params = match lang {
         TargetLanguage::Rust => vec![
@@ -584,11 +585,13 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
             Param::new("target_state").with_type("string"),
             Param::new("exit_args").with_type("any").with_default(CodegenNode::null()),
             Param::new("enter_args").with_type("any").with_default(CodegenNode::null()),
+            Param::new("state_args").with_type("Record<string, any>").with_default(CodegenNode::null()),
         ],
         _ => vec![
             Param::new("target_state"),
             Param::new("exit_args").with_default(CodegenNode::null()),
             Param::new("enter_args").with_default(CodegenNode::null()),
+            Param::new("state_args").with_default(CodegenNode::null()),
         ],
     };
     // Language-specific state assignment (Rust needs .to_string())
@@ -609,11 +612,15 @@ fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSy
             vec![CodegenNode::NativeBlock {
                 code: format!(
                     r#"if exit_args:
+    self._compartment.exit_args = dict(enumerate(exit_args))
     self._exit(*exit_args)
 else:
     self._exit()
 self._compartment = {}(target_state)
+if state_args:
+    self._compartment.state_args = state_args
 if enter_args:
+    self._compartment.enter_args = dict(enumerate(enter_args))
     self._enter(*enter_args)
 else:
     self._enter()"#,
@@ -626,12 +633,17 @@ else:
             vec![CodegenNode::NativeBlock {
                 code: format!(
                     r#"if (exit_args) {{
+    this._compartment.exit_args = Object.fromEntries(exit_args.map((v, i) => [String(i), v]));
     this._exit(...exit_args);
 }} else {{
     this._exit();
 }}
 this._compartment = new {}(target_state);
+if (state_args) {{
+    this._compartment.state_args = state_args;
+}}
 if (enter_args) {{
+    this._compartment.enter_args = Object.fromEntries(enter_args.map((v, i) => [String(i), v]));
     this._enter(...enter_args);
 }} else {{
     this._enter();
@@ -661,12 +673,17 @@ if (enter_args) {{
             vec![CodegenNode::NativeBlock {
                 code: format!(
                     r#"if (exit_args) {{
+    this._compartment.exit_args = Object.fromEntries(exit_args.map((v, i) => [String(i), v]));
     this._exit(...exit_args);
 }} else {{
     this._exit();
 }}
 this._compartment = new {}(target_state);
+if (state_args) {{
+    this._compartment.state_args = state_args;
+}}
 if (enter_args) {{
+    this._compartment.enter_args = Object.fromEntries(enter_args.map((v, i) => [String(i), v]));
     this._enter(...enter_args);
 }} else {{
     this._enter();
@@ -1740,31 +1757,78 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             } else {
                 let target = extract_transition_target(&segment_text);
                 let (exit_args, enter_args) = extract_transition_args(&segment_text);
+                let state_args = extract_state_args(&segment_text);
 
                 // Expand state variable references in arguments
                 let exit_str = exit_args.map(|a| expand_state_vars_in_expr(&a, lang));
                 let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang));
+                let state_str = state_args.map(|a| expand_state_vars_in_expr(&a, lang));
 
                 match lang {
                     TargetLanguage::Python3 => {
                         // Use trailing comma to ensure tuple even with single arg: (arg,)
                         let exit_param = exit_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
                         let enter_param = enter_str.as_ref().map_or("None".to_string(), |s| format!("({},)", s));
-                        format!("{}self._transition(\"{}\", {}, {})", indent_str, target, exit_param, enter_param)
+                        // Build state_args dict with numeric keys for now
+                        // TODO: Use actual param names from arcanum
+                        let state_param = match &state_str {
+                            Some(s) => {
+                                let args: Vec<&str> = s.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
+                                if args.is_empty() {
+                                    "None".to_string()
+                                } else {
+                                    let entries: Vec<String> = args.iter().enumerate()
+                                        .map(|(i, a)| format!("\"{}\": {}", i, a))
+                                        .collect();
+                                    format!("{{{}}}", entries.join(", "))
+                                }
+                            }
+                            None => "None".to_string(),
+                        };
+                        format!("{}self._transition(\"{}\", {}, {}, {})", indent_str, target, exit_param, enter_param, state_param)
                     }
                     TargetLanguage::TypeScript => {
                         let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
                         let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
-                        format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                        // Build state_args object with numeric keys for now
+                        let state_param = match &state_str {
+                            Some(s) => {
+                                let args: Vec<&str> = s.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
+                                if args.is_empty() {
+                                    "null".to_string()
+                                } else {
+                                    let entries: Vec<String> = args.iter().enumerate()
+                                        .map(|(i, a)| format!("\"{}\": {}", i, a))
+                                        .collect();
+                                    format!("{{{}}}", entries.join(", "))
+                                }
+                            }
+                            None => "null".to_string(),
+                        };
+                        format!("{}this._transition(\"{}\", {}, {}, {});", indent_str, target, exit_param, enter_param, state_param)
                     }
                     TargetLanguage::Rust => {
-                        // Rust currently doesn't support enter/exit args in _transition
+                        // Rust currently doesn't support enter/exit/state args in _transition
                         format!("{}self._transition(\"{}\")", indent_str, target)
                     }
                     _ => {
                         let exit_param = exit_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
                         let enter_param = enter_str.as_ref().map_or("null".to_string(), |s| format!("[{}]", s));
-                        format!("{}this._transition(\"{}\", {}, {});", indent_str, target, exit_param, enter_param)
+                        let state_param = match &state_str {
+                            Some(s) => {
+                                let args: Vec<&str> = s.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
+                                if args.is_empty() {
+                                    "null".to_string()
+                                } else {
+                                    let entries: Vec<String> = args.iter().enumerate()
+                                        .map(|(i, a)| format!("\"{}\": {}", i, a))
+                                        .collect();
+                                    format!("{{{}}}", entries.join(", "))
+                                }
+                            }
+                            None => "null".to_string(),
+                        };
+                        format!("{}this._transition(\"{}\", {}, {}, {});", indent_str, target, exit_param, enter_param, state_param)
                     }
                 }
             }
@@ -2034,6 +2098,44 @@ fn extract_transition_args(text: &str) -> (Option<String>, Option<String>) {
     }
 
     (exit_args, enter_args)
+}
+
+/// Extract state_args from transition text: -> $State(state_args)?
+/// Returns the comma-separated args string inside the parens after $State
+fn extract_state_args(text: &str) -> Option<String> {
+    // Find $StateName( pattern
+    let bytes = text.as_bytes();
+    let n = bytes.len();
+
+    // Find $ after ->
+    let arrow_pos = text.find("->")?;
+    let after_arrow = &text[arrow_pos + 2..];
+
+    // Find $ for state name
+    let dollar_pos = after_arrow.find('$')?;
+    let state_start = dollar_pos + 1;
+
+    // Skip the state name (alphanumeric + underscore)
+    let mut i = state_start;
+    while i < after_arrow.len() {
+        let c = after_arrow.as_bytes()[i];
+        if c.is_ascii_alphanumeric() || c == b'_' {
+            i += 1;
+        } else {
+            break;
+        }
+    }
+
+    // Check if there's a ( immediately after state name
+    if i < after_arrow.len() && after_arrow.as_bytes()[i] == b'(' {
+        let paren_start = arrow_pos + 2 + i;
+        if let Some(close_idx) = find_balanced_paren(bytes, paren_start, n) {
+            // Return content between ( and )
+            return Some(String::from_utf8_lossy(&bytes[paren_start+1..close_idx-1]).to_string());
+        }
+    }
+
+    None
 }
 
 /// Find the closing paren for a balanced paren block, returns index after ')'

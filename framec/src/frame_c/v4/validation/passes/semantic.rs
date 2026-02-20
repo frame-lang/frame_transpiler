@@ -8,6 +8,8 @@
 //! - E404: Handler body must be inside a state block
 //! - E405: State parameter arity mismatch
 //! - E406: Invalid interface method calls
+//! - E413: Cyclic HSM parent relationship
+//! - W414: Unreachable state from start state
 
 use crate::frame_c::v4::arcanum::Arcanum;
 use crate::frame_c::v4::frame_ast::{
@@ -65,6 +67,12 @@ impl SemanticPass {
 
         // Validate machine if present
         if let Some(machine) = &system.machine {
+            // E413: Check for cyclic parent relationships
+            self.validate_hsm_acyclic(&system.name, &state_map, issues);
+
+            // W414: Check for unreachable states
+            self.validate_reachable_states(&system.name, machine, &state_map, issues);
+
             for state in &machine.states {
                 self.validate_state(
                     &system.name,
@@ -411,6 +419,126 @@ impl SemanticPass {
                 .join(", ")
         }
     }
+
+    /// E413: Validate no cyclic parent relationships in HSM
+    fn validate_hsm_acyclic(
+        &self,
+        system_name: &str,
+        state_map: &HashMap<String, &StateAst>,
+        issues: &mut Vec<ValidationIssue>,
+    ) {
+        // For each state with a parent, follow the chain and check for cycles
+        for (state_name, state) in state_map {
+            if state.parent.is_some() {
+                let mut visited = HashSet::new();
+                visited.insert(state_name.clone());
+                let mut current = state.parent.as_ref();
+
+                while let Some(parent_name) = current {
+                    if visited.contains(parent_name) {
+                        // Found a cycle
+                        issues.push(
+                            ValidationIssue::error(
+                                "E413",
+                                format!(
+                                    "Cyclic parent relationship detected: '{}' -> '{}'",
+                                    state_name, parent_name
+                                )
+                            )
+                            .with_span(state.span.clone())
+                            .with_note(format!(
+                                "State '{}' cannot be its own ancestor in system '{}'",
+                                state_name, system_name
+                            ))
+                            .with_fix("Remove or change one of the parent relationships to break the cycle")
+                        );
+                        break;
+                    }
+                    visited.insert(parent_name.clone());
+                    current = state_map
+                        .get(parent_name)
+                        .and_then(|s| s.parent.as_ref());
+                }
+            }
+        }
+    }
+
+    /// W414: Validate all states are reachable from start state
+    fn validate_reachable_states(
+        &self,
+        system_name: &str,
+        machine: &crate::frame_c::v4::frame_ast::MachineAst,
+        state_map: &HashMap<String, &StateAst>,
+        issues: &mut Vec<ValidationIssue>,
+    ) {
+        if machine.states.is_empty() {
+            return;
+        }
+
+        // Start state is the first state
+        let start_state = &machine.states[0].name;
+
+        // BFS to find all reachable states
+        let mut reachable = HashSet::new();
+        let mut queue = vec![start_state.clone()];
+        reachable.insert(start_state.clone());
+
+        while let Some(current) = queue.pop() {
+            if let Some(state) = state_map.get(&current) {
+                // Find all transitions from this state
+                for handler in &state.handlers {
+                    for stmt in &handler.body.statements {
+                        if let Statement::Transition(trans) = stmt {
+                            if trans.target != "pop$" && !reachable.contains(&trans.target) {
+                                reachable.insert(trans.target.clone());
+                                queue.push(trans.target.clone());
+                            }
+                        }
+                    }
+                }
+                // Check enter handler too
+                if let Some(enter) = &state.enter {
+                    for stmt in &enter.body.statements {
+                        if let Statement::Transition(trans) = stmt {
+                            if trans.target != "pop$" && !reachable.contains(&trans.target) {
+                                reachable.insert(trans.target.clone());
+                                queue.push(trans.target.clone());
+                            }
+                        }
+                    }
+                }
+                // Check exit handler
+                if let Some(exit) = &state.exit {
+                    for stmt in &exit.body.statements {
+                        if let Statement::Transition(trans) = stmt {
+                            if trans.target != "pop$" && !reachable.contains(&trans.target) {
+                                reachable.insert(trans.target.clone());
+                                queue.push(trans.target.clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Report unreachable states as warnings
+        for state in &machine.states {
+            if !reachable.contains(&state.name) {
+                issues.push(
+                    ValidationIssue::warning(
+                        "W414",
+                        format!(
+                            "State '{}' is not reachable from start state '{}' in system '{}'",
+                            state.name, start_state, system_name
+                        )
+                    )
+                    .with_span(state.span.clone())
+                    .with_note("This state can never be entered during normal execution")
+                    .with_fix("Add a transition to this state or remove it if unused")
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -545,5 +673,62 @@ mod tests {
         let issues = pass.run(&ast, &arcanum, &mut ctx);
 
         assert!(issues.is_empty(), "Expected no issues but got: {:?}", issues);
+    }
+
+    #[test]
+    fn test_w414_unreachable_state() {
+        // State $Orphan has no transition leading to it
+        let source = r#"
+@@system Test {
+    machine:
+        $Start {
+            go() { -> $Active() }
+        }
+        $Active {
+            back() { -> $Start() }
+        }
+        $Orphan {
+            event() { }
+        }
+}"#;
+
+        let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
+        let ast = parser.parse_module().unwrap();
+        let arcanum = build_arcanum_from_frame_ast(&ast);
+        let mut ctx = make_context();
+
+        let pass = SemanticPass;
+        let issues = pass.run(&ast, &arcanum, &mut ctx);
+
+        // Should have a warning about Orphan being unreachable
+        assert!(issues.iter().any(|i| i.code == "W414" && i.message.contains("Orphan")),
+            "Expected W414 warning for unreachable state, got: {:?}", issues);
+    }
+
+    #[test]
+    fn test_e413_cyclic_parent() {
+        // $A => $B, $B => $A creates a cycle
+        let source = r#"
+@@system Test {
+    machine:
+        $A => $B {
+            event() { }
+        }
+        $B => $A {
+            event() { }
+        }
+}"#;
+
+        let mut parser = FrameParser::new(source.as_bytes(), TargetLanguage::Python3);
+        let ast = parser.parse_module().unwrap();
+        let arcanum = build_arcanum_from_frame_ast(&ast);
+        let mut ctx = make_context();
+
+        let pass = SemanticPass;
+        let issues = pass.run(&ast, &arcanum, &mut ctx);
+
+        // Should have an error about cyclic parent
+        assert!(issues.iter().any(|i| i.code == "E413"),
+            "Expected E413 error for cyclic parent, got: {:?}", issues);
     }
 }
