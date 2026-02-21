@@ -1,7 +1,7 @@
 // TypeScript harness builder machine glue.
 //
 // This module wires the generated `TsHarnessBuilder` machine (compiled from
-// `framec/src/frame_c/v3/machines/ts_harness_builder.frs`) into a small
+// `framec/src/frame_c/v4/machines/ts_harness_builder.frs`) into a small
 // helper function that mirrors the behavior of
 // `_execute_ts_harness_from_spliced` in the Python test runner.
 //
@@ -15,7 +15,7 @@ include!("machines/ts_harness_builder.gen.rs");
 use std::string::String;
 use std::vec::Vec;
 
-/// Build a minimal TypeScript harness program from a spliced V3 output.
+/// Build a minimal TypeScript harness program from a spliced output.
 ///
 /// This helper:
 ///   - splits the spliced output into lines,

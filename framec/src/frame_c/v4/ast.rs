@@ -35,7 +35,7 @@ pub struct HandlerDecl {
     pub span: Span,
 }
 
-// High-level outer AST for V3 modules and systems. This will become the
+// High-level outer AST for modules and systems. This will become the
 // single source of truth for system/block structure instead of ad-hoc
 // byte scans spread across the validator.
 

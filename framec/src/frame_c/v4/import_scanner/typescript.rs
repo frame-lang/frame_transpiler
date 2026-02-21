@@ -1,13 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::{ImportScannerV3, ImportScanResultV3};
-use super::super::validator::ValidationIssueV3;
+use super::{ImportScanner, ImportScanResult};
+use super::super::validator::ValidationIssue;
 
-pub struct ImportScannerTsV3;
+pub struct ImportScannerTs;
 
-impl ImportScannerV3 for ImportScannerTsV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
+impl ImportScanner for ImportScannerTs {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResult {
         let mut spans: Vec<RegionSpan> = Vec::new();
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -18,7 +18,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                 // skip leading spaces/tabs
                 let mut j = i;
                 while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
-                // Stop scanning imports once we hit a V3 section or system header.
+                // Stop scanning imports once we hit a section or system header.
                 if j < n && (
                     starts_kw(bytes, j, b"system") ||
                     starts_kw(bytes, j, b"machine") ||
@@ -80,7 +80,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                     }
                     if k >= n {
                         if !found_semicolon || in_s != 0 || depth_paren != 0 || depth_brace != 0 || (in_s == 3 && tmpl_depth != 0) {
-                            issues.push(ValidationIssueV3{ message: "E110: unterminated import/export statement".into() });
+                            issues.push(ValidationIssue{ message: "E110: unterminated import/export statement".into() });
                         }
                         spans.push(RegionSpan { start: stmt_start, end: n });
                         break;
@@ -96,7 +96,7 @@ impl ImportScannerV3 for ImportScannerTsV3 {
                 if bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
             }
         }
-        ImportScanResultV3 { spans, issues }
+        ImportScanResult { spans, issues }
     }
 }
 

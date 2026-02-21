@@ -12,7 +12,7 @@ use crate::frame_c::visitors::TargetLanguage;
 ///
 /// Bodies are not allowed under `interface:`; those semantics are enforced
 /// elsewhere in the validator.
-pub struct InterfaceParserV3;
+pub struct InterfaceParser;
 
 #[derive(Debug, Clone, Default)]
 pub struct InterfaceMethodMeta {
@@ -22,7 +22,7 @@ pub struct InterfaceMethodMeta {
     pub return_init: Option<String>,
 }
 
-impl InterfaceParserV3 {
+impl InterfaceParser {
     /// Collect the union of all interface method names declared across all
     /// systems in a module. This is used to validate `system.method(...)`
     /// calls in native regions (E406).

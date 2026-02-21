@@ -8,7 +8,7 @@
 //! merged into this file to eliminate the dual-AST problem.
 
 use std::collections::{HashMap, HashSet};
-use crate::frame_c::v4::native_region_scanner::{RegionV3, RegionSpan};
+use crate::frame_c::v4::native_region_scanner::{Region, RegionSpan};
 
 /// Span represents a source location in the original Frame code
 #[derive(Debug, Clone, PartialEq)]

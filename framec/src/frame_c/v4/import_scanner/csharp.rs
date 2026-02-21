@@ -1,13 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::{ImportScannerV3, ImportScanResultV3};
-use super::super::validator::ValidationIssueV3;
+use super::{ImportScanner, ImportScanResult};
+use super::super::validator::ValidationIssue;
 
-pub struct ImportScannerCsV3;
+pub struct ImportScannerCs;
 
-impl ImportScannerV3 for ImportScannerCsV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
+impl ImportScanner for ImportScannerCs {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResult {
         let mut spans: Vec<RegionSpan> = Vec::new();
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -72,7 +72,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                     }
                     // EOF without semicolon — still record import up to EOF and report issue
                     if !found_semicolon || in_s != 0 || (in_s == 3 || in_s == 4) && interp_brace != 0 || in_s == 5 {
-                        issues.push(ValidationIssueV3{ message: "E110: unterminated using directive".into() });
+                        issues.push(ValidationIssue{ message: "E110: unterminated using directive".into() });
                     }
                     spans.push(RegionSpan{ start: stmt_start, end: n });
                     break;
@@ -83,7 +83,7 @@ impl ImportScannerV3 for ImportScannerCsV3 {
                 if bytes[i] == b'\n' { at_sol = true; i+=1; } else { i+=1; }
             }
         }
-        ImportScanResultV3 { spans, issues }
+        ImportScanResult { spans, issues }
     }
 }
 

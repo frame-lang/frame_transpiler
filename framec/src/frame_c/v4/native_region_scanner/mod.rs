@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FrameSegmentKindV3 {
+pub enum FrameSegmentKind {
     Transition,
     TransitionForward, // -> => $State - transition then forward event
     Forward,
@@ -14,24 +14,24 @@ pub enum FrameSegmentKindV3 {
 pub struct RegionSpan { pub start: usize, pub end: usize }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RegionV3 {
+pub enum Region {
     NativeText { span: RegionSpan },
-    FrameSegment { span: RegionSpan, kind: FrameSegmentKindV3, indent: usize },
+    FrameSegment { span: RegionSpan, kind: FrameSegmentKind, indent: usize },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ScanResultV3 { pub close_byte: usize, pub regions: Vec<RegionV3> }
+pub struct ScanResult { pub close_byte: usize, pub regions: Vec<Region> }
 
 #[derive(Debug)]
-pub enum ScanErrorV3Kind { UnterminatedProtected, Internal }
+pub enum ScanErrorKind { UnterminatedProtected, Internal }
 
 #[derive(Debug)]
-pub struct ScanErrorV3 { pub kind: ScanErrorV3Kind, pub message: String }
+pub struct ScanError { pub kind: ScanErrorKind, pub message: String }
 
-impl ScanErrorV3 { pub fn internal(msg: &str) -> Self { Self{ kind: ScanErrorV3Kind::Internal, message: msg.to_string() } } }
+impl ScanError { pub fn internal(msg: &str) -> Self { Self{ kind: ScanErrorKind::Internal, message: msg.to_string() } } }
 
-pub trait NativeRegionScannerV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3>;
+pub trait NativeRegionScanner {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError>;
 }
 
 // Unified scanner architecture - Frame statement detection is shared,

@@ -1,16 +1,16 @@
 use super::*;
 use super::unified::*;
-use crate::frame_c::v4::body_closer::cpp::BodyCloserCppV3;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::cpp::BodyCloserCpp;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
-pub struct NativeRegionScannerCppV3;
+pub struct NativeRegionScannerCpp;
 
 /// C++ syntax skipper - handles //, /* */, strings, and raw strings R"delim(...)delim"
 struct CppSkipper;
 
 impl SyntaxSkipper for CppSkipper {
-    fn body_closer(&self) -> Box<dyn BodyCloserV3> {
-        Box::new(BodyCloserCppV3)
+    fn body_closer(&self) -> Box<dyn BodyCloser> {
+        Box::new(BodyCloserCpp)
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
@@ -77,8 +77,8 @@ fn skip_cpp_raw_string(bytes: &[u8], i: usize, end: usize) -> Option<usize> {
     Some(end) // Unterminated
 }
 
-impl NativeRegionScannerV3 for NativeRegionScannerCppV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
+impl NativeRegionScanner for NativeRegionScannerCpp {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
         scan_native_regions(&CppSkipper, bytes, open_brace_index)
     }
 }

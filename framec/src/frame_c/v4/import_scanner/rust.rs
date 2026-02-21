@@ -1,13 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::{ImportScannerV3, ImportScanResultV3};
-use super::super::validator::ValidationIssueV3;
+use super::{ImportScanner, ImportScanResult};
+use super::super::validator::ValidationIssue;
 
-pub struct ImportScannerRustV3;
+pub struct ImportScannerRust;
 
-impl ImportScannerV3 for ImportScannerRustV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
+impl ImportScanner for ImportScannerRust {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResult {
         let mut spans: Vec<RegionSpan> = Vec::new();
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -15,7 +15,7 @@ impl ImportScannerV3 for ImportScannerRustV3 {
             if at_sol {
                 if bytes[i]==b'\n' || bytes[i]==b'\r' { i+=1; continue; }
                 let line_start=i; let mut j=i; while j<n && (bytes[j]==b' '||bytes[j]==b'\t'){ j+=1; }
-                // Stop scanning once we hit a V3 module/system header; Rust module imports must precede Frame sections.
+                // Stop scanning once we hit a module/system header; Rust module imports must precede Frame sections.
                 if j < n && (
                     starts_kw(bytes, j, b"system") ||
                     starts_kw(bytes, j, b"machine") ||
@@ -53,13 +53,13 @@ impl ImportScannerV3 for ImportScannerRustV3 {
                         if bytes[k]==b';' { spans.push(RegionSpan{ start: stmt_start, end: k }); found_semicolon=true; k+=1; i=k; break; }
                         if bytes[k]==b'\n' { k+=1; } else { k+=1; }
                     }
-                    if i==line_start { if !found_semicolon || in_s || block { issues.push(ValidationIssueV3{ message: "E110: unterminated use/extern statement".into() }); } spans.push(RegionSpan{ start: stmt_start, end: n }); i=n; }
+                    if i==line_start { if !found_semicolon || in_s || block { issues.push(ValidationIssue{ message: "E110: unterminated use/extern statement".into() }); } spans.push(RegionSpan{ start: stmt_start, end: n }); i=n; }
                     continue;
                 }
                 break;
             } else { if bytes[i]==b'\n' { at_sol=true; i+=1; } else { i+=1; } }
         }
-        ImportScanResultV3 { spans, issues }
+        ImportScanResult { spans, issues }
     }
 }
 

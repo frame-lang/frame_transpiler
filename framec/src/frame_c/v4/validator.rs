@@ -1,38 +1,38 @@
-use crate::frame_c::v4::mir::MirItemV3;
-use crate::frame_c::v4::native_region_scanner::RegionV3;
+use crate::frame_c::v4::mir::MirItem;
+use crate::frame_c::v4::native_region_scanner::Region;
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v4::outline_scanner::OutlineItemV3;
+use crate::frame_c::v4::outline_scanner::OutlineItem;
 use std::collections::HashSet;
 use super::arcanum::Arcanum;
 use super::ast::{ModuleAst, SystemSectionKind};
 use super::system_param_semantics::{collect_domain_vars_per_system, first_state_for_system};
 
 #[derive(Debug, Clone)]
-pub struct ValidationIssueV3 { pub message: String }
+pub struct ValidationIssue { pub message: String }
 
 #[derive(Debug, Clone)]
-pub struct ValidationResultV3 { pub ok: bool, pub issues: Vec<ValidationIssueV3> }
+pub struct ValidationResult { pub ok: bool, pub issues: Vec<ValidationIssue> }
 
-pub struct ValidatorV3;
+pub struct Validator;
 
 /// Aggregated module-level context for semantic validation.
 /// Built once from the outline + bytes, then reused for per-body checks.
 #[derive(Debug, Clone)]
-pub struct ModuleSemanticContextV3 {
+pub struct ModuleSemanticContext {
     /// Byte offset where the outline (sections/system body) begins.
     pub outline_start: usize,
-    /// Outline items discovered by OutlineScannerV3 (handlers/actions/ops/functions).
-    pub outline_items: Vec<OutlineItemV3>,
+    /// Outline items discovered by OutlineScanner (handlers/actions/ops/functions).
+    pub outline_items: Vec<OutlineItem>,
     /// Coarse set of known state names discovered from machine sections.
     pub known_states: HashSet<String>,
     /// Arcanum symbol table (systems, machines, states, params).
     pub arcanum: Arcanum,
 }
 
-impl ValidatorV3 {
+impl Validator {
     // Structural validation placeholder; block-scoped terminal rule enforced in validate_terminal_last_native.
-    pub fn validate_regions_mir(&self, _regions: &[RegionV3], _mir: &[MirItemV3]) -> ValidationResultV3 {
-        ValidationResultV3 { ok: true, issues: Vec::new() }
+    pub fn validate_regions_mir(&self, _regions: &[Region], _mir: &[MirItem]) -> ValidationResult {
+        ValidationResult { ok: true, issues: Vec::new() }
     }
 
     /// Build a semantic context for a module after syntactic/outline checks have succeeded.
@@ -50,17 +50,17 @@ impl ValidatorV3 {
         bytes: &[u8],
         outline_start: usize,
         lang: TargetLanguage,
-    ) -> (ModuleSemanticContextV3, Vec<ValidationIssueV3>) {
+    ) -> (ModuleSemanticContext, Vec<ValidationIssue>) {
         let mut issues = Vec::new();
         // Tolerant outline scan (collects E111 and similar diagnostics).
         let (items, outline_issues) =
-            crate::frame_c::v4::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+            crate::frame_c::v4::outline_scanner::OutlineScanner.scan_collect(bytes, outline_start, lang);
         issues.extend(outline_issues);
         // Section placement: actions/operations/handlers must live in correct sections.
         let outer_issues = self.validate_outer_grammar(bytes, outline_start, lang, &items);
         issues.extend(outer_issues);
         // System block ordering and per-system machine state headers are driven from ModuleAst.
-        let module_ast = crate::frame_c::v4::system_parser::SystemParserV3::parse_module(bytes, lang);
+        let module_ast = crate::frame_c::v4::system_parser::SystemParser::parse_module(bytes, lang);
         let block_order_issues = self.validate_system_block_order_ast(&module_ast);
         issues.extend(block_order_issues);
         let state_issues = self.validate_machine_state_headers_ast(bytes, &module_ast);
@@ -73,7 +73,7 @@ impl ValidatorV3 {
             self.validate_handlers_in_state_ast(bytes, &items, &module_ast, &arcanum);
         issues.extend(handler_scope_issues);
 
-        let ctx = ModuleSemanticContextV3 {
+        let ctx = ModuleSemanticContext {
             outline_start,
             outline_items: items,
             known_states,
@@ -84,15 +84,15 @@ impl ValidatorV3 {
 
     // Check that transition state_args arity matches STATE PARAMS
     // Transition args like -> $State(a, b) are passed to state params $State(a, b)
-    pub fn validate_transition_state_arity_arcanum(&self, mir: &[MirItemV3], arc: &Arcanum, system: Option<&str>) -> Vec<ValidationIssueV3> {
+    pub fn validate_transition_state_arity_arcanum(&self, mir: &[MirItem], arc: &Arcanum, system: Option<&str>) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
         let sys = system.unwrap_or("_");
         for m in mir {
-            if let MirItemV3::Transition{ target, state_args, .. } = m {
+            if let MirItem::Transition{ target, state_args, .. } = m {
                 if let Some(expected) = arc.get_state_param_count(sys, target) {
                     let got = state_args.len();
                     if expected != got {
-                        issues.push(ValidationIssueV3 {
+                        issues.push(ValidationIssue {
                             message: format!("E405: State '{}' expects {} param(s) but transition supplies {}", target, expected, got)
                         });
                     }
@@ -112,11 +112,11 @@ impl ValidatorV3 {
         start: usize,
         lang: TargetLanguage,
         arc: &Arcanum,
-        _outline: &[OutlineItemV3],
-    ) -> Vec<ValidationIssueV3> {
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        _outline: &[OutlineItem],
+    ) -> Vec<ValidationIssue> {
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         // Parse all systems once to obtain system parameters per name.
-        let module_ast = crate::frame_c::v4::system_parser::SystemParserV3::parse_module(bytes, lang);
+        let module_ast = crate::frame_c::v4::system_parser::SystemParser::parse_module(bytes, lang);
         let mut sys_params_by_name: std::collections::HashMap<String, super::ast::SystemParamsAst> =
             std::collections::HashMap::new();
         for sys in module_ast.systems {
@@ -134,7 +134,7 @@ impl ValidatorV3 {
                 .chain(params.domain_params.iter())
             {
                 if !seen.insert(name.clone()) {
-                    issues.push(ValidationIssueV3 {
+                    issues.push(ValidationIssue {
                         message: format!(
                             "E111: duplicate system parameter '{}' in system {}",
                             name, sys.name
@@ -183,7 +183,7 @@ impl ValidatorV3 {
                 let mut sys_params = start_params.clone(); sys_params.sort();
                 let mut state_params = start_state.params.clone(); state_params.sort();
                 if sys_params != state_params {
-                    issues.push(ValidationIssueV3 {
+                    issues.push(ValidationIssue {
                         message: format!(
                             "E416: system '{}' start parameters ({:?}) must match start state '{}' parameters ({:?})",
                             sys_name, start_params, start_state.name, start_state.params
@@ -195,7 +195,7 @@ impl ValidatorV3 {
             // E417: enter params must match start state's $>() handler params.
             if !enter_params.is_empty() {
                 // Use the machine-section parser to locate the state's $>() handler.
-                let module_ast = crate::frame_c::v4::system_parser::SystemParserV3::parse_module(bytes, lang);
+                let module_ast = crate::frame_c::v4::system_parser::SystemParser::parse_module(bytes, lang);
                 let mut machine_span: Option<crate::frame_c::v4::ast::Span> = None;
                 for sys in &module_ast.systems {
                     if sys.name == *sys_name {
@@ -204,7 +204,7 @@ impl ValidatorV3 {
                     }
                 }
                 let entry_params = match machine_span {
-                    Some(span) => crate::frame_c::v4::machine_parser::MachineParserV3
+                    Some(span) => crate::frame_c::v4::machine_parser::MachineParser
                         .find_entry_params_in_machine(bytes, &span, &start_state.name, lang),
                     None => None,
                 };
@@ -220,7 +220,7 @@ impl ValidatorV3 {
                 }
                 match entry_params {
                     None => {
-                        issues.push(ValidationIssueV3 {
+                        issues.push(ValidationIssue {
                             message: format!(
                                 "E417: system '{}' declares $>(...) enter parameters but start state '{}' has no $>() handler",
                                 sys_name, start_state.name
@@ -231,7 +231,7 @@ impl ValidatorV3 {
                         let mut sys_params = enter_params.clone(); sys_params.sort();
                         let mut hdr_sorted = hdr_params.clone(); hdr_sorted.sort();
                         if sys_params != hdr_sorted {
-                            issues.push(ValidationIssueV3 {
+                            issues.push(ValidationIssue {
                                 message: format!(
                                     "E417: system '{}' enter parameters ({:?}) must match start state '{}' $>() parameters ({:?})",
                                     sys_name, enter_params, start_state.name, hdr_params
@@ -248,7 +248,7 @@ impl ValidatorV3 {
                 for dp in domain_params {
                     let ok = dom_vars.map_or(false, |vars| vars.iter().any(|v| v == dp));
                     if !ok {
-                        issues.push(ValidationIssueV3 {
+                        issues.push(ValidationIssue {
                             message: format!(
                                 "E418: system '{}' domain parameter '{}' has no matching variable in domain: block",
                                 sys_name, dp
@@ -267,48 +267,48 @@ impl ValidatorV3 {
     // host-language rules.
 
     // Strict terminal check: Transition must be last statement in its containing block
-    pub fn validate_terminal_last_native(&self, bytes: &[u8], regions: &[RegionV3], mir: &[MirItemV3], lang: crate::frame_c::visitors::TargetLanguage) -> Vec<ValidationIssueV3> {
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+    pub fn validate_terminal_last_native(&self, bytes: &[u8], regions: &[Region], mir: &[MirItem], lang: crate::frame_c::visitors::TargetLanguage) -> Vec<ValidationIssue> {
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let mut mi = 0usize;
         let mut idx = 0usize;
         while idx < regions.len() {
             match &regions[idx] {
-                RegionV3::FrameSegment{ span, .. } => {
+                Region::FrameSegment{ span, .. } => {
                     if mi >= mir.len() {
                         // Parse failed earlier; avoid indexing beyond MIR items.
                         break;
                     }
                     let m = &mir[mi];
                     mi += 1;
-                    if let MirItemV3::Transition{..} = m {
+                    if let MirItem::Transition{..} = m {
                         // Enforce block-scope terminal: from end of this segment forward, allow only comment/whitespace
                         // until the containing block closes; first non-comment token before that is a violation.
                         let start = span.end;
                         if let Some(_) = find_violation_before_block_close(bytes, regions, idx+1, start, lang) {
-                            issues.push(ValidationIssueV3 { message: "E400: Transition must be last statement in its containing block".to_string() });
+                            issues.push(ValidationIssue { message: "E400: Transition must be last statement in its containing block".to_string() });
                             // continue scanning to report multiple violations if present
                         }
                     }
                     idx += 1;
                 }
-                RegionV3::NativeText{ .. } => { idx += 1; }
+                Region::NativeText{ .. } => { idx += 1; }
             }
         }
         issues
     }
 
     // Expanded API with body-kind policy (not yet wired with full module context).
-    pub fn validate_regions_mir_with_policy(&self, regions: &[RegionV3], mir: &[MirItemV3], policy: ValidatorPolicyV3) -> ValidationResultV3 {
+    pub fn validate_regions_mir_with_policy(&self, regions: &[Region], mir: &[MirItem], policy: ValidatorPolicy) -> ValidationResult {
         let mut res = self.validate_regions_mir(regions, mir);
         if let Some(kind) = policy.body_kind {
             match kind {
-                BodyKindV3::Action | BodyKindV3::Operation => {
+                BodyKind::Action | BodyKind::Operation => {
                     if !mir.is_empty() {
                         // Frame statements are disallowed in actions/ops. Only advisory for now.
-                        res.issues.push(ValidationIssueV3 { message: "E401: Frame statements are not allowed in actions/operations".to_string() });
+                        res.issues.push(ValidationIssue { message: "E401: Frame statements are not allowed in actions/operations".to_string() });
                     }
                 }
-                BodyKindV3::Handler | BodyKindV3::Function | BodyKindV3::Unknown => {}
+                BodyKind::Handler | BodyKind::Function | BodyKind::Unknown => {}
             }
         }
         res.ok = res.issues.is_empty();
@@ -320,15 +320,15 @@ impl ValidatorV3 {
     pub fn validate_system_calls_interface(
         &self,
         body_bytes: &[u8],
-        regions: &[RegionV3],
+        regions: &[Region],
         interface_methods: &HashSet<String>,
-    ) -> Vec<ValidationIssueV3> {
+    ) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
         if interface_methods.is_empty() {
             return issues;
         }
         for r in regions {
-            if let RegionV3::NativeText { span } = r {
+            if let Region::NativeText { span } = r {
                 if span.end <= span.start || span.end > body_bytes.len() { continue; }
                 let seg = &body_bytes[span.start..span.end];
                 let mut i = 0usize;
@@ -365,7 +365,7 @@ impl ValidatorV3 {
                             let name = String::from_utf8_lossy(&seg[name_start..j]).to_string();
                             // Ignore the special `system.return` variable.
                             if name != "return" && !name.is_empty() && !interface_methods.contains(&name) {
-                                issues.push(ValidationIssueV3 {
+                                issues.push(ValidationIssue {
                                     message: format!("E406: system.{} call must target an interface method", name),
                                 });
                             }
@@ -380,9 +380,9 @@ impl ValidatorV3 {
         issues
     }
 
-    /// Validate `system.return` usage according to V3 policy.
+    /// Validate `system.return` usage according to policy.
     ///
-    /// V3 semantics now treat `system.return` as a per-call slot that can be
+    /// Current semantics treat `system.return` as a per-call slot that can be
     /// read or written from handlers, actions, and non-static operations.
     /// Sugar such as `return expr` is handled in the code generators for
     /// handlers only; the validator now only reserves a hook for future
@@ -390,15 +390,15 @@ impl ValidatorV3 {
     pub fn validate_system_return_usage(
         &self,
         body_bytes: &[u8],
-        regions: &[RegionV3],
-        kind: super::validator::BodyKindV3,
-    ) -> Vec<ValidationIssueV3> {
+        regions: &[Region],
+        kind: super::validator::BodyKind,
+    ) -> Vec<ValidationIssue> {
         let _ = (body_bytes, regions, kind);
         Vec::new()
     }
 
     // Outer grammar structural checks (headers inside sections)
-    pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLanguage, outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+    pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLanguage, outline: &[OutlineItem]) -> Vec<ValidationIssue> {
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum Sec { Actions, Operations, Interface, Machine }
         // Collect section spans: [start,end)
@@ -435,32 +435,32 @@ impl ValidatorV3 {
             secs.push((spos, epos, sec));
         }
         // Validate each outline item header lies within an appropriate section
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         for it in outline {
             let hs = it.header_span.start;
             // find containing section
             let mut sec_kind: Option<Sec> = None;
             for (s,e,sec) in &secs { if hs >= *s && hs < *e { sec_kind = Some(*sec); break; } }
             match it.kind {
-                super::validator::BodyKindV3::Action => {
-                    if sec_kind != Some(Sec::Actions) { issues.push(ValidationIssueV3{ message: "action body outside actions: section".into() }); }
+                super::validator::BodyKind::Action => {
+                    if sec_kind != Some(Sec::Actions) { issues.push(ValidationIssue{ message: "action body outside actions: section".into() }); }
                 }
-                super::validator::BodyKindV3::Operation => {
-                    if sec_kind != Some(Sec::Operations) { issues.push(ValidationIssueV3{ message: "operation body outside operations: section".into() }); }
+                super::validator::BodyKind::Operation => {
+                    if sec_kind != Some(Sec::Operations) { issues.push(ValidationIssue{ message: "operation body outside operations: section".into() }); }
                 }
-                super::validator::BodyKindV3::Handler => {
+                super::validator::BodyKind::Handler => {
                     // Machine handlers must live under `machine:`, but interface
                     // handlers are also valid and should not trigger this check.
                     if sec_kind != Some(Sec::Machine) && sec_kind != Some(Sec::Interface) {
-                        issues.push(ValidationIssueV3{
+                        issues.push(ValidationIssue{
                             message: "handler body outside machine: section".into()
                         });
                     }
                 }
-                super::validator::BodyKindV3::Function => {
+                super::validator::BodyKind::Function => {
                     // Functions live at top level; they are not tied to a section.
                 }
-                super::validator::BodyKindV3::Unknown => {}
+                super::validator::BodyKind::Unknown => {}
             }
         }
         issues
@@ -470,10 +470,10 @@ impl ValidatorV3 {
     /// This is a module-level semantic constraint used to decide runnable modules.
     /// We detect `fn main` and `async fn main` from header text rather than relying
     /// on outline owner_id, to keep tolerant scan behavior simple.
-    pub fn validate_main_functions(&self, bytes: &[u8], outline: &[OutlineItemV3]) -> Vec<ValidationIssueV3> {
+    pub fn validate_main_functions(&self, bytes: &[u8], outline: &[OutlineItem]) -> Vec<ValidationIssue> {
         let mut main_count = 0usize;
         for it in outline {
-            if let BodyKindV3::Function = it.kind {
+            if let BodyKind::Function = it.kind {
                 let span = it.header_span;
                 if span.end <= span.start || span.end > bytes.len() { continue; }
                 if let Ok(hdr) = std::str::from_utf8(&bytes[span.start..span.end]) {
@@ -485,7 +485,7 @@ impl ValidatorV3 {
             }
         }
         if main_count > 1 {
-            vec![ValidationIssueV3 {
+            vec![ValidationIssue {
                 message: "E115: multiple 'main' functions in module".into(),
             }]
         } else {
@@ -497,8 +497,8 @@ impl ValidatorV3 {
     /// operations:, interface:, machine:, actions:, domain: (when present).
     /// Blocks are optional but, when present, must appear in this canonical order,
     /// and at most one of each block is allowed per system.
-    pub fn validate_system_block_order_ast(&self, module: &ModuleAst) -> Vec<ValidationIssueV3> {
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+    pub fn validate_system_block_order_ast(&self, module: &ModuleAst) -> Vec<ValidationIssue> {
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         for sys in &module.systems {
             if sys.section_order.is_empty() {
                 continue;
@@ -533,12 +533,12 @@ impl ValidatorV3 {
                     }
                 };
                 if counter > 1 {
-                    issues.push(ValidationIssueV3 {
+                    issues.push(ValidationIssue {
                         message: format!("E114: duplicate '{}' block in system", label),
                     });
                 }
                 if (idx as i32) < last_idx {
-                    issues.push(ValidationIssueV3 {
+                    issues.push(ValidationIssue {
                         message: "E113: system blocks out of order: expected operations:, interface:, machine:, actions:, domain:".into(),
                     });
                     // Once mis-ordered, further ordering diagnostics for this system add little value.
@@ -556,8 +556,8 @@ impl ValidatorV3 {
         &self,
         bytes: &[u8],
         module: &ModuleAst,
-    ) -> Vec<ValidationIssueV3> {
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+    ) -> Vec<ValidationIssue> {
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let n = bytes.len();
         for sys in &module.systems {
             if let Some(span) = sys.sections.machine {
@@ -616,7 +616,7 @@ impl ValidatorV3 {
                                 q += 1;
                             }
                             if !seen_lbrace {
-                                issues.push(ValidationIssueV3 {
+                                issues.push(ValidationIssue {
                                     message: "E112: missing '{' after state header in machine: section"
                                         .into(),
                                 });
@@ -633,7 +633,7 @@ impl ValidatorV3 {
         issues
     }
 
-    pub fn validate_machine_state_headers(&self, bytes: &[u8], start: usize) -> Vec<ValidationIssueV3> {
+    pub fn validate_machine_state_headers(&self, bytes: &[u8], start: usize) -> Vec<ValidationIssue> {
         // Find machine: sections and ensure any '$State' header has a following '{'
         #[derive(Clone, Copy, PartialEq, Eq)]
         enum Sec { Machine, Other }
@@ -660,7 +660,7 @@ impl ValidatorV3 {
             let epos = if idx + 1 < marks.len() { marks[idx+1].0 } else { n };
             secs.push((spos, epos, sec));
         }
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         for (s, e, sec) in secs {
             if sec != Sec::Machine { continue; }
             let mut p = s;
@@ -682,7 +682,7 @@ impl ValidatorV3 {
                             if bytes[q] == b'{' { seen_lbrace = true; break; }
                             q += 1;
                         }
-                        if !seen_lbrace { issues.push(ValidationIssueV3{ message: "E112: missing '{' after state header in machine: section".into() }); }
+                        if !seen_lbrace { issues.push(ValidationIssue{ message: "E112: missing '{' after state header in machine: section".into() }); }
                     } else {
                         // It's a Frame statement at SOL inside machine; skip for state-header validation.
                     }
@@ -752,16 +752,16 @@ impl ValidatorV3 {
         names
     }
 
-    pub fn validate_transition_targets(&self, mir: &[MirItemV3], known_states: &HashSet<String>) -> Vec<ValidationIssueV3> {
+    pub fn validate_transition_targets(&self, mir: &[MirItem], known_states: &HashSet<String>) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
         for m in mir {
-            if let MirItemV3::Transition{ target, .. } = m {
+            if let MirItem::Transition{ target, .. } = m {
                 // Skip pop-transition marker - target comes from stack at runtime
                 if target == "pop$" {
                     continue;
                 }
                 if !known_states.contains(target) {
-                    issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
+                    issues.push(ValidationIssue{ message: format!("E402: unknown state '{}'", target) });
                 }
             }
         }
@@ -773,15 +773,15 @@ impl ValidatorV3 {
     // Arcanum *and* the coarse known-state set does not contain the target.
     pub fn validate_transition_targets_arcanum(
         &self,
-        mir: &[MirItemV3],
+        mir: &[MirItem],
         arcanum: &Arcanum,
         known_states: &HashSet<String>,
         system_name: Option<&str>,
-    ) -> Vec<ValidationIssueV3> {
+    ) -> Vec<ValidationIssue> {
         let mut issues = Vec::new();
         let sys = system_name.unwrap_or("_");
         for m in mir {
-            if let MirItemV3::Transition{ target, .. } = m {
+            if let MirItem::Transition{ target, .. } = m {
                 // Skip pop-transition marker - target comes from stack at runtime
                 if target == "pop$" {
                     continue;
@@ -790,11 +790,11 @@ impl ValidatorV3 {
                 // Use the enhanced validation method for better error messages
                 if !coarse_known {
                     if let Err(err_msg) = arcanum.validate_transition(sys, target) {
-                        issues.push(ValidationIssueV3{ message: format!("E402: {}", err_msg) });
+                        issues.push(ValidationIssue{ message: format!("E402: {}", err_msg) });
                     }
                     // Fall back to checking default system if specific system fails
                     else if arcanum.resolve_state("_", target).is_none() {
-                        issues.push(ValidationIssueV3{ message: format!("E402: unknown state '{}'", target) });
+                        issues.push(ValidationIssue{ message: format!("E402: unknown state '{}'", target) });
                     }
                 }
             }
@@ -888,10 +888,10 @@ impl ValidatorV3 {
     pub fn validate_handlers_in_state_ast(
         &self,
         bytes: &[u8],
-        outline: &[OutlineItemV3],
+        outline: &[OutlineItem],
         module: &ModuleAst,
         arc: &Arcanum,
-    ) -> Vec<ValidationIssueV3> {
+    ) -> Vec<ValidationIssue> {
         // Collect machine section spans from the ModuleAst.
         let n = bytes.len();
         let mut machine_spans: Vec<(usize, usize)> = Vec::new();
@@ -919,7 +919,7 @@ impl ValidatorV3 {
 
         let mut issues = Vec::new();
         for it in outline {
-            if let BodyKindV3::Handler = it.kind {
+            if let BodyKind::Handler = it.kind {
                 let header_pos = it.header_span.start;
                 // Only enforce E404 for handlers whose headers lie within a machine: section.
                 let in_machine = machine_spans
@@ -936,7 +936,7 @@ impl ValidatorV3 {
                     }
                 }
                 if !in_state {
-                    issues.push(ValidationIssueV3 {
+                    issues.push(ValidationIssue {
                         message: "E404: handler body must be inside a state block".into(),
                     });
                 }
@@ -992,14 +992,14 @@ fn trailing_is_effectively_comment_only(slice: &[u8], lang: crate::frame_c::visi
 
 // Scan forward from the end of a Transition up to the close of its containing block.
 // Returns Some(()) if a non-comment/non-whitespace token is found before the block closes.
-fn find_violation_before_block_close(bytes: &[u8], regions: &[RegionV3], mut ridx: usize, mut pos: usize, lang: crate::frame_c::visitors::TargetLanguage) -> Option<()> {
+fn find_violation_before_block_close(bytes: &[u8], regions: &[Region], mut ridx: usize, mut pos: usize, lang: crate::frame_c::visitors::TargetLanguage) -> Option<()> {
     match lang {
         crate::frame_c::visitors::TargetLanguage::Python3 => scan_python_block(bytes, regions, &mut ridx, &mut pos, |violate| if violate { Some(()) } else { None }),
         _ => scan_c_like_block(bytes, regions, &mut ridx, &mut pos, lang, |violate| if violate { Some(()) } else { None }),
     }
 }
 
-fn scan_c_like_block<F, T>(bytes: &[u8], regions: &[RegionV3], ridx: &mut usize, pos: &mut usize, lang: crate::frame_c::visitors::TargetLanguage, mut out: F) -> Option<T>
+fn scan_c_like_block<F, T>(bytes: &[u8], regions: &[Region], ridx: &mut usize, pos: &mut usize, lang: crate::frame_c::visitors::TargetLanguage, mut out: F) -> Option<T>
 where F: FnMut(bool) -> Option<T> {
     // Simple DPDA: skip whitespace/comments/strings; stop OK at first top-level '}' encountered; any other token => violation.
     let mut i = *pos;
@@ -1015,8 +1015,8 @@ where F: FnMut(bool) -> Option<T> {
             *ridx += 1;
             if *ridx >= regions.len() { return None; }
             match &regions[*ridx] {
-                RegionV3::NativeText{ span } => { i = span.start; end = span.end; }
-                RegionV3::FrameSegment{ .. } => { return out(true); }
+                Region::NativeText{ span } => { i = span.start; end = span.end; }
+                Region::FrameSegment{ .. } => { return out(true); }
             }
         }
         let b = bytes[i];
@@ -1052,11 +1052,11 @@ where F: FnMut(bool) -> Option<T> {
     }
 }
 
-fn scan_python_block<F, T>(bytes: &[u8], regions: &[RegionV3], ridx: &mut usize, pos: &mut usize, mut out: F) -> Option<T>
+fn scan_python_block<F, T>(bytes: &[u8], regions: &[Region], ridx: &mut usize, pos: &mut usize, mut out: F) -> Option<T>
 where F: FnMut(bool) -> Option<T> {
     // Determine indent of containing block from preceding FrameSegment
     let mut t_indent: Option<usize> = None;
-    if *ridx > 0 { for back in (0..*ridx).rev() { if let RegionV3::FrameSegment{ indent, .. } = regions[back] { t_indent = Some(indent); break; } } }
+    if *ridx > 0 { for back in (0..*ridx).rev() { if let Region::FrameSegment{ indent, .. } = regions[back] { t_indent = Some(indent); break; } } }
     let base = t_indent.unwrap_or(0);
     let mut i = *pos;
     let mut end = current_region_end(regions, *ridx).unwrap_or(bytes.len());
@@ -1074,7 +1074,7 @@ where F: FnMut(bool) -> Option<T> {
     loop {
         if i >= end {
             *ridx += 1; if *ridx >= regions.len() { return None; }
-            match &regions[*ridx] { RegionV3::NativeText{ span } => { i = span.start; end = span.end; }, RegionV3::FrameSegment{ .. } => { return out(true); } }
+            match &regions[*ridx] { Region::NativeText{ span } => { i = span.start; end = span.end; }, Region::FrameSegment{ .. } => { return out(true); } }
         }
         // consume newline
         if i < end && bytes[i] == b'\n' { i += 1; }
@@ -1090,12 +1090,12 @@ where F: FnMut(bool) -> Option<T> {
     }
 }
 
-fn current_region_end(regions: &[RegionV3], ridx: usize) -> Option<usize> {
-    regions.get(ridx).map(|r| match r { RegionV3::NativeText{ span } => span.end, RegionV3::FrameSegment{ span, .. } => span.end })
+fn current_region_end(regions: &[Region], ridx: usize) -> Option<usize> {
+    regions.get(ridx).map(|r| match r { Region::NativeText{ span } => span.end, Region::FrameSegment{ span, .. } => span.end })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BodyKindV3 { Handler, Action, Operation, Function, Unknown }
+pub enum BodyKind { Handler, Action, Operation, Function, Unknown }
 
 #[derive(Debug, Clone, Default)]
-pub struct ValidatorPolicyV3 { pub body_kind: Option<BodyKindV3> }
+pub struct ValidatorPolicy { pub body_kind: Option<BodyKind> }

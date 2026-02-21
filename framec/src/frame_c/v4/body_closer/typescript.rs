@@ -1,9 +1,9 @@
-use super::{BodyCloserV3, CloseErrorV3, CloseErrorV3Kind};
+use super::{BodyCloser, CloseError, CloseErrorKind};
 
-pub struct BodyCloserTsV3;
+pub struct BodyCloserTs;
 
-impl BodyCloserV3 for BodyCloserTsV3 {
-    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseErrorV3> {
+impl BodyCloser for BodyCloserTs {
+    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseError> {
         let mut i = open_brace_index + 1;
         let mut depth: i32 = 1;
         let n = bytes.len();
@@ -17,7 +17,7 @@ impl BodyCloserV3 for BodyCloserTsV3 {
                         if bytes[i] == q { i += 1; break; }
                         i += 1;
                     }
-                    if i >= n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedString, message: "unterminated string".into() }); }
+                    if i >= n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedString, message: "unterminated string".into() }); }
                 }
                 b'`' => {
                     // Check for Frame V4 statements: `push$ or `-> pop$
@@ -44,22 +44,22 @@ impl BodyCloserV3 for BodyCloserTsV3 {
                         if bytes[i] == b'}' && brace > 0 { brace -= 1; i += 1; continue; }
                         i += 1;
                     }
-                    if i >= n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedString, message: "unterminated template".into() }); }
+                    if i >= n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedString, message: "unterminated template".into() }); }
                 }
                 b'/' if i+1<n && bytes[i+1]==b'/' => { // line comment
                     i += 2; while i<n && bytes[i]!=b'\n' { i+=1; }
                 }
                 b'/' if i+1<n && bytes[i+1]==b'*' => { // block comment
                     i += 2; while i+1<n { if bytes[i]==b'*' && bytes[i+1]==b'/' { i+=2; break; } i+=1; }
-                    if i+1>=n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedComment, message: "unterminated comment".into() }); }
+                    if i+1>=n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedComment, message: "unterminated comment".into() }); }
                 }
                 b'{' => { depth += 1; i += 1; }
                 b'}' => { depth -= 1; i += 1; if depth==0 { return Ok(i-1); } }
                 _ => { i += 1; }
             }
         }
-        Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnmatchedBraces, message: "body not closed".into() })
+        Err(CloseError{ kind: CloseErrorKind::UnmatchedBraces, message: "body not closed".into() })
     }
 }
 
-// Tests moved to Docker environment: framepiler_test_env/common/test-frames/v3/closers/
+// Tests moved to Docker environment: framepiler_test_env/common/test-frames/closers/

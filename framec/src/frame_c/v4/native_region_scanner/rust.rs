@@ -1,16 +1,16 @@
 use super::*;
 use super::unified::*;
-use crate::frame_c::v4::body_closer::rust::BodyCloserRustV3;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::rust::BodyCloserRust;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
-pub struct NativeRegionScannerRustV3;
+pub struct NativeRegionScannerRust;
 
 /// Rust syntax skipper - handles //, /* */, strings, and raw strings
 struct RustSkipper;
 
 impl SyntaxSkipper for RustSkipper {
-    fn body_closer(&self) -> Box<dyn BodyCloserV3> {
-        Box::new(BodyCloserRustV3)
+    fn body_closer(&self) -> Box<dyn BodyCloser> {
+        Box::new(BodyCloserRust)
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
@@ -191,8 +191,8 @@ fn balanced_paren_end_rust(bytes: &[u8], mut i: usize, end: usize) -> Option<usi
     None
 }
 
-impl NativeRegionScannerV3 for NativeRegionScannerRustV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
+impl NativeRegionScanner for NativeRegionScannerRust {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
         scan_native_regions(&RustSkipper, bytes, open_brace_index)
     }
 }

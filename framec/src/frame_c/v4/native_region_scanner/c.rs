@@ -1,16 +1,16 @@
 use super::*;
 use super::unified::*;
-use crate::frame_c::v4::body_closer::c::BodyCloserCV3;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::c::BodyCloserC;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
-pub struct NativeRegionScannerCV3;
+pub struct NativeRegionScannerC;
 
 /// C syntax skipper - handles //, /* */, and strings
 struct CSkipper;
 
 impl SyntaxSkipper for CSkipper {
-    fn body_closer(&self) -> Box<dyn BodyCloserV3> {
-        Box::new(BodyCloserCV3)
+    fn body_closer(&self) -> Box<dyn BodyCloser> {
+        Box::new(BodyCloserC)
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
@@ -33,8 +33,8 @@ impl SyntaxSkipper for CSkipper {
     }
 }
 
-impl NativeRegionScannerV3 for NativeRegionScannerCV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
+impl NativeRegionScanner for NativeRegionScannerC {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
         scan_native_regions(&CSkipper, bytes, open_brace_index)
     }
 }

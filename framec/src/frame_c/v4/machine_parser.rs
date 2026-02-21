@@ -5,9 +5,9 @@ use crate::frame_c::v4::system_param_semantics::header_param_names;
 /// Parser utilities for `machine:` sections. For now this is focused on entry
 /// handlers `$>()` so that system-parameter semantics (E417) can be driven
 /// from a dedicated parser instead of ad-hoc scans.
-pub struct MachineParserV3;
+pub struct MachineParser;
 
-impl MachineParserV3 {
+impl MachineParser {
     /// Find the parameter names for a state's `$>()` handler, if any, by
     /// scanning within the `machine:` section span for the named state and
     /// then looking inside its body for a SOL `$>()` header.

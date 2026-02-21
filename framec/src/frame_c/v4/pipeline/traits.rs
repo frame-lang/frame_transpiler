@@ -5,62 +5,62 @@
 
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::native_region_scanner::{
-    NativeRegionScannerV3, ScanResultV3, ScanErrorV3,
-    python::NativeRegionScannerPyV3,
-    typescript::NativeRegionScannerTsV3,
-    rust::NativeRegionScannerRustV3,
-    csharp::NativeRegionScannerCsV3,
-    c::NativeRegionScannerCV3,
-    cpp::NativeRegionScannerCppV3,
-    java::NativeRegionScannerJavaV3,
+    NativeRegionScanner, ScanResult, ScanError,
+    python::NativeRegionScannerPy,
+    typescript::NativeRegionScannerTs,
+    rust::NativeRegionScannerRust,
+    csharp::NativeRegionScannerCs,
+    c::NativeRegionScannerC,
+    cpp::NativeRegionScannerCpp,
+    java::NativeRegionScannerJava,
 };
 
-/// Trait for region scanning (wrapper around NativeRegionScannerV3)
+/// Trait for region scanning (wrapper around NativeRegionScanner)
 pub trait RegionScannerTrait: Send + Sync {
     /// Scan native code for Frame regions
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3>;
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError>;
 }
 
 // Implement trait for all scanner types
-impl RegionScannerTrait for NativeRegionScannerPyV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerPy {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
-impl RegionScannerTrait for NativeRegionScannerTsV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerTs {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
-impl RegionScannerTrait for NativeRegionScannerRustV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerRust {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
-impl RegionScannerTrait for NativeRegionScannerCsV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerCs {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
-impl RegionScannerTrait for NativeRegionScannerCV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerC {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
-impl RegionScannerTrait for NativeRegionScannerCppV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerCpp {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
-impl RegionScannerTrait for NativeRegionScannerJavaV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
-        NativeRegionScannerV3::scan(self, bytes, open_brace_index)
+impl RegionScannerTrait for NativeRegionScannerJava {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
+        NativeRegionScanner::scan(self, bytes, open_brace_index)
     }
 }
 
@@ -70,15 +70,15 @@ impl RegionScannerTrait for NativeRegionScannerJavaV3 {
 /// scattered throughout mod.rs.
 pub fn get_region_scanner(target: TargetLanguage) -> Box<dyn RegionScannerTrait> {
     match target {
-        TargetLanguage::Python3 => Box::new(NativeRegionScannerPyV3),
-        TargetLanguage::TypeScript => Box::new(NativeRegionScannerTsV3),
-        TargetLanguage::Rust => Box::new(NativeRegionScannerRustV3),
-        TargetLanguage::CSharp => Box::new(NativeRegionScannerCsV3),
-        TargetLanguage::C => Box::new(NativeRegionScannerCV3),
-        TargetLanguage::Cpp => Box::new(NativeRegionScannerCppV3),
-        TargetLanguage::Java => Box::new(NativeRegionScannerJavaV3),
+        TargetLanguage::Python3 => Box::new(NativeRegionScannerPy),
+        TargetLanguage::TypeScript => Box::new(NativeRegionScannerTs),
+        TargetLanguage::Rust => Box::new(NativeRegionScannerRust),
+        TargetLanguage::CSharp => Box::new(NativeRegionScannerCs),
+        TargetLanguage::C => Box::new(NativeRegionScannerC),
+        TargetLanguage::Cpp => Box::new(NativeRegionScannerCpp),
+        TargetLanguage::Java => Box::new(NativeRegionScannerJava),
         // Fallback for unsupported languages
-        _ => Box::new(NativeRegionScannerPyV3), // Python as default
+        _ => Box::new(NativeRegionScannerPy), // Python as default
     }
 }
 

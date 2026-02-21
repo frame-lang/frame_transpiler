@@ -1,16 +1,16 @@
 use super::*;
 use super::unified::*;
-use crate::frame_c::v4::body_closer::typescript::BodyCloserTsV3;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::typescript::BodyCloserTs;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
-pub struct NativeRegionScannerTsV3;
+pub struct NativeRegionScannerTs;
 
 /// TypeScript syntax skipper - handles //, /* */, strings, and template literals
 struct TypeScriptSkipper;
 
 impl SyntaxSkipper for TypeScriptSkipper {
-    fn body_closer(&self) -> Box<dyn BodyCloserV3> {
-        Box::new(BodyCloserTsV3)
+    fn body_closer(&self) -> Box<dyn BodyCloser> {
+        Box::new(BodyCloserTs)
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
@@ -172,8 +172,8 @@ impl SyntaxSkipper for TypeScriptSkipper {
     }
 }
 
-impl NativeRegionScannerV3 for NativeRegionScannerTsV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
+impl NativeRegionScanner for NativeRegionScannerTs {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
         scan_native_regions(&TypeScriptSkipper, bytes, open_brace_index)
     }
 }

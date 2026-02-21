@@ -1,10 +1,10 @@
-// Glue module for self-hosted V3 machines.
+// Glue module for self-hosted machines.
 //
 // The IndentNormalizer machine is generated from
-// `framec/src/frame_c/v3/machines/indent_normalizer.frs` into
-// `indent_normalizer.gen.rs` via `tools/gen_v3_machines_rs.py` using the
+// `framec/src/frame_c/v4/machines/indent_normalizer.frs` into
+// `indent_normalizer.gen.rs` via `tools/gen_machines_rs.py` using the
 // bootstrap compiler. This module wires the generated struct into a small
-// helper function that the main V3 pipeline can call.
+// helper function that the main pipeline can call.
 //
 // Machine-generated code tends to trigger a few lints (unreachable_patterns,
 // unused_mut, dead_code) that are not actionable here, so relax them at the

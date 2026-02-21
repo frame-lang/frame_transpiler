@@ -1,9 +1,9 @@
-use super::{BodyCloserV3, CloseErrorV3};
+use super::{BodyCloser, CloseError};
 
-pub struct BodyCloserPyV3;
+pub struct BodyCloserPy;
 
-impl BodyCloserV3 for BodyCloserPyV3 {
-    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseErrorV3> {
+impl BodyCloser for BodyCloserPy {
+    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseError> {
         let mut i = open_brace_index + 1;
         let mut depth: i32 = 1;
         let n = bytes.len();
@@ -19,7 +19,7 @@ impl BodyCloserV3 for BodyCloserPyV3 {
                     if triple { i += 2; }
                     // consume until matching quote(s)
                     loop {
-                        if i >= n { return Err(CloseErrorV3{ kind: super::CloseErrorV3Kind::UnterminatedString, message: "unterminated string".into() }); }
+                        if i >= n { return Err(CloseError{ kind: super::CloseErrorKind::UnterminatedString, message: "unterminated string".into() }); }
                         if triple {
                             if bytes[i] == q && i + 2 < n && bytes[i+1]==q && bytes[i+2]==q { i += 3; break; }
                             i += 1;
@@ -44,7 +44,7 @@ impl BodyCloserV3 for BodyCloserPyV3 {
                         i += 2; // move to after opening quote
                         if triple { i += 2; }
                         loop {
-                            if i >= n { return Err(CloseErrorV3{ kind: super::CloseErrorV3Kind::UnterminatedString, message: "unterminated string".into() }); }
+                            if i >= n { return Err(CloseError{ kind: super::CloseErrorKind::UnterminatedString, message: "unterminated string".into() }); }
                             if triple {
                                 if bytes[i] == q && i + 2 < n && bytes[i+1]==q && bytes[i+2]==q { i += 3; break; }
                                 i += 1;
@@ -59,8 +59,8 @@ impl BodyCloserV3 for BodyCloserPyV3 {
                 _ => { i += 1; }
             }
         }
-        Err(CloseErrorV3{ kind: super::CloseErrorV3Kind::UnmatchedBraces, message: "body not closed".into() })
+        Err(CloseError{ kind: super::CloseErrorKind::UnmatchedBraces, message: "body not closed".into() })
     }
 }
 
-// Tests moved to Docker environment: framepiler_test_env/common/test-frames/v3/closers/
+// Tests moved to Docker environment: framepiler_test_env/common/test-frames/closers/

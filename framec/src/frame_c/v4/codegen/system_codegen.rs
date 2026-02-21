@@ -13,16 +13,16 @@ use crate::frame_c::v4::frame_ast::{
     Expression, Literal, BinaryOp, UnaryOp, StateVarAst,
 };
 use crate::frame_c::v4::arcanum::{Arcanum, HandlerEntry};
-use crate::frame_c::v4::splice::SplicerV3;
+use crate::frame_c::v4::splice::Splicer;
 use crate::frame_c::v4::native_region_scanner::{
-    NativeRegionScannerV3, RegionV3, FrameSegmentKindV3,
-    python::NativeRegionScannerPyV3,
-    typescript::NativeRegionScannerTsV3,
-    rust::NativeRegionScannerRustV3,
-    csharp::NativeRegionScannerCsV3,
-    c::NativeRegionScannerCV3,
-    cpp::NativeRegionScannerCppV3,
-    java::NativeRegionScannerJavaV3,
+    NativeRegionScanner, Region, FrameSegmentKind,
+    python::NativeRegionScannerPy,
+    typescript::NativeRegionScannerTs,
+    rust::NativeRegionScannerRust,
+    csharp::NativeRegionScannerCs,
+    c::NativeRegionScannerC,
+    cpp::NativeRegionScannerCpp,
+    java::NativeRegionScannerJava,
 };
 use super::ast::*;
 use super::backend::get_backend;
@@ -953,7 +953,7 @@ if (handler) {
         }
     }
 
-    // NOTE: _change_state method removed - it was deprecated V3 legacy (->> operator)
+    // NOTE: _change_state method removed - it was deprecated legacy (->> operator)
     // The ->> syntax should not compile in V4
 
     // _enter and _exit dispatchers - only for Rust (Python/TypeScript use __kernel with $>/<$ events)
@@ -2053,14 +2053,14 @@ fn splice_handler_body_from_span(span: &crate::frame_c::v4::ast::Span, source: &
     // Generate expansions for each Frame segment
     let mut expansions = Vec::new();
     for region in &scan_result.regions {
-        if let RegionV3::FrameSegment { span, kind, indent } = region {
+        if let Region::FrameSegment { span, kind, indent } = region {
             let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, ctx);
             expansions.push(expansion);
         }
     }
 
     // Use splicer to combine native + generated Frame code
-    let splicer = SplicerV3;
+    let splicer = Splicer;
     let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
 
     if std::env::var("FRAME_DEBUG_SPLICER").is_ok() {
@@ -2239,14 +2239,14 @@ fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) 
     // Generate expansions for each Frame segment
     let mut expansions = Vec::new();
     for region in &scan_result.regions {
-        if let RegionV3::FrameSegment { span, kind, indent } = region {
+        if let Region::FrameSegment { span, kind, indent } = region {
             let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, &ctx);
             expansions.push(expansion);
         }
     }
 
     // Use splicer to combine native + generated Frame code
-    let splicer = SplicerV3;
+    let splicer = Splicer;
     let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
 
     // Strip only the outer braces, preserve internal whitespace structure
@@ -2273,14 +2273,14 @@ fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) 
 /// NOTE: The scanner leaves a gap between NativeText and FrameSegment where leading
 /// whitespace lives. Since the splicer doesn't copy this gap, we MUST include the
 /// indentation in the expansion to preserve proper code structure.
-fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKindV3, indent: usize, lang: TargetLanguage, ctx: &HandlerContext) -> String {
+fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native_region_scanner::RegionSpan, kind: FrameSegmentKind, indent: usize, lang: TargetLanguage, ctx: &HandlerContext) -> String {
     let segment_text = String::from_utf8_lossy(&body_bytes[span.start..span.end]);
     // Use scanner's indent value to match native code indentation
     // This ensures Frame expansions align with surrounding native code
     let indent_str = " ".repeat(indent);
 
     match kind {
-        FrameSegmentKindV3::Transition => {
+        FrameSegmentKind::Transition => {
             // Parse transition: (exit_args)? -> (enter_args)? $State(state_args)?
             // For Python/TypeScript: Create compartment and call __transition()
             // For Rust: Use simpler _transition() approach
@@ -2402,7 +2402,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
             }
         }
-        FrameSegmentKindV3::TransitionForward => {
+        FrameSegmentKind::TransitionForward => {
             // Transition-Forward: -> => $State
             // 1. Transition to the target state (exit current)
             // 2. Forward current event to new state (instead of sending $>)
@@ -2446,7 +2446,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
             }
         }
-        FrameSegmentKindV3::Forward => {
+        FrameSegmentKind::Forward => {
             // HSM forward: call parent state's handler for the same event
             if let Some(ref parent) = ctx.parent_state {
                 match lang {
@@ -2468,7 +2468,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
             }
         }
-        FrameSegmentKindV3::StackPush => {
+        FrameSegmentKind::StackPush => {
             // Check if this is a push-then-transition: push$ -> $State
             let has_transition = segment_text.contains("->");
             let transition_code = if has_transition {
@@ -2505,7 +2505,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 
             format!("{}{}", push_code, transition_code)
         }
-        FrameSegmentKindV3::StackPop => {
+        FrameSegmentKind::StackPop => {
             // Restore compartment from stack - preserves state vars
             // Call _exit() on current state, then restore compartment (no _enter since we're restoring)
             // Phase 14.6: No _state field for Python/TypeScript - state lives in compartment.state
@@ -2535,7 +2535,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 ),
             }
         }
-        FrameSegmentKindV3::StateVar => {
+        FrameSegmentKind::StateVar => {
             // Extract variable name from "$.varName"
             let var_name = extract_state_var_name(&segment_text);
             // State variables are stored in compartment.state_vars
@@ -2549,7 +2549,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => format!("this.__compartment.state_vars[\"{}\"]", var_name),
             }
         }
-        FrameSegmentKindV3::SystemReturn => {
+        FrameSegmentKind::SystemReturn => {
             // system.return = <expr> or return <expr>
             // return <expr> is sugar for system.return = <expr>; return (early exit)
             // system.return = just sets value without returning (for chain semantics)
@@ -2618,7 +2618,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
             }
         }
-        FrameSegmentKindV3::SystemReturnExpr => {
+        FrameSegmentKind::SystemReturnExpr => {
             // bare system.return - read current return value
             // For Python/TypeScript with proper runtime: Use __e._return
             match lang {
@@ -2817,16 +2817,16 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
 }
 
 /// Get the native region scanner for the target language
-fn get_native_scanner(lang: TargetLanguage) -> Box<dyn NativeRegionScannerV3> {
+fn get_native_scanner(lang: TargetLanguage) -> Box<dyn NativeRegionScanner> {
     match lang {
-        TargetLanguage::Python3 => Box::new(NativeRegionScannerPyV3),
-        TargetLanguage::TypeScript => Box::new(NativeRegionScannerTsV3),
-        TargetLanguage::Rust => Box::new(NativeRegionScannerRustV3),
-        TargetLanguage::CSharp => Box::new(NativeRegionScannerCsV3),
-        TargetLanguage::C => Box::new(NativeRegionScannerCV3),
-        TargetLanguage::Cpp => Box::new(NativeRegionScannerCppV3),
-        TargetLanguage::Java => Box::new(NativeRegionScannerJavaV3),
-        _ => Box::new(NativeRegionScannerPyV3), // Default to Python
+        TargetLanguage::Python3 => Box::new(NativeRegionScannerPy),
+        TargetLanguage::TypeScript => Box::new(NativeRegionScannerTs),
+        TargetLanguage::Rust => Box::new(NativeRegionScannerRust),
+        TargetLanguage::CSharp => Box::new(NativeRegionScannerCs),
+        TargetLanguage::C => Box::new(NativeRegionScannerC),
+        TargetLanguage::Cpp => Box::new(NativeRegionScannerCpp),
+        TargetLanguage::Java => Box::new(NativeRegionScannerJava),
+        _ => Box::new(NativeRegionScannerPy), // Default to Python
     }
 }
 

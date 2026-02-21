@@ -1,9 +1,9 @@
-use super::{BodyCloserV3, CloseErrorV3, CloseErrorV3Kind};
+use super::{BodyCloser, CloseError, CloseErrorKind};
 
-pub struct BodyCloserCppV3;
+pub struct BodyCloserCpp;
 
-impl BodyCloserV3 for BodyCloserCppV3 {
-    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseErrorV3> {
+impl BodyCloser for BodyCloserCpp {
+    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseError> {
         let mut i = open_brace_index + 1;
         let mut depth: i32 = 1;
         let n = bytes.len();
@@ -11,9 +11,9 @@ impl BodyCloserV3 for BodyCloserCppV3 {
             match bytes[i] {
                 b'\n' => { i+=1; }
                 b'/' if i+1<n && bytes[i+1]==b'/' => { i+=2; while i<n && bytes[i]!=b'\n' { i+=1; } }
-                b'/' if i+1<n && bytes[i+1]==b'*' => { i+=2; while i+1<n { if bytes[i]==b'*' && bytes[i+1]==b'/' { i+=2; break; } i+=1; } if i+1>=n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedComment, message:"unterminated comment".into() }); } }
-                b'\'' => { i+=1; while i<n { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'\'' { i+=1; break; } i+=1; } if i>=n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedString, message:"unterminated char".into() }); } }
-                b'"' => { i+=1; while i<n { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'"' { i+=1; break; } i+=1; } if i>=n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedString, message:"unterminated string".into() }); } }
+                b'/' if i+1<n && bytes[i+1]==b'*' => { i+=2; while i+1<n { if bytes[i]==b'*' && bytes[i+1]==b'/' { i+=2; break; } i+=1; } if i+1>=n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedComment, message:"unterminated comment".into() }); } }
+                b'\'' => { i+=1; while i<n { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'\'' { i+=1; break; } i+=1; } if i>=n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedString, message:"unterminated char".into() }); } }
+                b'"' => { i+=1; while i<n { if bytes[i]==b'\\' { i+=2; continue; } if bytes[i]==b'"' { i+=1; break; } i+=1; } if i>=n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedString, message:"unterminated string".into() }); } }
                 b'R' if i+1<n && bytes[i+1]==b'"' => { // raw string R"delim( ... )delim"
                     let mut j=i+2; // after R"
                     let mut delim = Vec::new();
@@ -22,7 +22,7 @@ impl BodyCloserV3 for BodyCloserCppV3 {
                     j+=1; // inside content
                     // closing )delim"
                     loop {
-                        if j>=n { return Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnterminatedRawString, message:"unterminated raw".into() }); }
+                        if j>=n { return Err(CloseError{ kind: CloseErrorKind::UnterminatedRawString, message:"unterminated raw".into() }); }
                         if bytes[j]==b')' {
                             let mut k=j+1; let mut m=0usize; while m<delim.len() && k<n && bytes[k]==delim[m] { k+=1; m+=1; }
                             if m==delim.len() && k<n && bytes[k]==b'"' { i = k+1; break; }
@@ -35,8 +35,8 @@ impl BodyCloserV3 for BodyCloserCppV3 {
                 _ => { i+=1; }
             }
         }
-        Err(CloseErrorV3{ kind: CloseErrorV3Kind::UnmatchedBraces, message: "body not closed".into() })
+        Err(CloseError{ kind: CloseErrorKind::UnmatchedBraces, message: "body not closed".into() })
     }
 }
 
-// Tests moved to Docker environment: framepiler_test_env/common/test-frames/v3/closers/
+// Tests moved to Docker environment: framepiler_test_env/common/test-frames/closers/

@@ -1,29 +1,29 @@
-use crate::frame_c::v4::mir::MirItemV3;
+use crate::frame_c::v4::mir::MirItem;
 
-pub trait FrameStatementExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String;
+pub trait FrameStatementExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String;
 }
 
-pub struct PyExpanderV3;
-pub struct TsExpanderV3;
-pub struct CExpanderV3;
-pub struct CppExpanderV3;
-pub struct JavaExpanderV3;
-pub struct RustExpanderV3;
+pub struct PyExpander;
+pub struct TsExpander;
+pub struct CExpander;
+pub struct CppExpander;
+pub struct JavaExpander;
+pub struct RustExpander;
 
 // Facade-mode expanders (wrapper-call expansions for strict/native validation)
-pub struct PyFacadeExpanderV3;
-pub struct TsFacadeExpanderV3;
-pub struct CFacadeExpanderV3;
-pub struct CppFacadeExpanderV3;
-pub struct JavaFacadeExpanderV3;
-pub struct RustFacadeExpanderV3;
+pub struct PyFacadeExpander;
+pub struct TsFacadeExpander;
+pub struct CFacadeExpander;
+pub struct CppFacadeExpander;
+pub struct JavaFacadeExpander;
+pub struct RustFacadeExpander;
 
-impl FrameStatementExpanderV3 for PyExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for PyExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, exit_args, enter_args, state_args, .. } => {
+            MirItem::Transition{ target, exit_args, enter_args, state_args, .. } => {
                 let id = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let mut out = String::new();
                 out.push_str(&format!("{}next_compartment = FrameCompartment(\"{}\")\n", pad, id));
@@ -44,13 +44,13 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
                 out.push_str(&format!("{}return\n", pad));
                 out
             }
-            MirItemV3::Forward{ .. } => {
+            MirItem::Forward{ .. } => {
                 // Forwards are non-terminal: dispatch to parent and continue
                 let mut out = String::new();
                 out.push_str(&format!("{}self._frame_router(__e, compartment.parent_compartment)\n", pad));
                 out
             }
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::TransitionForward{ target, .. } => {
                 // Transition to state then forward current event
                 let id = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let mut out = String::new();
@@ -59,27 +59,27 @@ impl FrameStatementExpanderV3 for PyExpanderV3 {
                 out.push_str(&format!("{}return self._frame_router(__e, self._compartment)\n", pad));
                 out
             }
-            MirItemV3::StackPush{ .. } => format!("{}self._frame_stack_push()\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}self._frame_stack_pop()\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}self._frame_stack_push()\n", pad),
+            MirItem::StackPop{ .. } => format!("{}self._frame_stack_pop()\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return\n", pad)
                 } else {
                     format!("{}self._return_value = {}\n{}return\n", pad, expr, pad)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => {
+            MirItem::SystemReturnExpr{ .. } => {
                 format!("{}self._return_value", pad)
             }
         }
     }
 }
 
-impl FrameStatementExpanderV3 for TsExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for TsExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, exit_args, enter_args, state_args, .. } => {
+            MirItem::Transition{ target, exit_args, enter_args, state_args, .. } => {
                 let id = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 // Use a per-state temporary name and wrap each expansion in its own
                 // block so we never redeclare the same identifier across cases.
@@ -113,13 +113,13 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
                 out.push_str(&format!("{}}}\n", pad));
                 out
             }
-            MirItemV3::Forward{ .. } => {
+            MirItem::Forward{ .. } => {
                 // Forwards are non-terminal: dispatch to parent and continue
                 let mut out = String::new();
                 out.push_str(&format!("{}this._frame_router(__e, compartment.parentCompartment);\n", pad));
                 out
             }
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::TransitionForward{ target, .. } => {
                 // Transition to state then forward current event
                 let id = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let mut out = String::new();
@@ -130,16 +130,16 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
                 out.push_str(&format!("{}}}\n", pad));
                 out
             }
-            MirItemV3::StackPush{ .. } => format!("{}this._frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}this._frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}this._frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}this._frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}this._return_value = {};\n{}return;\n", pad, expr, pad)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => {
+            MirItem::SystemReturnExpr{ .. } => {
                 format!("{}this._return_value", pad)
             }
         }
@@ -147,11 +147,11 @@ impl FrameStatementExpanderV3 for TsExpanderV3 {
 }
 
 // Minimal comment-only expanders for other languages
-impl FrameStatementExpanderV3 for CExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for CExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args: _, .. } => {
+            MirItem::Transition{ target, state_args: _, .. } => {
                 let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let id = format!("\"{}\"", id_raw);
                 let mut out = String::new();
@@ -160,13 +160,13 @@ impl FrameStatementExpanderV3 for CExpanderV3 {
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::Forward{ .. } => {
+            MirItem::Forward{ .. } => {
                 let mut out = String::new();
                 out.push_str(&format!("{}_frame_router(0, 0);\n", pad));
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::TransitionForward{ target, .. } => {
                 let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let id = format!("\"{}\"", id_raw);
                 let mut out = String::new();
@@ -175,27 +175,27 @@ impl FrameStatementExpanderV3 for CExpanderV3 {
                 out.push_str(&format!("{}return _frame_router(0, 0);\n", pad));
                 out
             }
-            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}_return_value = {};\n{}return;\n", pad, expr, pad)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => {
+            MirItem::SystemReturnExpr{ .. } => {
                 format!("{}_return_value", pad)
             }
         }
     }
 }
 
-impl FrameStatementExpanderV3 for CppExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for CppExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, .. } => {
+            MirItem::Transition{ target, .. } => {
                 let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let id = format!("\"{}\"", id_raw);
                 let mut out = String::new();
@@ -204,13 +204,13 @@ impl FrameStatementExpanderV3 for CppExpanderV3 {
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::Forward{ .. } => {
+            MirItem::Forward{ .. } => {
                 let mut out = String::new();
                 out.push_str(&format!("{}_frame_router(nullptr, nullptr);\n", pad));
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::TransitionForward{ target, .. } => {
                 let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let id = format!("\"{}\"", id_raw);
                 let mut out = String::new();
@@ -219,27 +219,27 @@ impl FrameStatementExpanderV3 for CppExpanderV3 {
                 out.push_str(&format!("{}return _frame_router(nullptr, nullptr);\n", pad));
                 out
             }
-            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}_return_value = {};\n{}return;\n", pad, expr, pad)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => {
+            MirItem::SystemReturnExpr{ .. } => {
                 format!("{}_return_value", pad)
             }
         }
     }
 }
 
-impl FrameStatementExpanderV3 for JavaExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for JavaExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, .. } => {
+            MirItem::Transition{ target, .. } => {
                 let mut out = String::new();
                 let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 out.push_str(&format!("{}FrameCompartment nextCompartment = new FrameCompartment(\"{}\");\n", pad, id_raw));
@@ -247,13 +247,13 @@ impl FrameStatementExpanderV3 for JavaExpanderV3 {
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::Forward{ .. } => {
+            MirItem::Forward{ .. } => {
                 let mut out = String::new();
                 out.push_str(&format!("{}_frame_router(null);\n", pad));
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::TransitionForward{ target, .. } => {
                 let id_raw = match system_ctx { Some(sys) => format!("__{}_state_{}", sys, target), None => target.clone() };
                 let mut out = String::new();
                 out.push_str(&format!("{}FrameCompartment nextCompartment = new FrameCompartment(\"{}\");\n", pad, id_raw));
@@ -261,31 +261,31 @@ impl FrameStatementExpanderV3 for JavaExpanderV3 {
                 out.push_str(&format!("{}return _frame_router(null);\n", pad));
                 out
             }
-            MirItemV3::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}_frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}_frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}_returnValue = {};\n{}return;\n", pad, expr, pad)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => {
+            MirItem::SystemReturnExpr{ .. } => {
                 format!("{}_returnValue", pad)
             }
         }
     }
 }
 
-impl FrameStatementExpanderV3 for RustExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for RustExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
-        // When we know the system context (V3 module path), expand against methods
+        // When we know the system context (module path), expand against methods
         // on the generated system struct. Otherwise, keep the legacy free-function
         // calls used by demo/exec harnesses.
         let use_methods = system_ctx.is_some();
         match mir {
-            MirItemV3::Transition{ target, .. } => {
+            MirItem::Transition{ target, .. } => {
                 let mut out = String::new();
                 out.push_str(&format!(
                     "{}let next_compartment = FrameCompartment {{ state: StateId::{}, ..Default::default() }};\n",
@@ -299,7 +299,7 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
                 out.push_str(&format!("{}return;\n", pad));
                 out
             }
-            MirItemV3::Forward{ .. } => {
+            MirItem::Forward{ .. } => {
                 // Forwards are non-terminal
                 if use_methods {
                     format!("{}self._frame_router(None);\n", pad)
@@ -307,7 +307,7 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
                     format!("{}_frame_router(None);\n", pad)
                 }
             }
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::TransitionForward{ target, .. } => {
                 let mut out = String::new();
                 out.push_str(&format!(
                     "{}let next_compartment = FrameCompartment {{ state: StateId::{}, ..Default::default() }};\n",
@@ -322,21 +322,21 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
                 }
                 out
             }
-            MirItemV3::StackPush{ .. } => {
+            MirItem::StackPush{ .. } => {
                 if use_methods {
                     format!("{}self._frame_stack_push();\n", pad)
                 } else {
                     format!("{}_frame_stack_push();\n", pad)
                 }
             }
-            MirItemV3::StackPop{ .. } => {
+            MirItem::StackPop{ .. } => {
                 if use_methods {
                     format!("{}self._frame_stack_pop();\n", pad)
                 } else {
                     format!("{}_frame_stack_pop();\n", pad)
                 }
             }
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
@@ -347,7 +347,7 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
                     }
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => {
+            MirItem::SystemReturnExpr{ .. } => {
                 if use_methods {
                     format!("{}self._return_value", pad)
                 } else {
@@ -359,111 +359,111 @@ impl FrameStatementExpanderV3 for RustExpanderV3 {
 }
 
 // Python wrapper-call expansion (valid Python statements; unknown name is fine for parse)
-impl FrameStatementExpanderV3 for PyFacadeExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for PyFacadeExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, _system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args, .. } => {
+            MirItem::Transition{ target, state_args, .. } => {
                 let arglist = if state_args.is_empty() { String::new() } else { format!(", {}", state_args.join(", ")) };
                 format!("{}__frame_transition('{}'{} )\n", pad, target, arglist)
             }
-            MirItemV3::Forward{ .. } => format!("{}__frame_forward()\n", pad),
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::Forward{ .. } => format!("{}__frame_forward()\n", pad),
+            MirItem::TransitionForward{ target, .. } => {
                 format!("{}__frame_transition_forward('{}')\n", pad, target)
             }
-            MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push()\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop()\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}__frame_stack_push()\n", pad),
+            MirItem::StackPop{ .. } => format!("{}__frame_stack_pop()\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return\n", pad)
                 } else {
                     format!("{}__frame_return({})\n", pad, expr)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
+            MirItem::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }
 
 // TypeScript wrapper-call expansion
-impl FrameStatementExpanderV3 for TsFacadeExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for TsFacadeExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, _system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args, .. } => {
+            MirItem::Transition{ target, state_args, .. } => {
                 let arglist = if state_args.is_empty() { String::new() } else { format!(", {}", state_args.join(", ")) };
                 format!("{}__frame_transition('{}'{});\n", pad, target, arglist)
             }
-            MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::Forward{ .. } => format!("{}__frame_forward();\n", pad),
+            MirItem::TransitionForward{ target, .. } => {
                 format!("{}__frame_transition_forward('{}');\n", pad, target)
             }
-            MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}__frame_return({});\n", pad, expr)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
+            MirItem::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }
 
 // C-like wrapper-call expansions (C/C++/Java/C#)
-impl FrameStatementExpanderV3 for CFacadeExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for CFacadeExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, _system_ctx: Option<&str>) -> String {
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, .. } => {
+            MirItem::Transition{ target, .. } => {
                 // Exec/facade markers for C-like/Java/C# accept only the state name
                 format!("{}__frame_transition(\"{}\");\n", pad, target)
             }
-            MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::Forward{ .. } => format!("{}__frame_forward();\n", pad),
+            MirItem::TransitionForward{ target, .. } => {
                 format!("{}__frame_transition_forward(\"{}\");\n", pad, target)
             }
-            MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}__frame_return({});\n", pad, expr)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
+            MirItem::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }
 
-impl FrameStatementExpanderV3 for CppFacadeExpanderV3 { fn expand(&self, m:&MirItemV3, i:usize, s:Option<&str>)->String{ CFacadeExpanderV3.expand(m,i,s) } }
-impl FrameStatementExpanderV3 for JavaFacadeExpanderV3 { fn expand(&self, m:&MirItemV3, i:usize, s:Option<&str>)->String{ CFacadeExpanderV3.expand(m,i,s) } }
-impl FrameStatementExpanderV3 for RustFacadeExpanderV3 {
-    fn expand(&self, mir: &MirItemV3, indent: usize, _system_ctx: Option<&str>) -> String {
+impl FrameStatementExpander for CppFacadeExpander { fn expand(&self, m:&MirItem, i:usize, s:Option<&str>)->String{ CFacadeExpander.expand(m,i,s) } }
+impl FrameStatementExpander for JavaFacadeExpander { fn expand(&self, m:&MirItem, i:usize, s:Option<&str>)->String{ CFacadeExpander.expand(m,i,s) } }
+impl FrameStatementExpander for RustFacadeExpander {
+    fn expand(&self, mir: &MirItem, indent: usize, _system_ctx: Option<&str>) -> String {
         // Rust also accepts unknown function calls syntactically
         let pad = " ".repeat(indent);
         match mir {
-            MirItemV3::Transition{ target, state_args: _state_args, .. } => {
+            MirItem::Transition{ target, state_args: _state_args, .. } => {
                 // For exec/facade markers we only require the state name; ignore extra args in wrapper calls
                 format!("{}__frame_transition(\"{}\");\n", pad, target)
             }
-            MirItemV3::Forward{ .. } => format!("{}__frame_forward();\n", pad),
-            MirItemV3::TransitionForward{ target, .. } => {
+            MirItem::Forward{ .. } => format!("{}__frame_forward();\n", pad),
+            MirItem::TransitionForward{ target, .. } => {
                 format!("{}__frame_transition_forward(\"{}\");\n", pad, target)
             }
-            MirItemV3::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
-            MirItemV3::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
-            MirItemV3::SystemReturn{ expr, .. } => {
+            MirItem::StackPush{ .. } => format!("{}__frame_stack_push();\n", pad),
+            MirItem::StackPop{ .. } => format!("{}__frame_stack_pop();\n", pad),
+            MirItem::SystemReturn{ expr, .. } => {
                 if expr.is_empty() {
                     format!("{}return;\n", pad)
                 } else {
                     format!("{}__frame_return({});\n", pad, expr)
                 }
             }
-            MirItemV3::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
+            MirItem::SystemReturnExpr{ .. } => format!("{}__frame_return_value()", pad),
         }
     }
 }

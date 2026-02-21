@@ -1,16 +1,16 @@
 use super::*;
 use super::unified::*;
-use crate::frame_c::v4::body_closer::python::BodyCloserPyV3;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::python::BodyCloserPy;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
-pub struct NativeRegionScannerPyV3;
+pub struct NativeRegionScannerPy;
 
 /// Python syntax skipper - handles # comments, strings, and triple-quoted strings
 struct PythonSkipper;
 
 impl SyntaxSkipper for PythonSkipper {
-    fn body_closer(&self) -> Box<dyn BodyCloserV3> {
-        Box::new(BodyCloserPyV3)
+    fn body_closer(&self) -> Box<dyn BodyCloser> {
+        Box::new(BodyCloserPy)
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
@@ -34,8 +34,8 @@ impl SyntaxSkipper for PythonSkipper {
     }
 }
 
-impl NativeRegionScannerV3 for NativeRegionScannerPyV3 {
-    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResultV3, ScanErrorV3> {
+impl NativeRegionScanner for NativeRegionScannerPy {
+    fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
         scan_native_regions(&PythonSkipper, bytes, open_brace_index)
     }
 }

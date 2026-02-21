@@ -1,6 +1,6 @@
 use std::str;
 
-/// Minimal domain: scanner for Rust V3 demo modules.
+/// Minimal domain: scanner for Rust demo modules.
 ///
 /// Scans for a top-level `domain:` block and extracts Rust-style domain
 /// declarations of the form:

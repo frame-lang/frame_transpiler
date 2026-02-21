@@ -1,9 +1,9 @@
-// Frame-to-Python syntax transpiler for V3
+// Frame-to-Python syntax transpiler
 // Converts Frame expressions and statements to valid Python code
 
-pub struct PythonTranspilerV3;
+pub struct PythonTranspiler;
 
-impl PythonTranspilerV3 {
+impl PythonTranspiler {
     /// Transpile a Frame function body to Python without indentation validation
     /// Used when we know the content might have indentation issues from Frame expansion
     pub fn transpile_function_body_unchecked(&self, frame_body: &str) -> String {
@@ -67,7 +67,7 @@ impl PythonTranspilerV3 {
         
         // Debug: print what we're validating
         if std::env::var("FRAME_TRANSPILER_DEBUG").is_ok() {
-            eprintln!("[PythonTranspilerV3] Validating indentation for {} lines:", lines.len());
+            eprintln!("[PythonTranspiler] Validating indentation for {} lines:", lines.len());
             for (i, line) in lines.iter().enumerate() {
                 eprintln!("  Line {}: {:?}", i + 1, line);
             }
@@ -398,7 +398,7 @@ impl PythonTranspilerV3 {
         // TODO: Integrate with proper symbol resolution
         
         // Note: Boolean literals should already be in the correct form for the target language
-        // Frame V3 uses native code, so Python code should use True/False, not true/false
+        // Frame uses native code, so Python code should use True/False, not true/false
         
         // Convert logical operators
         result = result
@@ -421,14 +421,14 @@ mod tests {
     
     #[test]
     fn test_var_declaration() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("    var x = 10"), "    x = 10");
         assert_eq!(transpiler.transpile_line("var result = add(5, 3)"), "result = add(5, 3)");
     }
     
     #[test]
     fn test_indentation_validation() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         
         // Valid indentation
         let valid = "var x = 10\nif x > 5 {\n    print(\"big\")\n}";
@@ -445,49 +445,49 @@ mod tests {
     
     #[test]
     fn test_if_statement() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("if x == 10 {"), "if x == 10:");
         assert_eq!(transpiler.transpile_line("    if result > 0 {"), "    if result > 0:");
     }
     
     #[test]
     fn test_else_clause() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("} else {"), "else:");
         assert_eq!(transpiler.transpile_line("    }else{"), "    else:");
     }
     
     #[test]
     fn test_elif_clause() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("} else if x == 5 {"), "elif x == 5:");
         assert_eq!(transpiler.transpile_line("}else if y > 0 {"), "elif y > 0:");
     }
     
     #[test]
     fn test_for_loop() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("for item in items {"), "for item in items:");
         assert_eq!(transpiler.transpile_line("    for i in range(10) {"), "    for i in range(10):");
     }
     
     #[test]
     fn test_while_loop() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("while x < 10 {"), "while x < 10:");
         assert_eq!(transpiler.transpile_line("    while running {"), "    while running:");
     }
     
     #[test]
     fn test_return_statement() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("return x + y"), "return x + y");
         assert_eq!(transpiler.transpile_line("    return"), "    return");
     }
     
     #[test]
     fn test_logical_operators() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("if x && y {"), "if x and y:");
         assert_eq!(transpiler.transpile_line("if a || b {"), "if a or b:");
         assert_eq!(transpiler.transpile_line("if !valid {"), "if not valid:");
@@ -495,7 +495,7 @@ mod tests {
     
     #[test]
     fn test_closing_braces_removed() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
 
         // Block closing braces are removed by transpile_function_body, not transpile_line
         // transpile_line returns braces as-is because it can't distinguish block vs dict braces
@@ -515,7 +515,7 @@ mod tests {
     
     #[test]
     fn test_comments() {
-        let transpiler = PythonTranspilerV3;
+        let transpiler = PythonTranspiler;
         assert_eq!(transpiler.transpile_line("# Python comment"), "# Python comment");
         assert_eq!(transpiler.transpile_line("// C-style comment"), "# C-style comment");
         assert_eq!(transpiler.transpile_line("    // indented comment"), "    # indented comment");

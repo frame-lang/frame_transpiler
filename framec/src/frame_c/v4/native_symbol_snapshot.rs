@@ -6,7 +6,7 @@ pub struct NativeParamsSnapshot {
 }
 
 #[derive(Debug, Clone)]
-pub struct NativeSymbolSnapshotV3 {
+pub struct NativeSymbolSnapshot {
     pub language: TargetLanguage,
     pub params: Option<NativeParamsSnapshot>,
 }
@@ -17,6 +17,6 @@ pub struct NativeSymbolSnapshotV3 {
 pub fn build_native_symbol_snapshot_for_spliced(
     language: TargetLanguage,
     _spliced_text: &str,
-) -> NativeSymbolSnapshotV3 {
-    NativeSymbolSnapshotV3 { language, params: None }
+) -> NativeSymbolSnapshot {
+    NativeSymbolSnapshot { language, params: None }
 }

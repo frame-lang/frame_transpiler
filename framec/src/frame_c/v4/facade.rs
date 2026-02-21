@@ -1,20 +1,20 @@
 use crate::frame_c::visitors::TargetLanguage;
 
 #[derive(Debug, Clone)]
-pub struct NativeDiagnosticV3 {
+pub struct NativeDiagnostic {
     pub start: usize,
     pub end: usize,
     pub message: String,
 }
 
-pub trait NativeParseFacadeV3: Send + Sync {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String>;
+pub trait NativeParseFacade: Send + Sync {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String>;
 }
 
-pub struct NativeFacadeRegistryV3;
+pub struct NativeFacadeRegistry;
 
-impl NativeFacadeRegistryV3 {
-    pub fn get(lang: TargetLanguage) -> Option<&'static dyn NativeParseFacadeV3> {
+impl NativeFacadeRegistry {
+    pub fn get(lang: TargetLanguage) -> Option<&'static dyn NativeParseFacade> {
         match lang {
             TargetLanguage::Python3 => Some(&PY_FACADE),
             TargetLanguage::TypeScript => Some(&TS_FACADE),
@@ -46,8 +46,8 @@ static JAVA_FACADE: JavaWrapperFacade = JavaWrapperFacade;
 static CS_FACADE: CsWrapperFacade = CsWrapperFacade;
 static RUST_FACADE: RustWrapperFacade = RustWrapperFacade;
 
-impl NativeParseFacadeV3 for PyWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for PyWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         let mut diags = Vec::new();
         let bytes = spliced_text.as_bytes();
         let mut i = 0usize; let n = bytes.len();
@@ -61,28 +61,28 @@ impl NativeParseFacadeV3 for PyWrapperFacade {
             if starts_with(bytes, s, b"__frame_transition") {
                 // Must contain balanced parens and NOT end with ';'
                 if !has_balanced_parens(bytes, s, line_end) {
-                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
+                    diags.push(NativeDiagnostic{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
                 } else {
                     if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
                         if let Some((state_ok, msg)) = check_transition_first_arg(bytes, arg_start, arg_end, /*require_semicolon*/ false, /*allow_semicolon*/ false) {
-                            if !state_ok { diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: msg }); }
+                            if !state_ok { diags.push(NativeDiagnostic{ start: s, end: line_end, message: msg }); }
                         }
                     }
                 }
                 if ends_with_semicolon(bytes, s, line_end) {
-                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "semicolon not allowed in Python wrapper".into() });
+                    diags.push(NativeDiagnostic{ start: s, end: line_end, message: "semicolon not allowed in Python wrapper".into() });
                 }
             } else if starts_with(bytes, s, b"__frame_forward") || starts_with(bytes, s, b"__frame_stack_") {
                 // forward/stack wrappers: no semicolon; check balanced parens and zero-arg
                 if !has_balanced_parens(bytes, s, line_end) {
-                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
+                    diags.push(NativeDiagnostic{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
                 } else if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
                     if has_non_ws(bytes, arg_start, arg_end) {
-                        diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "wrapper takes no arguments".into() });
+                        diags.push(NativeDiagnostic{ start: s, end: line_end, message: "wrapper takes no arguments".into() });
                     }
                 }
                 if ends_with_semicolon(bytes, s, line_end) {
-                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "semicolon not allowed in Python wrapper".into() });
+                    diags.push(NativeDiagnostic{ start: s, end: line_end, message: "semicolon not allowed in Python wrapper".into() });
                 }
             }
         }
@@ -93,8 +93,8 @@ impl NativeParseFacadeV3 for PyWrapperFacade {
     }
 }
 
-impl NativeParseFacadeV3 for TsWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for TsWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         let mut diags = Vec::new();
         let bytes = spliced_text.as_bytes();
         let mut i = 0usize; let n = bytes.len();
@@ -105,22 +105,22 @@ impl NativeParseFacadeV3 for TsWrapperFacade {
             if s >= line_end { continue; }
             if starts_with(bytes, s, b"__frame_transition") || starts_with(bytes, s, b"__frame_forward") || starts_with(bytes, s, b"__frame_stack_") {
                 if !has_balanced_parens(bytes, s, line_end) {
-                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
+                    diags.push(NativeDiagnostic{ start: s, end: line_end, message: "unbalanced parentheses in wrapper".into() });
                 } else {
                     if starts_with(bytes, s, b"__frame_transition") {
                         if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
                             if let Some((state_ok, msg)) = check_transition_first_arg(bytes, arg_start, arg_end, /*require_semicolon*/ true, /*allow_semicolon*/ true) {
-                                if !state_ok { diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: msg }); }
+                                if !state_ok { diags.push(NativeDiagnostic{ start: s, end: line_end, message: msg }); }
                             }
                         }
                     } else if let Some((arg_start, arg_end)) = paren_payload(bytes, s, line_end) {
                         if has_non_ws(bytes, arg_start, arg_end) {
-                            diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "wrapper takes no arguments".into() });
+                            diags.push(NativeDiagnostic{ start: s, end: line_end, message: "wrapper takes no arguments".into() });
                         }
                     }
                 }
                 if !ends_with_semicolon(bytes, s, line_end) {
-                    diags.push(NativeDiagnosticV3{ start: s, end: line_end, message: "missing semicolon terminator".into() });
+                    diags.push(NativeDiagnostic{ start: s, end: line_end, message: "missing semicolon terminator".into() });
                 }
             }
         }
@@ -130,8 +130,8 @@ impl NativeParseFacadeV3 for TsWrapperFacade {
     }
 }
 
-impl NativeParseFacadeV3 for CWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for CWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         // Wrapper-only checks, then optional structural C parsing
         let mut diags = TsWrapperFacade.parse(spliced_text)?;
         if let Some(mut extra) = run_c_adapter(spliced_text) { diags.append(&mut extra); }
@@ -139,8 +139,8 @@ impl NativeParseFacadeV3 for CWrapperFacade {
     }
 }
 
-impl NativeParseFacadeV3 for CppWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for CppWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         // Wrapper-only checks, then optional structural C++ parsing
         let mut diags = TsWrapperFacade.parse(spliced_text)?;
         if let Some(mut extra) = run_cpp_adapter(spliced_text) { diags.append(&mut extra); }
@@ -148,24 +148,24 @@ impl NativeParseFacadeV3 for CppWrapperFacade {
     }
 }
 
-impl NativeParseFacadeV3 for JavaWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for JavaWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         let mut diags = TsWrapperFacade.parse(spliced_text)?;
         if let Some(mut extra) = run_java_adapter(spliced_text) { diags.append(&mut extra); }
         Ok(diags)
     }
 }
 
-impl NativeParseFacadeV3 for CsWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for CsWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         let mut diags = TsWrapperFacade.parse(spliced_text)?;
         if let Some(mut extra) = run_csharp_adapter(spliced_text) { diags.append(&mut extra); }
         Ok(diags)
     }
 }
 
-impl NativeParseFacadeV3 for RustWrapperFacade {
-    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnosticV3>, String> {
+impl NativeParseFacade for RustWrapperFacade {
+    fn parse(&self, spliced_text: &str) -> Result<Vec<NativeDiagnostic>, String> {
         // Reuse C-like wrapper checks, then append Rust parser diagnostics when enabled
         let mut diags = C_FACADE.parse(spliced_text)?;
         if let Some(mut extra) = run_rust_adapter(spliced_text) { diags.append(&mut extra); }
@@ -225,7 +225,7 @@ fn check_transition_first_arg(hay: &[u8], arg_start: usize, arg_end: usize, _req
 // --- Optional native parser adapters ---
 
 #[cfg(feature = "native-ts")]
-fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnostic>> {
     use swc_common::{sync::Lrc, FileName, SourceMap, Span, Spanned};
     use swc_ecma_ast::EsVersion;
     use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax};
@@ -238,47 +238,47 @@ fn run_ts_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
         None,
     );
     let mut parser = Parser::new_from(lexer);
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    let mut out: Vec<NativeDiagnostic> = Vec::new();
     for e in parser.take_errors() {
         let span: Span = e.span();
         let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-        out.push(NativeDiagnosticV3 { start, end, message: format!("native facade (TypeScript): {:?}", e) });
+        out.push(NativeDiagnostic { start, end, message: format!("native facade (TypeScript): {:?}", e) });
     }
     match parser.parse_script() {
         Ok(_) => {}
         Err(e) => {
             let span: Span = e.span();
             let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-            out.push(NativeDiagnosticV3 { start, end, message: format!("native facade (TypeScript): {:?}", e) });
+            out.push(NativeDiagnostic { start, end, message: format!("native facade (TypeScript): {:?}", e) });
         }
     }
     // Collect any additional errors produced during/after parse
     for e in parser.take_errors() {
         let span: Span = e.span();
         let start = span.lo.0 as usize; let end = span.hi.0 as usize;
-        out.push(NativeDiagnosticV3 { start, end, message: format!("native facade (TypeScript): {:?}", e) });
+        out.push(NativeDiagnostic { start, end, message: format!("native facade (TypeScript): {:?}", e) });
     }
     Some(out)
 }
 
 #[cfg(not(feature = "native-ts"))]
-fn run_ts_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+fn run_ts_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> { None }
 
 #[cfg(feature = "native-rs")]
-fn run_rust_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+fn run_rust_adapter(text: &str) -> Option<Vec<NativeDiagnostic>> {
+    let mut out: Vec<NativeDiagnostic> = Vec::new();
     let wrapped = format!("{{\n{}\n}}", text);
     if let Err(e) = syn::parse_str::<syn::Block>(&wrapped) {
-        out.push(NativeDiagnosticV3 { start: 0, end: 0, message: format!("native facade (Rust): {}", e) });
+        out.push(NativeDiagnostic { start: 0, end: 0, message: format!("native facade (Rust): {}", e) });
     }
     Some(out)
 }
 
 #[cfg(not(feature = "native-rs"))]
-fn run_rust_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+fn run_rust_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> { None }
 
 #[cfg(feature = "native-c")]
-fn run_c_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_c_adapter(text: &str) -> Option<Vec<NativeDiagnostic>> {
     use tree_sitter::{Parser, Node};
     fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
         if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
@@ -295,7 +295,7 @@ fn run_c_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     let root = tree.root_node();
     let mut errs = Vec::new();
     collect_errors(root, &mut errs);
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    let mut out: Vec<NativeDiagnostic> = Vec::new();
     for (mut s, mut e) in errs {
         let pre = prefix.len();
         if s < pre { s = pre; }
@@ -303,16 +303,16 @@ fn run_c_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
         s -= pre; e -= pre;
         if s > text.len() { s = text.len(); }
         if e > text.len() { e = text.len(); }
-        out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (C): parse error".into() });
+        out.push(NativeDiagnostic { start: s, end: e, message: "native facade (C): parse error".into() });
     }
     Some(out)
 }
 
 #[cfg(not(feature = "native-c"))]
-fn run_c_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+fn run_c_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> { None }
 
 #[cfg(feature = "native-cpp")]
-fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnostic>> {
     use tree_sitter::{Parser, Node};
     fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
         if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
@@ -329,7 +329,7 @@ fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     let root = tree.root_node();
     let mut errs = Vec::new();
     collect_errors(root, &mut errs);
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    let mut out: Vec<NativeDiagnostic> = Vec::new();
     for (mut s, mut e) in errs {
         let pre = prefix.len();
         if s < pre { s = pre; }
@@ -337,19 +337,19 @@ fn run_cpp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
         s -= pre; e -= pre;
         if s > text.len() { s = text.len(); }
         if e > text.len() { e = text.len(); }
-        out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (C++): parse error".into() });
+        out.push(NativeDiagnostic { start: s, end: e, message: "native facade (C++): parse error".into() });
     }
     Some(out)
 }
 
 #[cfg(not(feature = "native-cpp"))]
-fn run_cpp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+fn run_cpp_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> { None }
 
 // Python native parsing adapter selection:
 // - If feature "native-py-rp" is enabled, use RustPython parser (pure Rust, hermetic)
 // - Else if feature "native-py" is enabled, use tree-sitter-python
 // - Else, return None
-fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> {
     // Prefer RustPython-based parser when available
     #[cfg(feature = "native-py-rp")]
     {
@@ -380,7 +380,7 @@ fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> {
                     }
                     None => (0usize, 0usize)
                 };
-                return Some(vec![NativeDiagnosticV3 { start: s, end: e, message: msg }]);
+                return Some(vec![NativeDiagnostic { start: s, end: e, message: msg }]);
             }
         }
     }
@@ -398,8 +398,8 @@ fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> {
         let root = tree.root_node();
         let mut errs = Vec::new();
         collect_errors(root, &mut errs);
-        let mut out: Vec<NativeDiagnosticV3> = Vec::new();
-        for (s, e) in errs { out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (Python): parse error".into() }); }
+        let mut out: Vec<NativeDiagnostic> = Vec::new();
+        for (s, e) in errs { out.push(NativeDiagnostic { start: s, end: e, message: "native facade (Python): parse error".into() }); }
         return Some(out);
     }
     // No adapter available
@@ -410,7 +410,7 @@ fn run_python_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> {
 }
 
 #[cfg(feature = "native-java")]
-fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnostic>> {
     use tree_sitter::{Parser, Node};
     fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
         if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
@@ -427,7 +427,7 @@ fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     let root = tree.root_node();
     let mut errs = Vec::new();
     collect_errors(root, &mut errs);
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    let mut out: Vec<NativeDiagnostic> = Vec::new();
     for (mut s, mut e) in errs {
         let pre = prefix.len();
         if s < pre { s = pre; }
@@ -435,16 +435,16 @@ fn run_java_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
         s -= pre; e -= pre;
         if s > text.len() { s = text.len(); }
         if e > text.len() { e = text.len(); }
-        out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (Java): parse error".into() });
+        out.push(NativeDiagnostic { start: s, end: e, message: "native facade (Java): parse error".into() });
     }
     Some(out)
 }
 
 #[cfg(not(feature = "native-java"))]
-fn run_java_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+fn run_java_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> { None }
 
 #[cfg(feature = "native-csharp")]
-fn run_csharp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
+fn run_csharp_adapter(text: &str) -> Option<Vec<NativeDiagnostic>> {
     use tree_sitter::{Parser, Node};
     fn collect_errors(node: Node, out: &mut Vec<(usize, usize)>) {
         if node.is_error() || node.is_missing() { out.push((node.start_byte(), node.end_byte())); }
@@ -461,7 +461,7 @@ fn run_csharp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
     let root = tree.root_node();
     let mut errs = Vec::new();
     collect_errors(root, &mut errs);
-    let mut out: Vec<NativeDiagnosticV3> = Vec::new();
+    let mut out: Vec<NativeDiagnostic> = Vec::new();
     for (mut s, mut e) in errs {
         let pre = prefix.len();
         if s < pre { s = pre; }
@@ -469,10 +469,10 @@ fn run_csharp_adapter(text: &str) -> Option<Vec<NativeDiagnosticV3>> {
         s -= pre; e -= pre;
         if s > text.len() { s = text.len(); }
         if e > text.len() { e = text.len(); }
-        out.push(NativeDiagnosticV3 { start: s, end: e, message: "native facade (C#): parse error".into() });
+        out.push(NativeDiagnostic { start: s, end: e, message: "native facade (C#): parse error".into() });
     }
     Some(out)
 }
 
 #[cfg(not(feature = "native-csharp"))]
-fn run_csharp_adapter(_text: &str) -> Option<Vec<NativeDiagnosticV3>> { None }
+fn run_csharp_adapter(_text: &str) -> Option<Vec<NativeDiagnostic>> { None }

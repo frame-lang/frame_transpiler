@@ -1,5 +1,5 @@
-// NOTE: This file is generated from framec/src/frame_c/v3/machines/ts_harness_builder.frs
-// via tools/gen_v3_machines_rs.py using the bootstrap compiler.
+// NOTE: This file is generated from framec/src/frame_c/v4/machines/ts_harness_builder.frs
+// via tools/gen_machines_rs.py using the bootstrap compiler.
 // Do not edit directly.
 
 #[allow(dead_code)]

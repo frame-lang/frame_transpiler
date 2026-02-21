@@ -1,13 +1,13 @@
 use crate::frame_c::utils::{frame_exitcode, RunError};
 pub use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::native_region_scanner as nscan;
-use crate::frame_c::v4::native_region_scanner::NativeRegionScannerV3;
-use crate::frame_c::v4::mir_assembler::MirAssemblerV3;
-use crate::frame_c::v4::splice::SplicerV3;
-use crate::frame_c::v4::validator::{ValidatorV3, ValidationResultV3, ValidatorPolicyV3, BodyKindV3};
-use crate::frame_c::v4::system_parser::SystemParserV3;
-use crate::frame_c::v4::interface_parser::InterfaceParserV3;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::native_region_scanner::NativeRegionScanner;
+use crate::frame_c::v4::mir_assembler::MirAssembler;
+use crate::frame_c::v4::splice::Splicer;
+use crate::frame_c::v4::validator::{Validator, ValidationResult, ValidatorPolicy, BodyKind};
+use crate::frame_c::v4::system_parser::SystemParser;
+use crate::frame_c::v4::interface_parser::InterfaceParser;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
 pub mod body_closer;
 pub mod native_region_scanner;
@@ -135,15 +135,15 @@ fn convert_python_import_to_typescript(import_text: &str) -> String {
 /// field declarations so `tsc` does not report TS2339 for state stored on `this`.
 fn collect_ts_field_candidates(
     content: &str,
-    parts: &crate::frame_c::v4::module_partitioner::ModulePartitionsV3,
+    parts: &crate::frame_c::v4::module_partitioner::ModulePartitions,
 ) -> std::collections::HashSet<String> {
-    use crate::frame_c::v4::native_region_scanner::RegionV3;
+    use crate::frame_c::v4::native_region_scanner::Region;
     let mut fields: std::collections::HashSet<String> = std::collections::HashSet::new();
     for b in &parts.bodies {
         // Only scan handler/action/operation bodies; ignore functions/unknown for now.
         if !matches!(
             b.kind,
-            BodyKindV3::Handler | BodyKindV3::Action | BodyKindV3::Operation
+            BodyKind::Handler | BodyKind::Action | BodyKind::Operation
         ) {
             continue;
         }
@@ -151,16 +151,16 @@ fn collect_ts_field_candidates(
             continue;
         }
         let body_src = &content[b.open_byte..=b.close_byte];
-        let scan = match nscan::typescript::NativeRegionScannerTsV3.scan(body_src.as_bytes(), 0)
+        let scan = match nscan::typescript::NativeRegionScannerTs.scan(body_src.as_bytes(), 0)
         {
             Ok(s) => s,
-            Err(_) => crate::frame_c::v4::native_region_scanner::ScanResultV3 {
+            Err(_) => crate::frame_c::v4::native_region_scanner::ScanResult {
                 close_byte: body_src.len().saturating_sub(1),
                 regions: Vec::new(),
             },
         };
         for r in &scan.regions {
-            if let RegionV3::NativeText { span } = r {
+            if let Region::NativeText { span } = r {
                 if span.end <= span.start || span.end > body_src.len() {
                     continue;
                 }
@@ -194,24 +194,24 @@ fn collect_ts_field_candidates(
     fields
 }
 
-/// V3 compiler entrypoint (MVP scaffold).
+/// Compiler entrypoint (MVP scaffold).
 ///
 /// This will replace the legacy pipeline incrementally. For now it returns a
 /// deterministic error so the CLI remains usable while we bring up stages.
-pub struct CompilerV3;
+pub struct Compiler;
 
-impl CompilerV3 {
+impl Compiler {
 // Demo mode functions removed - all fixtures converted to proper Frame modules
 
     pub fn compile_multifile_unsupported() -> Result<String, RunError> {
         Err(RunError::new(
             frame_exitcode::PARSE_ERR,
-            "Multi-file build is temporarily unavailable during V3 rebuild",
+            "Multi-file build is temporarily unavailable during rebuild",
         ))
     }
 }
 
-fn build_errors_json(issues: &[crate::frame_c::v4::validator::ValidationIssueV3]) -> String {
+fn build_errors_json(issues: &[crate::frame_c::v4::validator::ValidationIssue]) -> String {
     // Build { "errors": [ { "code": "E400", "message": "..." }, ... ], "schemaVersion": 1 }
     let mut s = String::from("{\"errors\":[");
     for (i, iss) in issues.iter().enumerate() {
@@ -479,15 +479,15 @@ pub fn compile_module(content_str: &str, lang: TargetLanguage) -> Result<String,
     }
 }
 
-pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<ValidationResultV3, RunError> {
+pub fn validate_module_demo(content_str: &str, lang: TargetLanguage) -> Result<ValidationResult, RunError> {
     validate_module_demo_with_mode(content_str, lang, false)
 }
 
-pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, strict_native: bool) -> Result<ValidationResultV3, RunError> {
+pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, strict_native: bool) -> Result<ValidationResult, RunError> {
     let bytes = content_str.as_bytes();
     // Partition the module. If partitioning fails due to outline issues (e.g., missing '{' after a header),
     // fall back to a tolerant outline scan to surface structured diagnostics (E-codes) instead of a hard error.
-    let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
+    let parts = match module_partitioner::ModulePartitioner::partition(bytes, lang) {
         Ok(p) => p,
         Err(e) => {
             // Map body close and prolog errors from the partitioner into structured E-codes where possible.
@@ -502,35 +502,35 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 } else {
                     "E105: invalid @@target prolog"
                 };
-                issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: msg.into() });
-                return Ok(ValidationResultV3 { ok: false, issues });
+                issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: msg.into() });
+                return Ok(ValidationResult { ok: false, issues });
             }
             if emsg.starts_with("body close error:") {
                 let mapped = if emsg.contains("UnterminatedComment") || emsg.to_lowercase().contains("unterminated comment") {
-                    vec![crate::frame_c::v4::validator::ValidationIssueV3{ message: "E106: unterminated comment".into() }]
+                    vec![crate::frame_c::v4::validator::ValidationIssue{ message: "E106: unterminated comment".into() }]
                 } else if emsg.contains("UnterminatedString") || emsg.to_lowercase().contains("unterminated string") {
-                    vec![crate::frame_c::v4::validator::ValidationIssueV3{ message: "E100: unterminated string".into() }]
+                    vec![crate::frame_c::v4::validator::ValidationIssue{ message: "E100: unterminated string".into() }]
                 } else if emsg.contains("UnmatchedBraces") || emsg.to_lowercase().contains("body not closed") {
-                    vec![crate::frame_c::v4::validator::ValidationIssueV3{ message: "E103: unterminated body".into() }]
+                    vec![crate::frame_c::v4::validator::ValidationIssue{ message: "E103: unterminated body".into() }]
                 } else {
                     Vec::new()
                 };
                 if !mapped.is_empty() {
-                    return Ok(ValidationResultV3 { ok: false, issues: mapped });
+                    return Ok(ValidationResult { ok: false, issues: mapped });
                 }
             }
             // Tolerant outline scan will collect E111 and similar diagnostics.
             let outline_start = 0usize; // tolerant scan will walk whole file
-            let (_items, outline_issues) = crate::frame_c::v4::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+            let (_items, outline_issues) = crate::frame_c::v4::outline_scanner::OutlineScanner.scan_collect(bytes, outline_start, lang);
             if !outline_issues.is_empty() {
-                return Ok(ValidationResultV3 { ok: false, issues: outline_issues });
+                return Ok(ValidationResult { ok: false, issues: outline_issues });
             } else {
                 // If we couldn't recover any diagnostics, return the original partition error
                 return Err(RunError::new(frame_exitcode::PARSE_ERR, "module partition error"));
             }
         }
     };
-    let validator = ValidatorV3;
+    let validator = Validator;
     let mut all_issues = Vec::new();
     // include import scanning issues
     all_issues.extend(parts.import_issues.into_iter());
@@ -544,13 +544,13 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
     // Collect known state names and per-module context for validations that
     // depend on Arcanum or system-wide information.
     let (known_states, system_name, interface_methods, arcanum_symtab) = {
-        let (items, outline_issues) = crate::frame_c::v4::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+        let (items, outline_issues) = crate::frame_c::v4::outline_scanner::OutlineScanner.scan_collect(bytes, outline_start, lang);
         all_issues.extend(outline_issues);
         let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
         all_issues.extend(outer_issues);
         // Enforce per-system block ordering and uniqueness using ModuleAst (operations:, interface:, machine:, actions:, domain:)
         // and validate machine state headers from the same AST.
-        let module_ast = SystemParserV3::parse_module(bytes, lang);
+        let module_ast = SystemParser::parse_module(bytes, lang);
         let block_order_issues = validator.validate_system_block_order_ast(&module_ast);
         all_issues.extend(block_order_issues);
         // Enforce single `fn main` per module.
@@ -575,7 +575,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         all_issues.extend(sys_param_issues);
         // Collect interface method names for system.method(...) validation using the system parser.
         let interface_methods =
-            InterfaceParserV3.collect_all_interface_method_names(bytes, &module_ast, lang);
+            InterfaceParser.collect_all_interface_method_names(bytes, &module_ast, lang);
         // Best-effort scan for system name
         let system_name = find_system_name(bytes, 0);
         // Debug hook removed: known_states reporting was temporary for triage
@@ -585,19 +585,19 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
         // scan and assemble
         let scan_res = match lang {
-            TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0),
-            TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_bytes, 0),
-            TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_bytes, 0),
-            TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_bytes, 0),
-            TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_bytes, 0),
-            TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_bytes, 0),
-            TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_bytes, 0),
-            _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported in V3 demo")),
+            TargetLanguage::Python3 => nscan::python::NativeRegionScannerPy.scan(body_bytes, 0),
+            TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTs.scan(body_bytes, 0),
+            TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCs.scan(body_bytes, 0),
+            TargetLanguage::C => nscan::c::NativeRegionScannerC.scan(body_bytes, 0),
+            TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCpp.scan(body_bytes, 0),
+            TargetLanguage::Java => nscan::java::NativeRegionScannerJava.scan(body_bytes, 0),
+            TargetLanguage::Rust => nscan::rust::NativeRegionScannerRust.scan(body_bytes, 0),
+            _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported")),
         };
         let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
-        let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
+        let (mir, parse_issues) = MirAssembler.assemble_collect(body_bytes, &scan.regions);
         if !parse_issues.is_empty() { all_issues.extend(parse_issues); }
-        let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
+        let policy = ValidatorPolicy { body_kind: Some(b.kind) };
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
         // Validate that transition targets refer to known states.
         match lang {
@@ -628,8 +628,8 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         }
         // Parent-forward rule (module demos only): require a parent for the enclosing state
         if validator.has_machine_section(bytes, outline_start) {
-            if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
-                if mir.iter().any(|m| matches!(m, crate::frame_c::v4::mir::MirItemV3::Forward { .. })) {
+            if matches!(b.kind, BodyKind::Handler | BodyKind::Unknown) {
+                if mir.iter().any(|m| matches!(m, crate::frame_c::v4::mir::MirItem::Forward { .. })) {
                     let enclosing_state = b.state_id.as_deref();
                     let mut ok_parent = false;
                     if let Some(state_name) = enclosing_state {
@@ -639,7 +639,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                         }
                     }
                     if !ok_parent {
-                        all_issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
+                        all_issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: "E403: Cannot forward to parent: no parent available".into() });
                     }
                 }
             }
@@ -651,7 +651,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         let ret_issues = validator.validate_system_return_usage(body_bytes, &scan.regions, b.kind);
         res.issues.extend(ret_issues);
         // Enforce that system.method(...) calls target interface methods.
-        if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Action | BodyKindV3::Operation) {
+        if matches!(b.kind, BodyKind::Handler | BodyKind::Action | BodyKind::Operation) {
             let sys_issues = validator.validate_system_calls_interface(body_bytes, &scan.regions, &interface_methods);
             res.issues.extend(sys_issues);
         }
@@ -667,18 +667,18 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 let mut v = Vec::new();
                 let mut mi = 0usize;
                 for r in &scan.regions {
-                    if let crate::frame_c::v4::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                    if let crate::frame_c::v4::native_region_scanner::Region::FrameSegment{ indent, .. } = r {
                         if mi >= mir.len() { break; }
                         let m = &mir[mi];
                         mi += 1;
                         let s = match lang {
-                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Python3 => PyFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::TypeScript => TsFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::C => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::Java => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustFacadeExpander.expand(m, *indent, None),
                             _ => String::new(),
                         };
                         v.push(s);
@@ -686,16 +686,16 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
                 }
                 v
             };
-            let spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
+            let spliced = Splicer.splice(body_bytes, &scan.regions, &exps);
             // Optional native parsing via facades (adapter may no-op if feature not enabled)
-            if let Some(facade) = crate::frame_c::v4::facade::NativeFacadeRegistryV3::get(lang) {
+            if let Some(facade) = crate::frame_c::v4::facade::NativeFacadeRegistry::get(lang) {
                 if let Ok(diags) = facade.parse(&spliced.text) {
                     for d in diags {
                         if let Some((origin, src)) = spliced.map_spliced_range_to_origin(d.start, d.end) {
-                            let origin_str = match origin { crate::frame_c::v4::splice::OriginV3::Frame{..} => "frame", crate::frame_c::v4::splice::OriginV3::Native{..} => "native" };
-                            all_issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: format!("native syntax ({}:{}-{}): {}", origin_str, src.start, src.end, d.message) });
+                            let origin_str = match origin { crate::frame_c::v4::splice::Origin::Frame{..} => "frame", crate::frame_c::v4::splice::Origin::Native{..} => "native" };
+                            all_issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: format!("native syntax ({}:{}-{}): {}", origin_str, src.start, src.end, d.message) });
                         } else {
-                            all_issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: format!("native syntax: {}", d.message) });
+                            all_issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: format!("native syntax: {}", d.message) });
                         }
                     }
                 }
@@ -707,7 +707,7 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // In strict/native mode, surface native diagnostics as a failing status for callers that want to gate on facades
         return Err(RunError::new(exitcode::DATAERR, "native facade validation failed"));
     }
-    Ok(ValidationResultV3 { ok, issues: all_issues })
+    Ok(ValidationResult { ok, issues: all_issues })
 }
 
 /// Validate a module file using a pre-built project Arcanum (cross-file symbol table).
@@ -718,24 +718,24 @@ pub fn validate_module_with_arcanum(
     lang: TargetLanguage,
     arc: &crate::frame_c::v4::arcanum::Arcanum,
     strict_native: bool,
-) -> Result<ValidationResultV3, RunError> {
+) -> Result<ValidationResult, RunError> {
     let bytes = content_str.as_bytes();
-    let parts = match module_partitioner::ModulePartitionerV3::partition(bytes, lang) {
+    let parts = match module_partitioner::ModulePartitioner::partition(bytes, lang) {
         Ok(p) => p,
         Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &e.0)),
     };
-    let validator = ValidatorV3;
+    let validator = Validator;
     let mut all_issues = Vec::new();
     // include import scanning issues
     all_issues.extend(parts.import_issues.into_iter());
     // Outline grammar and section checks
     let outline_start = parts.imports.last().map(|s| s.end).or(parts.prolog.as_ref().map(|p| p.end)).unwrap_or(0);
-    let (items, outline_issues) = crate::frame_c::v4::outline_scanner::OutlineScannerV3.scan_collect(bytes, outline_start, lang);
+    let (items, outline_issues) = crate::frame_c::v4::outline_scanner::OutlineScanner.scan_collect(bytes, outline_start, lang);
     all_issues.extend(outline_issues);
     let outer_issues = validator.validate_outer_grammar(bytes, outline_start, lang, &items);
     all_issues.extend(outer_issues);
     // Per-system block ordering and uniqueness (operations:, interface:, machine:, actions:, domain:) using ModuleAst.
-    let module_ast = SystemParserV3::parse_module(bytes, lang);
+    let module_ast = SystemParser::parse_module(bytes, lang);
     let block_order_issues = validator.validate_system_block_order_ast(&module_ast);
     all_issues.extend(block_order_issues);
     // Enforce single `fn main` per module.
@@ -755,19 +755,19 @@ pub fn validate_module_with_arcanum(
     for b in parts.bodies {
         let body_bytes = &bytes[b.open_byte..=b.close_byte];
         let scan_res = match lang {
-            TargetLanguage::Python3 => nscan::python::NativeRegionScannerPyV3.scan(body_bytes, 0),
-            TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTsV3.scan(body_bytes, 0),
-            TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCsV3.scan(body_bytes, 0),
-            TargetLanguage::C => nscan::c::NativeRegionScannerCV3.scan(body_bytes, 0),
-            TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCppV3.scan(body_bytes, 0),
-            TargetLanguage::Java => nscan::java::NativeRegionScannerJavaV3.scan(body_bytes, 0),
-            TargetLanguage::Rust => nscan::rust::NativeRegionScannerRustV3.scan(body_bytes, 0),
-            _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported in V3 demo")),
+            TargetLanguage::Python3 => nscan::python::NativeRegionScannerPy.scan(body_bytes, 0),
+            TargetLanguage::TypeScript => nscan::typescript::NativeRegionScannerTs.scan(body_bytes, 0),
+            TargetLanguage::CSharp => nscan::csharp::NativeRegionScannerCs.scan(body_bytes, 0),
+            TargetLanguage::C => nscan::c::NativeRegionScannerC.scan(body_bytes, 0),
+            TargetLanguage::Cpp => nscan::cpp::NativeRegionScannerCpp.scan(body_bytes, 0),
+            TargetLanguage::Java => nscan::java::NativeRegionScannerJava.scan(body_bytes, 0),
+            TargetLanguage::Rust => nscan::rust::NativeRegionScannerRust.scan(body_bytes, 0),
+            _ => return Err(RunError::new(frame_exitcode::PARSE_ERR, "target not supported")),
         };
         let scan = match scan_res { Ok(s) => s, Err(e) => return Err(RunError::new(frame_exitcode::PARSE_ERR, &format!("Scan error: {:?}", e))) };
-        let (mir, parse_issues) = MirAssemblerV3.assemble_collect(body_bytes, &scan.regions);
+        let (mir, parse_issues) = MirAssembler.assemble_collect(body_bytes, &scan.regions);
         if !parse_issues.is_empty() { all_issues.extend(parse_issues); }
-        let policy = ValidatorPolicyV3 { body_kind: Some(b.kind) };
+        let policy = ValidatorPolicy { body_kind: Some(b.kind) };
         let mut res = validator.validate_regions_mir_with_policy(&scan.regions, &mir, policy);
         // Cross-file transition targets
         let sys = system_name.as_deref();
@@ -782,8 +782,8 @@ pub fn validate_module_with_arcanum(
         }
         // Parent-forward availability via Arcanum
         if validator.has_machine_section(bytes, outline_start) {
-            if matches!(b.kind, BodyKindV3::Handler | BodyKindV3::Unknown) {
-                if mir.iter().any(|m| matches!(m, crate::frame_c::v4::mir::MirItemV3::Forward { .. })) {
+            if matches!(b.kind, BodyKind::Handler | BodyKind::Unknown) {
+                if mir.iter().any(|m| matches!(m, crate::frame_c::v4::mir::MirItem::Forward { .. })) {
                     let enclosing_state = b.state_id.as_deref();
                     let mut ok_parent = false;
                     if let Some(state_name) = enclosing_state {
@@ -791,7 +791,7 @@ pub fn validate_module_with_arcanum(
                         ok_parent = arc.has_parent(sys_name, state_name) || arc.has_parent("_", state_name);
                     }
                     if !ok_parent {
-                        res.issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: "E403: Cannot forward to parent: no parent available".into() });
+                        res.issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: "E403: Cannot forward to parent: no parent available".into() });
                     }
                 }
             }
@@ -810,17 +810,17 @@ pub fn validate_module_with_arcanum(
                 let mut v = Vec::new();
                 let mut mi = 0usize;
                 for r in &scan.regions {
-                    if let crate::frame_c::v4::native_region_scanner::RegionV3::FrameSegment{ indent, .. } = r {
+                    if let crate::frame_c::v4::native_region_scanner::Region::FrameSegment{ indent, .. } = r {
                         if mi >= mir.len() { break; }
                         let m = &mir[mi]; mi += 1;
                         let s = match lang {
-                            TargetLanguage::Python3 => PyFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::TypeScript => TsFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::CSharp => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::C => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Cpp => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Java => CFacadeExpanderV3.expand(m, *indent, None),
-                            TargetLanguage::Rust => RustFacadeExpanderV3.expand(m, *indent, None),
+                            TargetLanguage::Python3 => PyFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::TypeScript => TsFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::CSharp => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::C => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::Cpp => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::Java => CFacadeExpander.expand(m, *indent, None),
+                            TargetLanguage::Rust => RustFacadeExpander.expand(m, *indent, None),
                             _ => String::new(),
                         };
                         v.push(s);
@@ -828,14 +828,14 @@ pub fn validate_module_with_arcanum(
                 }
                 v
             };
-            let spliced = SplicerV3.splice(body_bytes, &scan.regions, &exps);
-            if let Some(facade) = crate::frame_c::v4::facade::NativeFacadeRegistryV3::get(lang) {
+            let spliced = Splicer.splice(body_bytes, &scan.regions, &exps);
+            if let Some(facade) = crate::frame_c::v4::facade::NativeFacadeRegistry::get(lang) {
                 if let Ok(diags) = facade.parse(&spliced.text) {
                     for d in diags {
                         if let Some((_origin, src)) = spliced.map_spliced_range_to_origin(d.start, d.end) {
-                            all_issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: format!("native syntax (frame:{}-{}): {}", src.start, src.end, d.message) });
+                            all_issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: format!("native syntax (frame:{}-{}): {}", src.start, src.end, d.message) });
                         } else {
-                            all_issues.push(crate::frame_c::v4::validator::ValidationIssueV3{ message: format!("native syntax: {}", d.message) });
+                            all_issues.push(crate::frame_c::v4::validator::ValidationIssue{ message: format!("native syntax: {}", d.message) });
                         }
                     }
                 }
@@ -843,7 +843,7 @@ pub fn validate_module_with_arcanum(
         }
     }
     let ok = all_issues.is_empty();
-    Ok(ValidationResultV3 { ok, issues: all_issues })
+    Ok(ValidationResult { ok, issues: all_issues })
 }
 
 // SOL-anchored scan for `system <Ident> {` ignoring common comments
@@ -875,7 +875,7 @@ pub fn find_system_name(bytes: &[u8], start: usize) -> Option<String> {
             }
         }
         
-        // read ident (for v3 compatibility)
+        // read ident (for compatibility)
         let mut j = i;
         while j < n && ((bytes[j] as char).is_ascii_alphanumeric() || bytes[j] == b'_') { j += 1; }
         if j > i {
@@ -951,7 +951,7 @@ fn scan_py_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Opti
 // variables into (name, type, initializer) triples.
 fn scan_ts_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Option<String>, Option<String>)> {
     // Find the target system block and its domain: span, mirroring the
-    // structure used by DomainBlockScannerV3.
+    // structure used by DomainBlockScanner.
     fn is_space(b: u8) -> bool {
         b == b' ' || b == b'\t'
     }
@@ -1038,7 +1038,7 @@ fn scan_ts_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Opti
                     continue;
                 }
                 let open = i;
-                let close = body_closer::typescript::BodyCloserTsV3
+                let close = body_closer::typescript::BodyCloserTs
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c)
@@ -1058,7 +1058,7 @@ fn scan_ts_domain_fields(bytes: &[u8], target_system: &str) -> Vec<(String, Opti
                 continue;
             }
             let open = k;
-            let close = match body_closer::typescript::BodyCloserTsV3.close_byte(&bytes[open..], 0)
+            let close = match body_closer::typescript::BodyCloserTs.close_byte(&bytes[open..], 0)
             {
                 Ok(c) => open + c,
                 Err(_) => {

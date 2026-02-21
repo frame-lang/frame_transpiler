@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub enum CloseErrorV3Kind {
+pub enum CloseErrorKind {
     Unimplemented,
     UnterminatedString,
     UnterminatedComment,
@@ -8,19 +8,19 @@ pub enum CloseErrorV3Kind {
 }
 
 #[derive(Debug)]
-pub struct CloseErrorV3 {
-    pub kind: CloseErrorV3Kind,
+pub struct CloseError {
+    pub kind: CloseErrorKind,
     pub message: String,
 }
 
-impl CloseErrorV3 {
+impl CloseError {
     pub fn unimplemented() -> Self {
-        CloseErrorV3 { kind: CloseErrorV3Kind::Unimplemented, message: "Body closer not yet implemented".to_string() }
+        CloseError { kind: CloseErrorKind::Unimplemented, message: "Body closer not yet implemented".to_string() }
     }
 }
 
-pub trait BodyCloserV3 {
-    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseErrorV3>;
+pub trait BodyCloser {
+    fn close_byte(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<usize, CloseError>;
 }
 
 pub mod python;

@@ -4,13 +4,13 @@
 // The only language-specific logic is how to skip comments and strings.
 
 use super::*;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
 /// Language-specific syntax skipper trait.
 /// Each language only needs to implement how to skip its comments and strings.
 pub trait SyntaxSkipper {
     /// Get the body closer for this language
-    fn body_closer(&self) -> Box<dyn BodyCloserV3>;
+    fn body_closer(&self) -> Box<dyn BodyCloser>;
 
     /// Try to skip a comment starting at position i.
     /// Returns Some(new_position) if a comment was skipped, None otherwise.
@@ -34,15 +34,15 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
     skipper: &S,
     bytes: &[u8],
     open_brace_index: usize,
-) -> Result<ScanResultV3, ScanErrorV3> {
+) -> Result<ScanResult, ScanError> {
     let mut closer = skipper.body_closer();
     let close = closer.close_byte(bytes, open_brace_index)
-        .map_err(|e| ScanErrorV3 {
-            kind: ScanErrorV3Kind::UnterminatedProtected,
+        .map_err(|e| ScanError {
+            kind: ScanErrorKind::UnterminatedProtected,
             message: format!("{:?}", e)
         })?;
 
-    let mut regions: Vec<RegionV3> = Vec::new();
+    let mut regions: Vec<Region> = Vec::new();
     let mut i = open_brace_index + 1;
     let end = close;
     let mut seg_start = i;
@@ -67,7 +67,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 // Emit any preceding native text (excluding indentation)
                 let native_end = i.saturating_sub(indent);
                 if seg_start < native_end {
-                    regions.push(RegionV3::NativeText {
+                    regions.push(Region::NativeText {
                         span: RegionSpan { start: seg_start, end: native_end }
                     });
                 }
@@ -75,7 +75,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 // Find end of Frame statement
                 let stmt_end = skipper.find_line_end(bytes, i, end);
 
-                regions.push(RegionV3::FrameSegment {
+                regions.push(Region::FrameSegment {
                     span: RegionSpan { start: i, end: stmt_end },
                     kind,
                     indent,
@@ -116,7 +116,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
             // State variable reference: $.varName
             b'$' if i + 1 < end && bytes[i + 1] == b'.' => {
                 if seg_start < i {
-                    regions.push(RegionV3::NativeText {
+                    regions.push(Region::NativeText {
                         span: RegionSpan { start: seg_start, end: i }
                     });
                 }
@@ -125,9 +125,9 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
                     i += 1;
                 }
-                regions.push(RegionV3::FrameSegment {
+                regions.push(Region::FrameSegment {
                     span: RegionSpan { start: var_start, end: i },
-                    kind: FrameSegmentKindV3::StateVar,
+                    kind: FrameSegmentKind::StateVar,
                     indent: 0,
                 });
                 seg_start = i;
@@ -136,7 +136,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
             // System return: system.return = <expr> or system.return
             b's' if i + 12 < end && &bytes[i..i + 13] == b"system.return" => {
                 if seg_start < i {
-                    regions.push(RegionV3::NativeText {
+                    regions.push(Region::NativeText {
                         span: RegionSpan { start: seg_start, end: i }
                     });
                 }
@@ -152,16 +152,16 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                     // system.return = <expr>
                     i += 1; // Skip '='
                     i = skipper.find_line_end(bytes, i, end);
-                    regions.push(RegionV3::FrameSegment {
+                    regions.push(Region::FrameSegment {
                         span: RegionSpan { start, end: i },
-                        kind: FrameSegmentKindV3::SystemReturn,
+                        kind: FrameSegmentKind::SystemReturn,
                         indent: 0,
                     });
                 } else {
                     // bare system.return
-                    regions.push(RegionV3::FrameSegment {
+                    regions.push(Region::FrameSegment {
                         span: RegionSpan { start, end: i },
-                        kind: FrameSegmentKindV3::SystemReturnExpr,
+                        kind: FrameSegmentKind::SystemReturnExpr,
                         indent: 0,
                     });
                 }
@@ -176,12 +176,12 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
 
     // Emit any remaining native text
     if seg_start < end {
-        regions.push(RegionV3::NativeText {
+        regions.push(Region::NativeText {
             span: RegionSpan { start: seg_start, end }
         });
     }
 
-    Ok(ScanResultV3 { close_byte: close, regions })
+    Ok(ScanResult { close_byte: close, regions })
 }
 
 /// Match Frame statements at start of line.
@@ -196,7 +196,7 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     i: usize,
     end: usize,
     _indent: usize,
-) -> Option<(usize, FrameSegmentKindV3)> {
+) -> Option<(usize, FrameSegmentKind)> {
     let mut pos = i;
 
     // Check for backtick prefix (V4 embedded Frame statement syntax)
@@ -231,13 +231,13 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
                 k += 1;
             }
             if k < end && bytes[k] == b'$' {
-                return Some((k, FrameSegmentKindV3::TransitionForward));
+                return Some((k, FrameSegmentKind::TransitionForward));
             }
         }
 
         // Check for -> pop$ (pop transition)
         if k + 3 < end && bytes[k] == b'p' && bytes[k + 1] == b'o' && bytes[k + 2] == b'p' && bytes[k + 3] == b'$' {
-            return Some((k + 4, FrameSegmentKindV3::StackPop));
+            return Some((k + 4, FrameSegmentKind::StackPop));
         }
 
         // Check for optional enter args: -> (args) $State
@@ -252,13 +252,13 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
 
         // Regular transition: -> $State
         if k < end && bytes[k] == b'$' {
-            return Some((k, FrameSegmentKindV3::Transition));
+            return Some((k, FrameSegmentKind::Transition));
         }
     }
 
     // Forward: => $^
     if b == b'=' && pos + 3 < end && bytes[pos + 1] == b'>' && bytes[pos + 2] == b' ' && bytes[pos + 3] == b'$' {
-        return Some((pos + 4, FrameSegmentKindV3::Forward));
+        return Some((pos + 4, FrameSegmentKind::Forward));
     }
 
     // Transition with leading exit args: (exit_args) -> (enter_args) $State
@@ -282,7 +282,7 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
                     }
                 }
                 if k < end && bytes[k] == b'$' {
-                    return Some((k, FrameSegmentKindV3::Transition));
+                    return Some((k, FrameSegmentKind::Transition));
                 }
             }
         }
@@ -295,7 +295,7 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
         && bytes[pos + 3] == b'h'
         && bytes[pos + 4] == b'$'
     {
-        return Some((pos + 5, FrameSegmentKindV3::StackPush));
+        return Some((pos + 5, FrameSegmentKind::StackPush));
     }
 
     // Stack pop (standalone): pop$
@@ -304,14 +304,14 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
         && bytes[pos + 2] == b'p'
         && bytes[pos + 3] == b'$'
     {
-        return Some((pos + 4, FrameSegmentKindV3::StackPop));
+        return Some((pos + 4, FrameSegmentKind::StackPop));
     }
 
     // Return sugar: return <expr> at start of line
     if b == b'r' && pos + 6 <= end && &bytes[pos..pos + 6] == b"return" {
         let after_return = pos + 6;
         if after_return < end && (bytes[after_return] == b' ' || bytes[after_return] == b'\t') {
-            return Some((after_return, FrameSegmentKindV3::SystemReturn));
+            return Some((after_return, FrameSegmentKind::SystemReturn));
         }
     }
 

@@ -1,13 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::{ImportScannerV3, ImportScanResultV3};
-use super::super::validator::ValidationIssueV3;
+use super::{ImportScanner, ImportScanResult};
+use super::super::validator::ValidationIssue;
 
-pub struct ImportScannerPyV3;
+pub struct ImportScannerPy;
 
-impl ImportScannerV3 for ImportScannerPyV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
+impl ImportScanner for ImportScannerPy {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResult {
         let mut spans: Vec<RegionSpan> = Vec::new();
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -19,7 +19,7 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                 // skip spaces/tabs
                 let mut j = i;
                 while j < n && (bytes[j] == b' ' || bytes[j] == b'\t') { j += 1; }
-                // Stop scanning imports once we hit a V3 section or system header.
+                // Stop scanning imports once we hit a section or system header.
                 // All module imports are required to appear before `system` and sections.
                 if j < n && (
                     starts_kw(bytes, j, b"system") ||
@@ -84,7 +84,7 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                     if k >= n {
                         // EOF while inside an import logical line: report issue if open paren/string
                         if paren > 0 || in_s != 0 || in_triple != 0 {
-                            issues.push(ValidationIssueV3{ message: "E110: unterminated import statement".into() });
+                            issues.push(ValidationIssue{ message: "E110: unterminated import statement".into() });
                         }
                         spans.push(RegionSpan { start: stmt_start, end: n }); break; }
                     continue;
@@ -99,7 +99,7 @@ impl ImportScannerV3 for ImportScannerPyV3 {
                 if bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
             }
         }
-        ImportScanResultV3 { spans, issues }
+        ImportScanResult { spans, issues }
     }
 }
 

@@ -8,14 +8,14 @@
 
 use super::frame_ast::*;
 use super::native_region_scanner::{
-    NativeRegionScannerV3, RegionV3, RegionSpan, FrameSegmentKindV3,
-    python::NativeRegionScannerPyV3,
-    typescript::NativeRegionScannerTsV3,
-    rust::NativeRegionScannerRustV3,
-    csharp::NativeRegionScannerCsV3,
-    c::NativeRegionScannerCV3,
-    cpp::NativeRegionScannerCppV3,
-    java::NativeRegionScannerJavaV3,
+    NativeRegionScanner, Region, RegionSpan, FrameSegmentKind,
+    python::NativeRegionScannerPy,
+    typescript::NativeRegionScannerTs,
+    rust::NativeRegionScannerRust,
+    csharp::NativeRegionScannerCs,
+    c::NativeRegionScannerC,
+    cpp::NativeRegionScannerCpp,
+    java::NativeRegionScannerJava,
 };
 
 /// Main Frame parser
@@ -53,8 +53,8 @@ impl FrameParser {
     /// - Native code passes through (imports, functions, etc.)
     ///
     /// V4 does NOT support:
-    /// - `module` keyword (V3)
-    /// - `@@module` (V3)
+    /// - `module` keyword (legacy)
+    /// - `@@module` (legacy)
     /// - Frame imports (native imports pass through)
     pub fn parse_module(&mut self) -> Result<FrameAst, ParseError> {
         // Skip any leading whitespace or comments
@@ -236,9 +236,9 @@ impl FrameParser {
     }
 
     // =========================================================================
-    // V3 SYNTAX REMOVED
+    // LEGACY SYNTAX REMOVED
     // =========================================================================
-    // The following V3 constructs are NOT supported in V4:
+    // The following legacy constructs are NOT supported in V4:
     // - `module` keyword
     // - `@@module`
     // - Frame `import` statements (native imports pass through)
@@ -1714,15 +1714,15 @@ impl FrameParser {
     // ========================================================================
 
     /// Get the appropriate native region scanner for the target language
-    fn get_native_scanner(&self) -> Box<dyn NativeRegionScannerV3> {
+    fn get_native_scanner(&self) -> Box<dyn NativeRegionScanner> {
         match self.target {
-            TargetLanguage::Python3 => Box::new(NativeRegionScannerPyV3),
-            TargetLanguage::TypeScript => Box::new(NativeRegionScannerTsV3),
-            TargetLanguage::Rust => Box::new(NativeRegionScannerRustV3),
-            TargetLanguage::CSharp => Box::new(NativeRegionScannerCsV3),
-            TargetLanguage::C => Box::new(NativeRegionScannerCV3),
-            TargetLanguage::Cpp => Box::new(NativeRegionScannerCppV3),
-            TargetLanguage::Java => Box::new(NativeRegionScannerJavaV3),
+            TargetLanguage::Python3 => Box::new(NativeRegionScannerPy),
+            TargetLanguage::TypeScript => Box::new(NativeRegionScannerTs),
+            TargetLanguage::Rust => Box::new(NativeRegionScannerRust),
+            TargetLanguage::CSharp => Box::new(NativeRegionScannerCs),
+            TargetLanguage::C => Box::new(NativeRegionScannerC),
+            TargetLanguage::Cpp => Box::new(NativeRegionScannerCpp),
+            TargetLanguage::Java => Box::new(NativeRegionScannerJava),
         }
     }
 
@@ -1748,15 +1748,15 @@ impl FrameParser {
 
         for region in &scan_result.regions {
             match region {
-                RegionV3::NativeText { .. } => {
+                Region::NativeText { .. } => {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
-                RegionV3::FrameSegment { span, kind, indent } => {
+                Region::FrameSegment { span, kind, indent } => {
                     // StateVar, SystemReturn, and SystemReturnExpr segments are inline expressions
                     // handled by the splicer during code generation
-                    if *kind == FrameSegmentKindV3::StateVar
-                        || *kind == FrameSegmentKindV3::SystemReturn
-                        || *kind == FrameSegmentKindV3::SystemReturnExpr
+                    if *kind == FrameSegmentKind::StateVar
+                        || *kind == FrameSegmentKind::SystemReturn
+                        || *kind == FrameSegmentKind::SystemReturnExpr
                     {
                         continue;
                     }
@@ -1780,14 +1780,14 @@ impl FrameParser {
     fn parse_frame_segment_from_bytes(
         &self,
         bytes: &[u8],
-        kind: FrameSegmentKindV3,
+        kind: FrameSegmentKind,
         span: &RegionSpan,
         indent: usize,
     ) -> Result<Statement, ParseError> {
         let content = String::from_utf8_lossy(bytes);
 
         match kind {
-            FrameSegmentKindV3::Transition => {
+            FrameSegmentKind::Transition => {
                 // Parse transition: -> $State(args) or (exit_args) -> (enter_args) $State(state_args)
                 let (target, args) = self.parse_transition_from_string(&content)?;
                 Ok(Statement::Transition(TransitionAst {
@@ -1797,7 +1797,7 @@ impl FrameParser {
                     indent,
                 }))
             }
-            FrameSegmentKindV3::Forward => {
+            FrameSegmentKind::Forward => {
                 // Parse forward: => $^
                 Ok(Statement::Forward(ForwardAst {
                     event: "^".to_string(), // Forward to parent
@@ -1806,7 +1806,7 @@ impl FrameParser {
                     indent,
                 }))
             }
-            FrameSegmentKindV3::TransitionForward => {
+            FrameSegmentKind::TransitionForward => {
                 // -> => $State (transition then forward event)
                 let (target, _args) = self.parse_transition_forward_from_string(&content)?;
                 Ok(Statement::TransitionForward(TransitionForwardAst {
@@ -1815,29 +1815,29 @@ impl FrameParser {
                     indent,
                 }))
             }
-            FrameSegmentKindV3::StackPush => {
+            FrameSegmentKind::StackPush => {
                 Ok(Statement::StackPush(StackPushAst {
                     span: Span::new(span.start, span.end),
                     indent,
                 }))
             }
-            FrameSegmentKindV3::StackPop => {
+            FrameSegmentKind::StackPop => {
                 Ok(Statement::StackPop(StackPopAst {
                     span: Span::new(span.start, span.end),
                     indent,
                 }))
             }
-            FrameSegmentKindV3::StateVar => {
+            FrameSegmentKind::StateVar => {
                 // State variables are expanded inline by the splicer
                 // No separate statement needed - return an error that will be handled
                 Err(ParseError::Expected("StateVar handled by splicer".to_string()))
             }
-            FrameSegmentKindV3::SystemReturn => {
+            FrameSegmentKind::SystemReturn => {
                 // system.return = <expr> or ^ <expr>
                 // Handled by splicer expansion, similar to StateVar
                 Err(ParseError::Expected("SystemReturn handled by splicer".to_string()))
             }
-            FrameSegmentKindV3::SystemReturnExpr => {
+            FrameSegmentKind::SystemReturnExpr => {
                 // bare system.return (read expression)
                 // Handled by splicer expansion
                 Err(ParseError::Expected("SystemReturnExpr handled by splicer".to_string()))

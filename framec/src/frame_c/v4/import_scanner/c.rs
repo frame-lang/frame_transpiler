@@ -1,13 +1,13 @@
 use super::super::native_region_scanner::RegionSpan;
-use super::{ImportScannerV3, ImportScanResultV3};
-use super::super::validator::ValidationIssueV3;
+use super::{ImportScanner, ImportScanResult};
+use super::super::validator::ValidationIssue;
 
-pub struct ImportScannerCV3;
+pub struct ImportScannerC;
 
-impl ImportScannerV3 for ImportScannerCV3 {
-    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResultV3 {
+impl ImportScanner for ImportScannerC {
+    fn scan(&self, bytes: &[u8], start: usize) -> ImportScanResult {
         let mut spans: Vec<RegionSpan> = Vec::new();
-        let mut issues: Vec<ValidationIssueV3> = Vec::new();
+        let mut issues: Vec<ValidationIssue> = Vec::new();
         let n = bytes.len();
         let mut i = start;
         let mut at_sol = true;
@@ -45,7 +45,7 @@ impl ImportScannerV3 for ImportScannerCV3 {
                                 if closed { has_closure = true; }
                             }
                         }
-                        if !has_closure { issues.push(ValidationIssueV3{ message: "E110: unterminated include directive".into() }); }
+                        if !has_closure { issues.push(ValidationIssue{ message: "E110: unterminated include directive".into() }); }
                         spans.push(RegionSpan{ start: line_start, end: p.min(n) });
                         i = p.min(n); at_sol = true; continue;
                     } else {
@@ -57,6 +57,6 @@ impl ImportScannerV3 for ImportScannerCV3 {
                 if bytes[i]==b'\n' { at_sol=true; i+=1; } else { i+=1; }
             }
         }
-        ImportScanResultV3 { spans, issues }
+        ImportScanResult { spans, issues }
     }
 }

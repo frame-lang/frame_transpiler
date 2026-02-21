@@ -1,5 +1,5 @@
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v4::system_parser::SystemParserV3;
+use crate::frame_c::v4::system_parser::SystemParser;
 use crate::frame_c::v4::arcanum::Arcanum;
 
 /// Transforms Frame system declarations into native language classes
@@ -32,7 +32,7 @@ impl SystemTransformer {
         let mut out = String::new();
         
         // Parse the system to understand its structure
-        let module_ast = SystemParserV3::parse_module(bytes, TargetLanguage::Python3);
+        let module_ast = SystemParser::parse_module(bytes, TargetLanguage::Python3);
         let system = match module_ast.systems.iter().find(|s| s.name == sys_name) {
             Some(s) => s,
             None => return String::from_utf8_lossy(&bytes[start..end]).to_string(),

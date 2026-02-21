@@ -1,5 +1,5 @@
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v4::body_closer::{self as closer, BodyCloserV3};
+use crate::frame_c::v4::body_closer::{self as closer, BodyCloser};
 
 /// Issue produced when scanning a `domain:` block.
 /// The message is a human-readable description; the caller wraps it into
@@ -18,9 +18,9 @@ pub struct DomainDeclIssue {
 ///     - `var ident = <expr>`
 ///     - `ident = <expr>`
 /// - Any other non-blank, non-comment line is reported as E419.
-pub struct DomainBlockScannerV3;
+pub struct DomainBlockScanner;
 
-impl DomainBlockScannerV3 {
+impl DomainBlockScanner {
     pub fn validate_decls_only(
         &self,
         bytes: &[u8],
@@ -35,31 +35,31 @@ impl DomainBlockScannerV3 {
 
         fn close_system(bytes: &[u8], open: usize, lang: TargetLanguage) -> Option<usize> {
             match lang {
-                TargetLanguage::Python3 => closer::python::BodyCloserPyV3
+                TargetLanguage::Python3 => closer::python::BodyCloserPy
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),
-                TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3
+                TargetLanguage::TypeScript => closer::typescript::BodyCloserTs
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),
-                TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3
+                TargetLanguage::CSharp => closer::csharp::BodyCloserCs
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),
-                TargetLanguage::C => closer::c::BodyCloserCV3
+                TargetLanguage::C => closer::c::BodyCloserC
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),
-                TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3
+                TargetLanguage::Cpp => closer::cpp::BodyCloserCpp
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),
-                TargetLanguage::Java => closer::java::BodyCloserJavaV3
+                TargetLanguage::Java => closer::java::BodyCloserJava
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),
-                TargetLanguage::Rust => closer::rust::BodyCloserRustV3
+                TargetLanguage::Rust => closer::rust::BodyCloserRust
                     .close_byte(&bytes[open..], 0)
                     .ok()
                     .map(|c| open + c),

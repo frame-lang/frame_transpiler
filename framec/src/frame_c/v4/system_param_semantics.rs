@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::frame_c::v4::arcanum::Arcanum;
 use crate::frame_c::v4::ast::{Span, StateDecl};
 use crate::frame_c::visitors::TargetLanguage;
-use crate::frame_c::v4::body_closer::BodyCloserV3;
+use crate::frame_c::v4::body_closer::BodyCloser;
 
 // Choose the first declared state for a system via Arcanum spans.
 pub(crate) fn first_state_for_system<'a>(arc: &'a Arcanum, sys_name: &str) -> Option<&'a StateDecl> {
@@ -79,31 +79,31 @@ pub(crate) fn collect_domain_vars_per_system(
 
     fn close_system(bytes: &[u8], open: usize, lang: TargetLanguage) -> Option<usize> {
         match lang {
-            TargetLanguage::Python3 => closer::python::BodyCloserPyV3
+            TargetLanguage::Python3 => closer::python::BodyCloserPy
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
-            TargetLanguage::TypeScript => closer::typescript::BodyCloserTsV3
+            TargetLanguage::TypeScript => closer::typescript::BodyCloserTs
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
-            TargetLanguage::CSharp => closer::csharp::BodyCloserCsV3
+            TargetLanguage::CSharp => closer::csharp::BodyCloserCs
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
-            TargetLanguage::C => closer::c::BodyCloserCV3
+            TargetLanguage::C => closer::c::BodyCloserC
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
-            TargetLanguage::Cpp => closer::cpp::BodyCloserCppV3
+            TargetLanguage::Cpp => closer::cpp::BodyCloserCpp
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
-            TargetLanguage::Java => closer::java::BodyCloserJavaV3
+            TargetLanguage::Java => closer::java::BodyCloserJava
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
-            TargetLanguage::Rust => closer::rust::BodyCloserRustV3
+            TargetLanguage::Rust => closer::rust::BodyCloserRust
                 .close_byte(&bytes[open..], 0)
                 .ok()
                 .map(|c| open + c),
