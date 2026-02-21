@@ -9,12 +9,15 @@
 
 ## Current Status
 
-**Test Results (2026-02-20):**
+**Test Results (2026-02-21):**
 - Python: 28/28 tests passing (100%)
 - TypeScript: 28/28 tests passing (100%)
 - Rust: 28/28 tests passing (100%)
 
 **Total: 84/84 tests passing (100%)**
+
+**Milestone: Full Language Parity Achieved**
+All three target languages (Python, TypeScript, Rust) now use the unified kernel/router/transition compartment architecture.
 
 ---
 
@@ -106,54 +109,63 @@ class System:
 
 ### Rust Runtime
 
-Match-based dispatch (no dynamic dispatch):
+Full kernel/router/transition pattern (same as Python/TypeScript):
 
 ```rust
 impl System {
-    _state: String,
-    _state_stack: Vec<Box<dyn Any>>,
+    __compartment: SystemCompartment,
+    __next_compartment: Option<SystemCompartment>,
+    _state_stack: Vec<(String, SystemStateContext)>,
+    _return_value: Option<ReturnType>,
 
-    pub fn method(&mut self) {
-        match self._state.as_str() {
-            "StateA" => self._s_StateA_method(),
-            "StateB" => self._s_StateB_method(),
+    fn __kernel(&mut self, __e: SystemFrameEvent) {
+        self.__router(&__e);
+        while self.__next_compartment.is_some() {
+            let next_compartment = self.__next_compartment.take().unwrap();
+            let exit_event = SystemFrameEvent::new("$<");
+            self.__router(&exit_event);
+            self.__compartment = next_compartment;
+            // Enter or forward event handling...
+        }
+    }
+
+    fn __router(&mut self, __e: &SystemFrameEvent) {
+        match self.__compartment.state.as_str() {
+            "StateA" => self._state_StateA(__e),
+            "StateB" => self._state_StateB(__e),
             _ => {}
         }
     }
 
-    fn _transition(&mut self, target: &str) {
-        self._exit();
-        self._state = target.to_string();
-        self._enter();
+    fn __transition(&mut self, next_compartment: SystemCompartment) {
+        self.__next_compartment = Some(next_compartment);  // Deferred
     }
 }
 ```
 
 ---
 
-## Remaining Implementation Work
+## Completed Implementation Work
 
-### Phase 9: Rust Compartment Architecture (Deferred)
+### Phase 9: Rust Compartment Architecture - COMPLETE ✅
 
-**Current Rust Architecture:**
-- Flat `_sv_*` fields for state variables (direct field access)
-- Match-based dispatch in interface methods
-- Immediate transitions (not deferred like Python/TypeScript)
-- HSM forwarding via direct method calls (`_s_Child_method` calls `_s_Parent_method`)
+**Rust now uses the SAME kernel/router/transition pattern as Python/TypeScript:**
 
-**Why This Works:**
-- All state variables are accessible as struct fields regardless of current state
-- `=> $^` (forward to parent) compiles to direct parent handler call
-- Parent handler operates on the same `_sv_*` fields - semantically correct
-- No heap allocation or dynamic dispatch - idiomatic Rust
+| Feature | Python | TypeScript | Rust |
+|---------|--------|------------|------|
+| State vars | `compartment.state_vars["name"]` | `compartment.stateVars["name"]` | `__compartment.state_vars.get("name")` |
+| Compartment | `__compartment` | `#compartment` | `__compartment` |
+| Transitions | Deferred via `__next_compartment` | Deferred via `#nextCompartment` | Deferred via `__next_compartment` |
+| Event routing | FrameEvent + kernel/router | FrameEvent + kernel/router | FrameEvent + kernel/router |
+| HSM forwarding | `=> $^` → parent method call | `=> $^` → parent method call | `=> $^` → parent method call |
+| State stack | `Vec[(String, StateContext)]` | `Array<Compartment>` | `Vec<(String, StateContext)>` |
 
-**Python/TypeScript vs Rust:**
-| Feature | Python/TypeScript | Rust |
-|---------|-------------------|------|
-| State vars | `compartment.state_vars["name"]` | `self._sv_name` |
-| HSM parent access | `=> $^` forwarding | Direct call to parent handler |
-| Transitions | Deferred via `__next_compartment` | Immediate via `_transition()` |
-| Event routing | FrameEvent + kernel/router | Match-based dispatch |
+**Key Implementation Details:**
+- `SystemCompartment` struct with all 6 fields (state, state_args, state_vars, enter_args, exit_args, forward_event)
+- `SystemFrameEvent` struct with message field
+- `SystemStateContext` enum for typed state variable preservation
+- Direct dispatch for interface methods with parameters (bypasses kernel for efficiency)
+- Transition processing loop added to interface methods for deferred transition support
 
 **Note:** Per language spec, there is no syntax to access another state's variables directly.
 HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
@@ -221,9 +233,9 @@ cat framepiler_test_env/python_test_crate/tests/08_hsm.py
 | 0-6 | 01-26 | ✅ 78/78 passing |
 | 7.1 | 30 | ✅ 3/3 passing |
 | 8 | 29 | ✅ 3/3 passing |
-| 9 | N/A | Architecture (Deferred) |
+| 9 | All | ✅ Rust parity complete |
 
-**Current:** 84/84 (100%)
+**Current:** 84/84 (100%) - Full language parity achieved
 
 ---
 

@@ -1,9 +1,9 @@
 # Frame V4 Transpiler Architecture Specification
 
-**Version:** 1.0  
-**Date:** February 2026  
-**Audience:** Implementation team  
-**Status:** Normative
+**Version:** 1.1
+**Date:** February 2026
+**Audience:** Implementation team
+**Status:** Normative — All three target languages (Python, TypeScript, Rust) fully implemented
 
 ---
 
@@ -43,9 +43,11 @@ State variables (`$.varName`) are stored in the compartment's `state_vars` dict:
 
 | Language | Access Pattern |
 |----------|---------------|
-| Python | `self._compartment.state_vars["varName"]` |
-| TypeScript | `this._compartment.stateVars["varName"]` |
-| Rust | `self._compartment.state_vars["varName"]` (with appropriate typing) |
+| Python | `self.__compartment.state_vars["varName"]` |
+| TypeScript | `this.#compartment.stateVars["varName"]` |
+| Rust | `self.__compartment.state_vars.get("varName")` |
+
+**Note:** All three languages now use double-underscore prefix (`__`) for runtime fields to indicate they are internal implementation details.
 
 ### 0.4 State Stack (History)
 
@@ -746,7 +748,285 @@ class FooCompartment {
 
 The `copy()` method enables push/pop to preserve state variables by storing entire compartment copies on the state stack.
 
-### 6.5 Native Code Re-indentation
+### 6.5 Generated Runtime Infrastructure (Rust)
+
+Rust follows the same kernel/router/transition pattern as Python/TypeScript, using Rust idioms.
+
+#### 6.5.1 Rust FrameEvent
+
+```rust
+#[derive(Clone)]
+struct FooFrameEvent {
+    message: String,
+    parameters: std::collections::HashMap<String, Box<dyn std::any::Any>>,
+    _return: Option<Box<dyn std::any::Any>>,
+}
+
+impl FooFrameEvent {
+    fn new(message: &str, parameters: std::collections::HashMap<String, Box<dyn std::any::Any>>) -> Self {
+        Self {
+            message: message.to_string(),
+            parameters,
+            _return: None,
+        }
+    }
+}
+```
+
+#### 6.5.2 Rust Compartment
+
+```rust
+#[derive(Clone)]
+struct FooCompartment {
+    state: String,
+    state_args: std::collections::HashMap<String, Box<dyn std::any::Any>>,
+    state_vars: std::collections::HashMap<String, Box<dyn std::any::Any>>,
+    enter_args: std::collections::HashMap<String, Box<dyn std::any::Any>>,
+    exit_args: std::collections::HashMap<String, Box<dyn std::any::Any>>,
+    forward_event: Option<FooFrameEvent>,
+}
+
+impl FooCompartment {
+    fn new(state: &str) -> Self {
+        Self {
+            state: state.to_string(),
+            state_args: std::collections::HashMap::new(),
+            state_vars: std::collections::HashMap::new(),
+            enter_args: std::collections::HashMap::new(),
+            exit_args: std::collections::HashMap::new(),
+            forward_event: None,
+        }
+    }
+}
+```
+
+**Note:** Rust's `Box<dyn Any>` requires `Clone` to be implemented manually or use `dyn_clone` crate. For simplicity, state vars can use concrete types when known, or `serde_json::Value` for dynamic typing.
+
+#### 6.5.3 Rust System Fields
+
+```rust
+pub struct Foo {
+    __compartment: FooCompartment,
+    __next_compartment: Option<FooCompartment>,
+    _state_stack: Vec<FooCompartment>,
+    _return_value: Option<Box<dyn std::any::Any>>,
+    // Domain variables
+    counter: i32,
+}
+```
+
+#### 6.5.4 Rust Constructor
+
+```rust
+impl Foo {
+    pub fn new() -> Self {
+        let mut __compartment = FooCompartment::new("Idle");
+        // Initialize state vars for start state
+        __compartment.state_vars.insert("count".to_string(), Box::new(0i32));
+
+        let mut this = Self {
+            __compartment,
+            __next_compartment: None,
+            _state_stack: Vec::new(),
+            _return_value: None,
+            counter: 0,
+        };
+
+        // Send enter event to start state
+        let enter_event = FooFrameEvent::new("$>", std::collections::HashMap::new());
+        this.__kernel(enter_event);
+        this
+    }
+}
+```
+
+#### 6.5.5 Rust Kernel
+
+The kernel processes events and handles deferred transitions:
+
+```rust
+fn __kernel(&mut self, __e: FooFrameEvent) {
+    // Route event to current state
+    self.__router(&__e);
+
+    // Process any pending transition
+    while self.__next_compartment.is_some() {
+        let next_compartment = self.__next_compartment.take().unwrap();
+
+        // Exit current state
+        let exit_event = FooFrameEvent::new("$<", self.__compartment.exit_args.clone());
+        self.__router(&exit_event);
+
+        // Switch to new compartment
+        self.__compartment = next_compartment;
+
+        // Enter new state (or forward event)
+        if self.__compartment.forward_event.is_none() {
+            let enter_event = FooFrameEvent::new("$>", self.__compartment.enter_args.clone());
+            self.__router(&enter_event);
+        } else {
+            // There is a forwarded event
+            let forward_event = self.__compartment.forward_event.take().unwrap();
+            if forward_event.message == "$>" {
+                // Forwarded event IS enter event - just send it
+                self.__router(&forward_event);
+            } else {
+                // Forwarded event is NOT enter event
+                // Send normal enter event first
+                let enter_event = FooFrameEvent::new("$>", self.__compartment.enter_args.clone());
+                self.__router(&enter_event);
+                // Then forward the event to the new, initialized state
+                self.__router(&forward_event);
+            }
+        }
+    }
+}
+```
+
+#### 6.5.6 Rust Router
+
+The router dispatches events to the appropriate state handler:
+
+```rust
+fn __router(&mut self, __e: &FooFrameEvent) {
+    match self.__compartment.state.as_str() {
+        "Idle" => self._state_Idle(__e),
+        "Working" => self._state_Working(__e),
+        _ => {}
+    }
+}
+```
+
+#### 6.5.7 Rust State Dispatch
+
+Each state has a dispatch function that routes to event handlers:
+
+```rust
+fn _state_Idle(&mut self, __e: &FooFrameEvent) {
+    match __e.message.as_str() {
+        "$>" => self._s_Idle_enter(__e),
+        "$<" => self._s_Idle_exit(__e),
+        "start" => self._s_Idle_start(__e),
+        "process" => self._s_Idle_process(__e),
+        _ => {
+            // HSM: forward to parent if this state has a parent
+            // self._state_Parent(__e);
+        }
+    }
+}
+
+fn _state_Working(&mut self, __e: &FooFrameEvent) {
+    match __e.message.as_str() {
+        "$>" => self._s_Working_enter(__e),
+        "$<" => self._s_Working_exit(__e),
+        "process" => self._s_Working_process(__e),
+        _ => {}
+    }
+}
+```
+
+#### 6.5.8 Rust Transition
+
+Deferred transition - caches the next compartment for the kernel to process:
+
+```rust
+fn __transition(&mut self, next_compartment: FooCompartment) {
+    self.__next_compartment = Some(next_compartment);
+}
+```
+
+#### 6.5.9 Rust Interface Methods
+
+Interface methods create FrameEvents and route through kernel:
+
+```rust
+pub fn start(&mut self) {
+    let __e = FooFrameEvent::new("start", std::collections::HashMap::new());
+    self.__kernel(__e);
+}
+
+pub fn process(&mut self) {
+    let __e = FooFrameEvent::new("process", std::collections::HashMap::new());
+    self.__kernel(__e);
+}
+
+pub fn get_count(&mut self) -> i32 {
+    self._return_value = None;
+    let __e = FooFrameEvent::new("get_count", std::collections::HashMap::new());
+    self.__kernel(__e);
+    self._return_value.take()
+        .and_then(|v| v.downcast::<i32>().ok())
+        .map(|v| *v)
+        .unwrap_or_default()
+}
+```
+
+#### 6.5.10 Rust Handler Methods
+
+Handler methods contain user code with Frame statement expansions:
+
+```rust
+fn _s_Idle_start(&mut self, __e: &FooFrameEvent) {
+    // Native code
+    println!("Starting...");
+
+    // Frame expansion of -> $Working
+    let mut __compartment = FooCompartment::new("Working");
+    // Initialize state vars for target state
+    __compartment.state_vars.insert("count".to_string(), Box::new(0i32));
+    self.__transition(__compartment);
+    return;
+
+    // Unreachable after transition
+}
+
+fn _s_Working_process(&mut self, __e: &FooFrameEvent) {
+    // Access state var: $.count
+    let count = self.__compartment.state_vars.get("count")
+        .and_then(|v| v.downcast_ref::<i32>())
+        .copied()
+        .unwrap_or(0);
+
+    println!("Count: {}", count);
+
+    // Assign state var: $.count = count + 1
+    self.__compartment.state_vars.insert("count".to_string(), Box::new(count + 1));
+}
+```
+
+#### 6.5.11 Rust State Stack Operations
+
+```rust
+fn _state_stack_push(&mut self) {
+    self._state_stack.push(self.__compartment.clone());
+}
+
+fn _state_stack_pop(&mut self) {
+    if let Some(compartment) = self._state_stack.pop() {
+        // Exit current state
+        let exit_event = FooFrameEvent::new("$<", self.__compartment.exit_args.clone());
+        self.__router(&exit_event);
+        // Restore compartment (do NOT send enter - we're restoring, not entering)
+        self.__compartment = compartment;
+    }
+}
+```
+
+#### 6.5.12 Rust System Return
+
+```rust
+fn _s_Working_get_count(&mut self, __e: &FooFrameEvent) {
+    let count = self.__compartment.state_vars.get("count")
+        .and_then(|v| v.downcast_ref::<i32>())
+        .copied()
+        .unwrap_or(0);
+
+    // system.return = count
+    self._return_value = Some(Box::new(count));
+}
+```
+
+### 6.6 Native Code Re-indentation
 
 When emitting `NativeBlock` nodes, the backend must adjust indentation to match the current emit context. The algorithm:
 

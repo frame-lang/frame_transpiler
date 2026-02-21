@@ -104,25 +104,13 @@ pub fn generate_system(system: &SystemAst, arcanum: &Arcanum, lang: TargetLangua
 /// Generate class fields for the system
 fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<Field> {
     let mut fields = Vec::new();
-
-    // State field - stores current state name as string
-    // For Python/TypeScript: removed in Phase 14.6, use _compartment.state instead
-    // For Rust: keep _state field (Rust uses different compartment pattern)
-    if matches!(syntax.language, TargetLanguage::Rust) {
-        fields.push(Field::new("_state")
-            .with_visibility(Visibility::Private)
-            .with_type("str"));
-    }
+    let compartment_type = format!("{}Compartment", system.name);
 
     // State stack - for push/pop state operations
-    // For Rust with state vars: Vec<(String, {System}Compartment)> - fully typed
-    // For others: list/array
-    let has_state_vars = system.machine.as_ref()
-        .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
-        .unwrap_or(false);
-
-    let stack_type = if matches!(syntax.language, TargetLanguage::Rust) && has_state_vars {
-        format!("Vec<(String, {}Compartment)>", system.name)
+    // For Rust: Vec<(String, {System}StateContext)> - typed context enum for stack
+    // For others: list/array of compartments
+    let stack_type = if matches!(syntax.language, TargetLanguage::Rust) {
+        format!("Vec<(String, {}StateContext)>", system.name)
     } else {
         "List".to_string()
     };
@@ -130,31 +118,23 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         .with_visibility(Visibility::Private)
         .with_type(&stack_type));
 
-    // State context (for state parameters) - ONLY for Rust which doesn't use compartment model
-    // Python/TypeScript use _compartment.state_vars instead (Phase 14.6)
-    if matches!(syntax.language, TargetLanguage::Rust) {
-        fields.push(Field::new("_state_context")
-            .with_visibility(Visibility::Private)
-            .with_type("Dict"));
-    }
+    // Compartment field - canonical compartment architecture for ALL languages
+    // Holds the current compartment with state, state_vars, forward_event
+    let nullable_compartment_type = if matches!(syntax.language, TargetLanguage::Rust) {
+        format!("Option<{}>", compartment_type)
+    } else {
+        format!("{} | null", compartment_type)
+    };
+    fields.push(Field::new("__compartment")
+        .with_visibility(Visibility::Private)
+        .with_type(&compartment_type));
 
-    // Compartment field - for Python/TypeScript canonical compartment architecture
-    // Holds the current compartment with all 7 canonical fields
-    // Not used by Rust (which uses the enum-of-structs pattern)
-    if !matches!(syntax.language, TargetLanguage::Rust) {
-        let compartment_type = format!("{}Compartment", system.name);
-        let nullable_compartment_type = format!("{} | null", compartment_type);
-        fields.push(Field::new("__compartment")
-            .with_visibility(Visibility::Private)
-            .with_type(&compartment_type));
-
-        // Next compartment field - for deferred transition caching in __kernel
-        // __transition() sets this, __kernel() processes it after handler returns
-        // This field is nullable (null when no transition is pending)
-        fields.push(Field::new("__next_compartment")
-            .with_visibility(Visibility::Private)
-            .with_type(&nullable_compartment_type));
-    }
+    // Next compartment field - for deferred transition caching in __kernel
+    // __transition() sets this, __kernel() processes it after handler returns
+    // This field is nullable (None/null when no transition is pending)
+    fields.push(Field::new("__next_compartment")
+        .with_visibility(Visibility::Private)
+        .with_type(&nullable_compartment_type));
 
     // Return value field for system.return (not needed for Rust since we use native return)
     if !matches!(syntax.language, TargetLanguage::Rust) {
@@ -198,17 +178,18 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
     fields
 }
 
-/// Generate Rust compartment types for a system
+/// Generate Rust runtime types for a system
 ///
-/// This is the public entry point for generating the compartment enum and context structs
-/// that are needed for type-safe state variable storage in Rust.
+/// This is the public entry point for generating the Frame runtime infrastructure
+/// for Rust that matches the Python/TypeScript kernel/router/transition pattern.
 ///
 /// Returns the Rust code for:
-/// - Context structs for each state that has state variables
-/// - A compartment enum with variants for each state
-/// - Default impl for the enum
+/// - FrameEvent struct with message field
+/// - Compartment struct with state, state_vars, forward_event fields
+/// - Context structs for states with state variables (for typed push/pop)
+/// - StateContext enum for typed state variable storage
 pub fn generate_rust_compartment_types(system: &SystemAst) -> String {
-    generate_rust_compartment_enum(system)
+    generate_rust_runtime_types(system)
 }
 
 /// Generate FrameEvent class for Python/TypeScript
@@ -494,81 +475,95 @@ return c;"#,
     }
 }
 
-/// Generate Rust compartment enum and context structs
+/// Generate Rust runtime types (FrameEvent and Compartment structs)
 ///
-/// Generates an enum-of-structs pattern for type-safe state variable storage:
-/// ```rust
-/// #[derive(Clone)]
-/// enum FooCompartment {
-///     Counter(CounterContext),
-///     Other(OtherContext),
-///     Empty,
-/// }
-/// struct CounterContext { count: i32 }
-/// struct OtherContext { other_count: i32 }
-/// ```
-fn generate_rust_compartment_enum(system: &SystemAst) -> String {
-    // Only generate compartment types if there are states with variables
-    let has_state_vars = system.machine.as_ref()
-        .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
-        .unwrap_or(false);
-
-    if !has_state_vars {
-        return String::new();
-    }
-
-    let mut code = String::new();
+/// Generates the standard Frame runtime infrastructure for Rust:
+/// - FooFrameEvent struct with message field
+/// - FooCompartment struct with state and state_vars fields
+/// - Context structs for states with state variables (for typed push/pop)
+fn generate_rust_runtime_types(system: &SystemAst) -> String {
     let system_name = &system.name;
+    let mut code = String::new();
 
-    // Collect states with state variables
-    let states_with_vars: Vec<_> = system.machine.as_ref()
-        .map(|m| m.states.iter()
-            .filter(|s| !s.state_vars.is_empty())
-            .collect())
-        .unwrap_or_default();
-
-    // Generate context structs for each state with vars
-    for state in &states_with_vars {
-        code.push_str(&format!("#[derive(Clone, Default)]\nstruct {}Context {{\n", state.name));
-        for var in &state.state_vars {
-            let type_str = type_to_string(&var.var_type);
-            code.push_str(&format!("    {}: {},\n", var.name, type_str));
-        }
-        code.push_str("}\n\n");
-    }
-
-    // Generate compartment enum
-    code.push_str(&format!("#[derive(Clone)]\nenum {}Compartment {{\n", system_name));
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            if state.state_vars.is_empty() {
-                // State without vars - unit variant
-                code.push_str(&format!("    {},\n", state.name));
-            } else {
-                // State with vars - tuple variant holding context
-                code.push_str(&format!("    {}({}Context),\n", state.name, state.name));
-            }
-        }
-    }
-
-    // Always add Empty variant for edge cases
-    code.push_str("    Empty,\n");
+    // Generate FrameEvent struct
+    code.push_str(&format!("#[derive(Clone, Debug)]\nstruct {}FrameEvent {{\n", system_name));
+    code.push_str("    message: String,\n");
     code.push_str("}\n\n");
 
-    // Generate Default impl for the enum (returns first state's variant)
-    if let Some(ref machine) = system.machine {
-        if let Some(first_state) = machine.states.first() {
-            code.push_str(&format!("impl Default for {}Compartment {{\n", system_name));
-            code.push_str("    fn default() -> Self {\n");
-            if first_state.state_vars.is_empty() {
-                code.push_str(&format!("        {}Compartment::{}\n", system_name, first_state.name));
-            } else {
-                code.push_str(&format!("        {}Compartment::{}({}Context::default())\n",
-                    system_name, first_state.name, first_state.name));
+    // Generate FrameEvent impl with new()
+    code.push_str(&format!("impl {}FrameEvent {{\n", system_name));
+    code.push_str("    fn new(message: &str) -> Self {\n");
+    code.push_str("        Self { message: message.to_string() }\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
+    // Generate Compartment struct
+    code.push_str(&format!("#[derive(Clone)]\nstruct {}Compartment {{\n", system_name));
+    code.push_str("    state: String,\n");
+    code.push_str("    state_vars: std::collections::HashMap<String, i32>,\n");
+    code.push_str(&format!("    forward_event: Option<{}FrameEvent>,\n", system_name));
+    code.push_str("}\n\n");
+
+    // Generate Compartment impl with new()
+    code.push_str(&format!("impl {}Compartment {{\n", system_name));
+    code.push_str("    fn new(state: &str) -> Self {\n");
+    code.push_str("        Self {\n");
+    code.push_str("            state: state.to_string(),\n");
+    code.push_str("            state_vars: std::collections::HashMap::new(),\n");
+    code.push_str("            forward_event: None,\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
+    // Generate state context types for stack push/pop operations
+    // Always generate for Rust systems with a machine (needed for stack operations)
+    if system.machine.is_some() {
+        // Collect states with state variables
+        let states_with_vars: Vec<_> = system.machine.as_ref()
+            .map(|m| m.states.iter()
+                .filter(|s| !s.state_vars.is_empty())
+                .collect())
+            .unwrap_or_default();
+
+        // Generate context structs for each state with vars
+        for state in &states_with_vars {
+            code.push_str(&format!("#[derive(Clone, Default)]\nstruct {}Context {{\n", state.name));
+            for var in &state.state_vars {
+                let type_str = type_to_string(&var.var_type);
+                code.push_str(&format!("    {}: {},\n", var.name, type_str));
             }
-            code.push_str("    }\n");
             code.push_str("}\n\n");
+        }
+
+        // Generate compartment enum for typed state variable storage
+        code.push_str(&format!("#[derive(Clone)]\nenum {}StateContext {{\n", system_name));
+
+        if let Some(ref machine) = system.machine {
+            for state in &machine.states {
+                if state.state_vars.is_empty() {
+                    code.push_str(&format!("    {},\n", state.name));
+                } else {
+                    code.push_str(&format!("    {}({}Context),\n", state.name, state.name));
+                }
+            }
+        }
+        code.push_str("    Empty,\n");
+        code.push_str("}\n\n");
+
+        // Generate Default impl for the enum
+        if let Some(ref machine) = system.machine {
+            if let Some(first_state) = machine.states.first() {
+                code.push_str(&format!("impl Default for {}StateContext {{\n", system_name));
+                code.push_str("    fn default() -> Self {\n");
+                if first_state.state_vars.is_empty() {
+                    code.push_str(&format!("        {}StateContext::{}\n", system_name, first_state.name));
+                } else {
+                    code.push_str(&format!("        {}StateContext::{}({}Context::default())\n",
+                        system_name, first_state.name, first_state.name));
+                }
+                code.push_str("    }\n");
+                code.push_str("}\n\n");
+            }
         }
     }
 
@@ -584,15 +579,6 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
         CodegenNode::field(CodegenNode::self_ref(), "_state_stack"),
         CodegenNode::Array(vec![]),
     ));
-
-    // Initialize state context - ONLY for Rust which doesn't use compartment model
-    // Python/TypeScript use _compartment.state_vars instead (Phase 14.6)
-    if matches!(syntax.language, TargetLanguage::Rust) {
-        body.push(CodegenNode::assign(
-            CodegenNode::field(CodegenNode::self_ref(), "_state_context"),
-            CodegenNode::Dict(vec![]),
-        ));
-    }
 
     // Initialize return value (for system.return chain semantics)
     // Not needed for Rust which uses native return
@@ -644,66 +630,69 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
     }
 
     // Set initial state (first state in machine)
+    // All languages now use the kernel/router/compartment pattern
     if let Some(ref machine) = system.machine {
         if let Some(first_state) = machine.states.first() {
-            // For Rust: set _state field and call _enter directly
-            // For Python/TypeScript: use proper runtime with __compartment, __next_compartment, __kernel
-            if matches!(syntax.language, TargetLanguage::Rust) {
-                body.push(CodegenNode::assign(
-                    CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                    CodegenNode::string(&first_state.name),
-                ));
-                // Call enter handler on initial state
-                body.push(CodegenNode::ExprStmt(Box::new(
-                    CodegenNode::method_call(
-                        CodegenNode::self_ref(),
-                        "_enter",
-                        vec![],
-                    ),
-                )));
-            } else {
-                // Python/TypeScript: Proper Frame runtime initialization
-                let compartment_class = format!("{}Compartment", system.name);
-                let event_class = format!("{}FrameEvent", system.name);
+            let compartment_class = format!("{}Compartment", system.name);
+            let event_class = format!("{}FrameEvent", system.name);
 
-                // Initialize __compartment with initial state
-                body.push(CodegenNode::assign(
-                    CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
-                    CodegenNode::New {
-                        class: compartment_class,
-                        args: vec![CodegenNode::string(&first_state.name)],
-                    },
-                ));
-
-                // Initialize __next_compartment to None/null
-                body.push(CodegenNode::assign(
-                    CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
-                    CodegenNode::null(),
-                ));
-
-                // Send $> (enter) event via __kernel - language-specific
-                let init_event_code = match syntax.language {
-                    TargetLanguage::Python3 => format!(
-                        r#"__frame_event = {}("$>", None)
-self.__kernel(__frame_event)"#,
-                        event_class
-                    ),
-                    TargetLanguage::TypeScript => format!(
-                        r#"const __frame_event = new {}("$>", null);
-this.__kernel(__frame_event);"#,
-                        event_class
-                    ),
-                    _ => format!(
-                        r#"const __frame_event = new {}("$>", null);
-this.__kernel(__frame_event);"#,
-                        event_class
-                    ),
-                };
-                body.push(CodegenNode::NativeBlock {
-                    code: init_event_code,
-                    span: None,
-                });
+            // Initialize __compartment with initial state
+            match syntax.language {
+                TargetLanguage::Rust => {
+                    // For Rust, we need to use Ident with the full constructor expression
+                    // This is a workaround since CodegenNode::New doesn't work for Rust ::new()
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
+                        CodegenNode::Ident(format!("{}::new(\"{}\")", compartment_class, first_state.name)),
+                    ));
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
+                        CodegenNode::Ident("None".to_string()),
+                    ));
+                }
+                _ => {
+                    // Python/TypeScript: New expression
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
+                        CodegenNode::New {
+                            class: compartment_class.clone(),
+                            args: vec![CodegenNode::string(&first_state.name)],
+                        },
+                    ));
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
+                        CodegenNode::null(),
+                    ));
+                }
             }
+
+            // Send $> (enter) event via __kernel - language-specific
+            let init_event_code = match syntax.language {
+                TargetLanguage::Python3 => format!(
+                    r#"__frame_event = {}("$>", None)
+self.__kernel(__frame_event)"#,
+                    event_class
+                ),
+                TargetLanguage::TypeScript => format!(
+                    r#"const __frame_event = new {}("$>", null);
+this.__kernel(__frame_event);"#,
+                    event_class
+                ),
+                TargetLanguage::Rust => format!(
+                    r#"let __frame_event = {}::new("$>");
+self.__kernel(__frame_event)"#,
+                    event_class
+                ),
+                _ => format!(
+                    r#"const __frame_event = new {}("$>", null);
+this.__kernel(__frame_event);"#,
+                    event_class
+                ),
+            };
+            body.push(CodegenNode::NativeBlock {
+                code: init_event_code,
+                span: None,
+            });
         }
     }
 
@@ -895,41 +884,76 @@ if (handler) {
             });
         }
         TargetLanguage::Rust => {
-            // Rust: Keep simple implementation for now (proper runtime in task #18)
-            // _transition method - takes state name, executes immediately
+            // Rust: Full kernel/router/transition pattern matching Python/TypeScript
+
+            // __kernel method - the main event processing loop with deferred transitions
             methods.push(CodegenNode::Method {
-                name: "_transition".to_string(),
-                params: vec![Param::new("target_state").with_type("&str")],
+                name: "__kernel".to_string(),
+                params: vec![Param::new("__e").with_type(&event_class)],
                 return_type: None,
-                body: vec![
-                    CodegenNode::ExprStmt(Box::new(
-                        CodegenNode::method_call(CodegenNode::self_ref(), "_exit", vec![]),
-                    )),
-                    CodegenNode::assign(
-                        CodegenNode::field(CodegenNode::self_ref(), "_state"),
-                        CodegenNode::method_call(
-                            CodegenNode::ident("target_state"),
-                            "to_string",
-                            vec![],
-                        ),
+                body: vec![CodegenNode::NativeBlock {
+                    code: format!(
+                        r#"// Route event to current state
+self.__router(&__e);
+// Process any pending transition
+while self.__next_compartment.is_some() {{
+    let next_compartment = self.__next_compartment.take().unwrap();
+    // Exit current state
+    let exit_event = {}::new("$<");
+    self.__router(&exit_event);
+    // Switch to new compartment
+    self.__compartment = next_compartment;
+    // Enter new state (or forward event)
+    if self.__compartment.forward_event.is_none() {{
+        let enter_event = {}::new("$>");
+        self.__router(&enter_event);
+    }} else {{
+        // Forward event to new state
+        let forward_event = self.__compartment.forward_event.take().unwrap();
+        if forward_event.message == "$>" {{
+            // Forwarding enter event - just send it
+            self.__router(&forward_event);
+        }} else {{
+            // Forwarding other event - send $> first, then forward
+            let enter_event = {}::new("$>");
+            self.__router(&enter_event);
+            self.__router(&forward_event);
+        }}
+    }}
+}}"#,
+                        event_class, event_class, event_class
                     ),
-                    CodegenNode::ExprStmt(Box::new(
-                        CodegenNode::method_call(CodegenNode::self_ref(), "_enter", vec![]),
-                    )),
-                ],
+                    span: None,
+                }],
                 is_async: false,
                 is_static: false,
                 visibility: Visibility::Private,
                 decorators: vec![],
             });
 
-            // _dispatch_event method for Rust
+            // __router method - dispatches events to state dispatch methods
+            let router_code = generate_rust_router_dispatch(system);
             methods.push(CodegenNode::Method {
-                name: "_dispatch_event".to_string(),
-                params: vec![Param::new("event").with_type("&str")],
+                name: "__router".to_string(),
+                params: vec![Param::new("__e").with_type(&format!("&{}", event_class))],
                 return_type: None,
                 body: vec![CodegenNode::NativeBlock {
-                    code: "let handler_name = format!(\"_s_{}_{}\", self._state, event);\n// Rust requires match-based dispatch or a handler registry\n// For now, use explicit match in caller".to_string(),
+                    code: router_code,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Private,
+                decorators: vec![],
+            });
+
+            // __transition method - caches next compartment (deferred transition)
+            methods.push(CodegenNode::Method {
+                name: "__transition".to_string(),
+                params: vec![Param::new("next_compartment").with_type(&compartment_class)],
+                return_type: None,
+                body: vec![CodegenNode::NativeBlock {
+                    code: "self.__next_compartment = Some(next_compartment);".to_string(),
                     span: None,
                 }],
                 is_async: false,
@@ -956,11 +980,8 @@ if (handler) {
     // NOTE: _change_state method removed - it was deprecated legacy (->> operator)
     // The ->> syntax should not compile in V4
 
-    // _enter and _exit dispatchers - only for Rust (Python/TypeScript use __kernel with $>/<$ events)
-    if matches!(lang, TargetLanguage::Rust) {
-        methods.push(generate_enter_dispatcher(system, lang));
-        methods.push(generate_exit_dispatcher(system, lang));
-    }
+    // NOTE: Rust now uses kernel pattern like Python/TypeScript
+    // $>/$< events are handled via _state_X dispatch methods, not _enter/_exit dispatchers
 
     // For Rust: Generate _state_stack_push() and _state_stack_pop() methods
     // These handle typed compartment save/restore for state variable preservation
@@ -968,7 +989,9 @@ if (handler) {
     let has_state_vars = system.machine.as_ref()
         .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
         .unwrap_or(false);
-    if matches!(lang, TargetLanguage::Rust) && has_state_vars {
+    // Generate stack push/pop methods for Rust when there's a machine
+    // These are needed for any system that uses stack operations (push$/pop$)
+    if matches!(lang, TargetLanguage::Rust) && system.machine.is_some() {
         methods.push(generate_rust_state_stack_push(system));
         methods.push(generate_rust_state_stack_pop(system));
     }
@@ -977,20 +1000,20 @@ if (handler) {
 }
 
 /// Generate Rust _state_stack_push method
-/// Builds a compartment from current _sv_ fields and pushes to stack
+/// Builds a state context from current _sv_ fields and pushes to stack
 fn generate_rust_state_stack_push(system: &SystemAst) -> CodegenNode {
     let system_name = &system.name;
     let mut code = String::new();
 
-    // Build compartment from current _sv_ fields based on current state
-    code.push_str("let compartment = match self._state.as_str() {\n");
+    // Build state context from current _sv_ fields based on current state
+    code.push_str("let state_context = match self.__compartment.state.as_str() {\n");
 
     if let Some(ref machine) = system.machine {
         for state in &machine.states {
             if state.state_vars.is_empty() {
                 // State without vars - unit variant
                 code.push_str(&format!(
-                    "    \"{}\" => {}Compartment::{},\n",
+                    "    \"{}\" => {}StateContext::{},\n",
                     state.name, system_name, state.name
                 ));
             } else {
@@ -999,16 +1022,16 @@ fn generate_rust_state_stack_push(system: &SystemAst) -> CodegenNode {
                     .map(|v| format!("{}: self._sv_{}", v.name, v.name))
                     .collect();
                 code.push_str(&format!(
-                    "    \"{}\" => {}Compartment::{}({}Context {{ {} }}),\n",
+                    "    \"{}\" => {}StateContext::{}({}Context {{ {} }}),\n",
                     state.name, system_name, state.name, state.name, field_inits.join(", ")
                 ));
             }
         }
     }
 
-    code.push_str(&format!("    _ => {}Compartment::Empty,\n", system_name));
+    code.push_str(&format!("    _ => {}StateContext::Empty,\n", system_name));
     code.push_str("};\n");
-    code.push_str("self._state_stack.push((self._state.clone(), compartment));");
+    code.push_str("self._state_stack.push((self.__compartment.state.clone(), state_context));");
 
     CodegenNode::Method {
         name: "_state_stack_push".to_string(),
@@ -1023,34 +1046,35 @@ fn generate_rust_state_stack_push(system: &SystemAst) -> CodegenNode {
 }
 
 /// Generate Rust _state_stack_pop method
-/// Pops from stack, calls exit, restores _sv_ fields from compartment
+/// Pops from stack, sends exit event, restores _sv_ fields from context
 fn generate_rust_state_stack_pop(system: &SystemAst) -> CodegenNode {
     let system_name = &system.name;
+    let event_class = format!("{}FrameEvent", system_name);
     let mut code = String::new();
 
-    // Pop the saved state and compartment
-    code.push_str("let (saved_state, compartment) = self._state_stack.pop().unwrap();\n");
-    code.push_str("self._exit();\n");
-    code.push_str("self._state = saved_state;\n");
+    // Pop the saved state and context
+    code.push_str("let (saved_state, state_context) = self._state_stack.pop().unwrap();\n");
+    // Send exit event to current state via kernel pattern
+    code.push_str(&format!("let exit_event = {}::new(\"$<\");\n", event_class));
+    code.push_str("self.__router(&exit_event);\n");
+    // Update compartment state
+    code.push_str("self.__compartment.state = saved_state;\n");
 
-    // Restore _sv_ fields from compartment
-    code.push_str("match compartment {\n");
+    // Restore _sv_ fields from state context
+    code.push_str("match state_context {\n");
 
     if let Some(ref machine) = system.machine {
         for state in &machine.states {
             if state.state_vars.is_empty() {
                 // State without vars - nothing to restore
                 code.push_str(&format!(
-                    "    {}Compartment::{} => {{}}\n",
+                    "    {}StateContext::{} => {{}}\n",
                     system_name, state.name
                 ));
             } else {
                 // State with vars - restore from context
-                let field_names: Vec<&str> = state.state_vars.iter()
-                    .map(|v| v.name.as_str())
-                    .collect();
                 code.push_str(&format!(
-                    "    {}Compartment::{}(ctx) => {{\n",
+                    "    {}StateContext::{}(ctx) => {{\n",
                     system_name, state.name
                 ));
                 for var in &state.state_vars {
@@ -1064,7 +1088,7 @@ fn generate_rust_state_stack_pop(system: &SystemAst) -> CodegenNode {
         }
     }
 
-    code.push_str(&format!("    {}Compartment::Empty => {{}}\n", system_name));
+    code.push_str(&format!("    {}StateContext::Empty => {{}}\n", system_name));
     code.push_str("}");
 
     CodegenNode::Method {
@@ -1367,6 +1391,27 @@ fn expression_to_string(expr: &Expression, lang: TargetLanguage) -> String {
     }
 }
 
+/// Generate Rust router dispatch match statement
+///
+/// Routes events to _state_X methods based on current compartment state
+fn generate_rust_router_dispatch(system: &SystemAst) -> String {
+    let mut code = String::new();
+    code.push_str("match self.__compartment.state.as_str() {\n");
+
+    if let Some(ref machine) = system.machine {
+        for state in &machine.states {
+            code.push_str(&format!(
+                "    \"{}\" => self._state_{}(__e),\n",
+                state.name, state.name
+            ));
+        }
+    }
+
+    code.push_str("    _ => {}\n");
+    code.push_str("}");
+    code
+}
+
 /// Generate Rust enter dispatch with state variable initialization
 /// Initializes _sv_ fields for the target state
 fn generate_rust_enter_dispatch_with_vars(system: &SystemAst) -> String {
@@ -1456,11 +1501,26 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
             .map(|p| CodegenNode::ident(&p.name))
             .collect();
 
-        // Language-specific dispatch
+        // Language-specific dispatch - all languages now use kernel pattern
         let body_stmt = match lang {
             TargetLanguage::Rust => {
-                // For Rust, generate a match-based dispatch directly in the interface method
-                generate_rust_interface_dispatch(system, &method.name, &args, method.return_type.is_some())
+                // Rust: Create FrameEvent, call __kernel
+                // For return values or methods with parameters, use direct dispatch
+                // (kernel pattern doesn't support passing parameters)
+                if method.return_type.is_some() || !method.params.is_empty() {
+                    // Handlers with return types or parameters need direct dispatch
+                    let has_return = method.return_type.is_some();
+                    generate_rust_interface_dispatch(system, &method.name, &args, has_return)
+                } else {
+                    CodegenNode::NativeBlock {
+                        code: format!(
+                            r#"let __e = {}::new("{}");
+self.__kernel(__e)"#,
+                            event_class, method.name
+                        ),
+                        span: None,
+                    }
+                }
             }
             TargetLanguage::Python3 => {
                 // Python: Create FrameEvent, call __kernel, return __e._return
@@ -1563,11 +1623,31 @@ this.__kernel(__e);"#,
     }).collect()
 }
 
-/// Generate Rust match-based dispatch for interface methods
+/// Generate Rust match-based dispatch for interface methods with return values
+/// Used when kernel pattern can't easily return values
+/// Creates a FrameEvent and passes it to handlers (which now require __e)
 fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[CodegenNode], has_return: bool) -> CodegenNode {
+    let event_class = format!("{}FrameEvent", system.name);
+
     // Build match arms for each state that handles this event
     let mut match_code = String::new();
-    match_code.push_str("match self._state.as_str() {\n");
+
+    // Convert args to comma-separated parameter names
+    let args_str = if args.is_empty() {
+        String::new()
+    } else {
+        let arg_names: Vec<String> = args.iter().map(|arg| {
+            match arg {
+                CodegenNode::Ident(name) => name.clone(),
+                _ => "".to_string(),
+            }
+        }).collect();
+        format!(", {}", arg_names.join(", "))
+    };
+
+    // Create FrameEvent first
+    match_code.push_str(&format!("let __e = {}::new(\"{}\");\n", event_class, event));
+    match_code.push_str("match self.__compartment.state.as_str() {\n");
 
     if let Some(ref machine) = system.machine {
         // First pass: collect states that handle the event directly
@@ -1581,25 +1661,13 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
         for state in &machine.states {
             // Check if this state handles the event directly
             let handles_event = states_with_handler.contains(state.name.as_str());
-            let args_str = if args.is_empty() {
-                String::new()
-            } else {
-                args.iter().map(|a| {
-                    // Extract identifier name
-                    if let CodegenNode::Ident(name) = a {
-                        name.clone()
-                    } else {
-                        "arg".to_string()
-                    }
-                }).collect::<Vec<_>>().join(", ")
-            };
 
             if handles_event {
                 let handler_name = format!("_s_{}_{}", state.name, event);
                 if has_return {
-                    match_code.push_str(&format!("            \"{}\" => self.{}({}),\n", state.name, handler_name, args_str));
+                    match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, handler_name, args_str));
                 } else {
-                    match_code.push_str(&format!("            \"{}\" => {{ self.{}({}); }}\n", state.name, handler_name, args_str));
+                    match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, handler_name, args_str));
                 }
             } else if state.default_forward {
                 // State has default_forward but no handler for this event - forward to parent
@@ -1608,9 +1676,9 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
                     if states_with_handler.contains(parent.as_str()) {
                         let parent_handler_name = format!("_s_{}_{}", parent, event);
                         if has_return {
-                            match_code.push_str(&format!("            \"{}\" => self.{}({}),\n", state.name, parent_handler_name, args_str));
+                            match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, parent_handler_name, args_str));
                         } else {
-                            match_code.push_str(&format!("            \"{}\" => {{ self.{}({}); }}\n", state.name, parent_handler_name, args_str));
+                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, parent_handler_name, args_str));
                         }
                     }
                 }
@@ -1626,6 +1694,32 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
     }
     match_code.push_str("        }");
 
+    // For methods without return values, process any pending transitions
+    // (since we bypassed the kernel which normally handles this)
+    if !has_return {
+        match_code.push_str(&format!(r#"
+// Process any pending transitions (bypassed kernel)
+while self.__next_compartment.is_some() {{
+    let next_compartment = self.__next_compartment.take().unwrap();
+    let exit_event = {}::new("$<");
+    self.__router(&exit_event);
+    self.__compartment = next_compartment;
+    if self.__compartment.forward_event.is_none() {{
+        let enter_event = {}::new("$>");
+        self.__router(&enter_event);
+    }} else {{
+        let forward_event = self.__compartment.forward_event.take().unwrap();
+        if forward_event.message == "$>" {{
+            self.__router(&forward_event);
+        }} else {{
+            let enter_event = {}::new("$>");
+            self.__router(&enter_event);
+            self.__router(&forward_event);
+        }}
+    }}
+}}"#, event_class, event_class, event_class));
+    }
+
     CodegenNode::NativeBlock {
         code: match_code,
         span: None,
@@ -1634,49 +1728,47 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
 
 /// Generate state handler methods using the enhanced Arcanum
 ///
-/// For Python/TypeScript: Generates `__state_{StateName}(__e)` methods that dispatch internally
-/// For Rust: Generates individual `_s_{State}_{event}` methods
+/// For all languages: Generates `_state_{StateName}(__e)` methods that dispatch internally
+/// based on the event message, plus individual handler methods
 fn generate_state_handlers_via_arcanum(system_name: &str, machine: &MachineAst, arcanum: &Arcanum, source: &[u8], lang: TargetLanguage, has_state_vars: bool) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
 
-    match lang {
-        TargetLanguage::Python3 | TargetLanguage::TypeScript => {
-            // Generate one __state_{StateName} method per state
-            for state_entry in arcanum.get_enhanced_states(system_name) {
-                // Find state variables and default_forward for this state from the machine AST
-                let state_ast = machine.states.iter().find(|s| s.name == state_entry.name);
-                let state_vars = state_ast.map(|s| &s.state_vars[..]).unwrap_or(&[]);
-                let default_forward = state_ast.map(|s| s.default_forward).unwrap_or(false);
+    // Generate one _state_{StateName} dispatch method per state for ALL languages
+    for state_entry in arcanum.get_enhanced_states(system_name) {
+        // Find state variables and default_forward for this state from the machine AST
+        let state_ast = machine.states.iter().find(|s| s.name == state_entry.name);
+        let state_vars = state_ast.map(|s| &s.state_vars[..]).unwrap_or(&[]);
+        let default_forward = state_ast.map(|s| s.default_forward).unwrap_or(false);
 
-                let method = generate_state_method(
+        let method = generate_state_method(
+            system_name,
+            &state_entry.name,
+            state_entry.parent.as_deref(),
+            &state_entry.handlers,
+            state_vars,
+            source,
+            lang,
+            has_state_vars,
+            default_forward,
+        );
+        methods.push(method);
+    }
+
+    // For Rust: Also generate individual handler methods that the dispatch calls
+    // (Python/TypeScript inline the handler code in the dispatch method)
+    if matches!(lang, TargetLanguage::Rust) {
+        for state_entry in arcanum.get_enhanced_states(system_name) {
+            for (_event, handler_entry) in &state_entry.handlers {
+                let method = generate_handler_from_arcanum(
                     system_name,
                     &state_entry.name,
                     state_entry.parent.as_deref(),
-                    &state_entry.handlers,
-                    state_vars,
+                    handler_entry,
                     source,
                     lang,
                     has_state_vars,
-                    default_forward,
                 );
                 methods.push(method);
-            }
-        }
-        _ => {
-            // Rust: Generate individual handler methods (legacy approach)
-            for state_entry in arcanum.get_enhanced_states(system_name) {
-                for (event, handler_entry) in &state_entry.handlers {
-                    let method = generate_handler_from_arcanum(
-                        system_name,
-                        &state_entry.name,
-                        state_entry.parent.as_deref(),
-                        handler_entry,
-                        source,
-                        lang,
-                        has_state_vars,
-                    );
-                    methods.push(method);
-                }
             }
         }
     }
@@ -1712,16 +1804,21 @@ fn generate_state_method(
         state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
     };
 
-    // Generate the dispatch body based on __e._message
+    // Generate the dispatch body based on __e._message / __e.message
     let body_code = match lang {
         TargetLanguage::Python3 => generate_python_state_dispatch(_system_name, state_name, handlers, state_vars, source, &ctx, default_forward),
         TargetLanguage::TypeScript => generate_typescript_state_dispatch(_system_name, state_name, handlers, state_vars, source, &ctx, default_forward),
+        TargetLanguage::Rust => generate_rust_state_dispatch(_system_name, state_name, handlers, state_vars, parent_state, default_forward),
         _ => String::new(),
     };
 
     let params = match lang {
         TargetLanguage::TypeScript => {
             let event_type = format!("{}FrameEvent", _system_name);
+            vec![Param::new("__e").with_type(&event_type)]
+        }
+        TargetLanguage::Rust => {
+            let event_type = format!("&{}FrameEvent", _system_name);
             vec![Param::new("__e").with_type(&event_type)]
         }
         _ => vec![Param::new("__e")],
@@ -1946,6 +2043,97 @@ fn generate_typescript_state_dispatch(
     code
 }
 
+/// Generate Rust state dispatch code (match on __e.message)
+///
+/// Unlike Python/TypeScript which inline handler code, Rust dispatches to separate methods
+fn generate_rust_state_dispatch(
+    _system_name: &str,
+    state_name: &str,
+    handlers: &std::collections::HashMap<String, HandlerEntry>,
+    state_vars: &[StateVarAst],
+    parent_state: Option<&str>,
+    default_forward: bool,
+) -> String {
+    let mut code = String::new();
+    code.push_str("match __e.message.as_str() {\n");
+
+    // Sort handlers for deterministic output
+    let mut sorted_handlers: Vec<_> = handlers.iter().collect();
+    sorted_handlers.sort_by_key(|(event, _)| *event);
+
+    // Track if we need to initialize state vars in $>
+    let has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
+    let needs_state_var_init = !state_vars.is_empty();
+
+    for (event, handler) in sorted_handlers {
+        // Skip handlers with parameters - they can only be called from interface methods directly
+        // (state dispatch doesn't have access to the parameters)
+        if !handler.params.is_empty() {
+            continue;
+        }
+
+        // Map Frame events to their message names
+        let message = match event.as_str() {
+            "$>" | "enter" => "$>",
+            "$<" | "exit" => "$<",
+            _ => event.as_str(),
+        };
+
+        // Determine handler method name
+        let handler_method = match event.as_str() {
+            "$>" | "enter" => format!("_s_{}_enter", state_name),
+            "$<" | "exit" => format!("_s_{}_exit", state_name),
+            _ => format!("_s_{}_{}", state_name, event),
+        };
+
+        // For $> handler with state vars, initialize them first
+        if (event == "$>" || event == "enter") && needs_state_var_init {
+            code.push_str(&format!("    \"{}\" => {{\n", message));
+            for var in state_vars {
+                let init_val = if let Some(ref init) = var.init {
+                    expression_to_string(init, TargetLanguage::Rust)
+                } else {
+                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
+                };
+                code.push_str(&format!("        self._sv_{} = {};\n", var.name, init_val));
+            }
+            code.push_str(&format!("        self.{}(__e);\n", handler_method));
+            code.push_str("    }\n");
+        } else {
+            // Use block syntax to ignore handler return value (dispatch doesn't return)
+            code.push_str(&format!("    \"{}\" => {{ self.{}(__e); }}\n", message, handler_method));
+        }
+    }
+
+    // If no $> handler but state has state vars, generate a match arm for state var init
+    if needs_state_var_init && !has_enter_handler {
+        code.push_str("    \"$>\" => {\n");
+        for var in state_vars {
+            let init_val = if let Some(ref init) = var.init {
+                expression_to_string(init, TargetLanguage::Rust)
+            } else {
+                state_var_init_value(&var.var_type, TargetLanguage::Rust)
+            };
+            code.push_str(&format!("        self._sv_{} = {};\n", var.name, init_val));
+        }
+        code.push_str("    }\n");
+    }
+
+    // Default case - forward to parent if default_forward, else do nothing
+    if default_forward {
+        if let Some(parent) = parent_state {
+            code.push_str(&format!("    _ => self._state_{}(__e),\n", parent));
+        } else {
+            code.push_str("    _ => {}\n");
+        }
+    } else {
+        code.push_str("    _ => {}\n");
+    }
+
+    code.push_str("}");
+    code
+}
+
 /// Generate a handler method from Arcanum's HandlerEntry
 ///
 /// Uses the handler's body_span to extract and splice native code with Frame expansions.
@@ -1960,7 +2148,17 @@ fn generate_handler_from_arcanum(
 ) -> CodegenNode {
     // Build params from handler's parameter symbols
     // V4 uses native types, so we just pass them through as-is
-    let params: Vec<Param> = handler.params.iter().map(|p| {
+    // For Rust: Add __e: &FrameEvent as first param
+    let mut params: Vec<Param> = Vec::new();
+
+    if matches!(lang, TargetLanguage::Rust) {
+        // Rust handlers receive the FrameEvent reference
+        let event_type = format!("&{}FrameEvent", system_name);
+        params.push(Param::new("__e").with_type(&event_type));
+    }
+
+    // Add handler parameters
+    for p in &handler.params {
         let type_str = p.symbol_type.as_deref().unwrap_or("Any");
         // Clean up the type string (remove "Some(" prefix if present from debug format)
         let clean_type = if type_str.starts_with("Some(") {
@@ -1968,8 +2166,8 @@ fn generate_handler_from_arcanum(
         } else {
             type_str
         };
-        Param::new(&p.name).with_type(clean_type)
-    }).collect();
+        params.push(Param::new(&p.name).with_type(clean_type));
+    }
 
     // Determine method name based on handler type
     let method_name = if handler.is_enter {
@@ -2298,8 +2496,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         indent_str, indent_str
                     ),
                     TargetLanguage::Rust => format!(
-                        "{}let __saved = self._state_stack.pop().unwrap();\n{}let __target = __saved.downcast_ref::<String>().unwrap();\n{}self._transition(__target)",
-                        indent_str, indent_str, indent_str
+                        "{}self._state_stack_pop()",
+                        indent_str
                     ),
                     _ => format!(
                         "{}const __saved = this._state_stack.pop()!;\n{}this.__transition(__saved);",
@@ -2389,8 +2587,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         code
                     }
                     TargetLanguage::Rust => {
-                        // Rust currently doesn't support enter/exit/state args in _transition
-                        format!("{}self._transition(\"{}\")", indent_str, target)
+                        // Rust uses compartment-based transition
+                        format!("{}self.__transition({}Compartment::new(\"{}\"))", indent_str, ctx.system_name, target)
                     }
                     _ => {
                         // Default: same as TypeScript
@@ -2428,12 +2626,13 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     code
                 }
                 TargetLanguage::Rust => {
-                    // For Rust, call the target state's handler directly since _dispatch_event is a stub
-                    let handler_name = format!("_s_{}_{}", target, ctx.event_name);
-                    format!(
-                        "{}self._transition(\"{}\");\n{}return self.{}();",
-                        indent_str, target, indent_str, handler_name
-                    )
+                    // Rust uses compartment-based transition with forward event
+                    let mut code = String::new();
+                    code.push_str(&format!("{}let mut __compartment = {}Compartment::new(\"{}\");\n", indent_str, ctx.system_name, target));
+                    code.push_str(&format!("{}__compartment.forward_event = Some(__e.clone());\n", indent_str));
+                    code.push_str(&format!("{}self.__transition(__compartment);\n", indent_str));
+                    code.push_str(&format!("{}return;", indent_str));
+                    code
                 }
                 _ => {
                     // Default: same as TypeScript
@@ -2453,10 +2652,10 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     // Python/TypeScript: call _state_Parent(__e) to dispatch via unified state method
                     TargetLanguage::Python3 => format!("{}self._state_{}(__e)", indent_str, parent),
                     TargetLanguage::TypeScript => format!("{}this._state_{}(__e);", indent_str, parent),
-                    // Rust: still uses individual handler methods
+                    // Rust: call parent handler with __e parameter
                     TargetLanguage::Rust => {
                         let parent_handler = format!("_s_{}_{}", parent, ctx.event_name);
-                        format!("{}self.{}()", indent_str, parent_handler)
+                        format!("{}self.{}(__e)", indent_str, parent_handler)
                     }
                     _ => format!("{}this._state_{}(__e);", indent_str, parent),
                 }
@@ -2478,7 +2677,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     match lang {
                         TargetLanguage::Python3 => format!("\n{}self._transition(\"{}\", None, None)", indent_str, target),
                         TargetLanguage::TypeScript => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
-                        TargetLanguage::Rust => format!("\n{}self._transition(\"{}\")", indent_str, target),
+                        TargetLanguage::Rust => format!("\n{}self.__transition({}Compartment::new(\"{}\"))", indent_str, ctx.system_name, target),
                         _ => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
                     }
                 } else {
@@ -2492,13 +2691,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             let push_code = match lang {
                 TargetLanguage::Python3 => format!("{}self._state_stack.append(self.__compartment.copy())", indent_str),
                 TargetLanguage::TypeScript => format!("{}this._state_stack.push(this.__compartment.copy());", indent_str),
-                // Rust: Use compartment-based method if there are state vars, else simple push
+                // Rust: Use compartment-based method for state stack push
                 TargetLanguage::Rust => {
-                    if ctx.has_state_vars {
-                        format!("{}self._state_stack_push();", indent_str)
-                    } else {
-                        format!("{}self._state_stack.push(Box::new(self._state.clone()));", indent_str)
-                    }
+                    format!("{}self._state_stack_push();", indent_str)
                 }
                 _ => format!("{}this._state_stack.push(this.__compartment.copy());", indent_str),
             };
@@ -2518,16 +2713,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     "{}this.__compartment = this._state_stack.pop()!;\n{}return;",
                     indent_str, indent_str
                 ),
-                // Rust: Use compartment-based method if there are state vars, else simple pop
+                // Rust: Use compartment-based state stack pop
                 TargetLanguage::Rust => {
-                    if ctx.has_state_vars {
-                        format!("{}self._state_stack_pop();\n{}return;", indent_str, indent_str)
-                    } else {
-                        format!(
-                            "{}let __popped_state = *self._state_stack.pop().unwrap().downcast::<String>().unwrap();\n{}self._transition(&__popped_state);\n{}return;",
-                            indent_str, indent_str, indent_str
-                        )
-                    }
+                    format!("{}self._state_stack_pop();\n{}return;", indent_str, indent_str)
                 }
                 _ => format!(
                     "{}this.__compartment = this._state_stack.pop()!;\n{}return;",
@@ -3033,32 +3221,14 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             // Rust uses serde by default (requires serde, serde_json in Cargo.toml)
             // Project owner is responsible for adding dependencies
 
-            // Check if any state has state variables (affects stack serialization)
-            let has_state_vars = system.machine.as_ref()
-                .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
-                .unwrap_or(false);
-
             {
                 // Generate save_state that manually builds JSON
+                // Use compartment-based architecture
                 let mut save_body = String::new();
-
-                if has_state_vars {
-                    // With state vars, stack contains (String, Compartment) - can't fully serialize
-                    // Extract just state names for best-effort persistence
-                    save_body.push_str("let stack_states: Vec<&str> = self._state_stack.iter().map(|(s, _)| s.as_str()).collect();\n");
-                    save_body.push_str("serde_json::json!({\n");
-                    save_body.push_str("    \"_state\": self._state,\n");
-                    save_body.push_str("    \"_state_stack\": stack_states,\n");
-                } else {
-                    // Without state vars, stack is Vec<Box<dyn Any>> containing Strings
-                    // Extract state names by downcasting
-                    save_body.push_str("let stack_states: Vec<String> = self._state_stack.iter()\n");
-                    save_body.push_str("    .filter_map(|b| b.downcast_ref::<String>().cloned())\n");
-                    save_body.push_str("    .collect();\n");
-                    save_body.push_str("serde_json::json!({\n");
-                    save_body.push_str("    \"_state\": self._state,\n");
-                    save_body.push_str("    \"_state_stack\": stack_states,\n");
-                }
+                save_body.push_str("let stack_states: Vec<&str> = self._state_stack.iter().map(|(s, _)| s.as_str()).collect();\n");
+                save_body.push_str("serde_json::json!({\n");
+                save_body.push_str("    \"_state\": self.__compartment.state,\n");
+                save_body.push_str("    \"_state_stack\": stack_states,\n");
 
                 // Add domain variables
                 for var in &system.domain {
@@ -3085,28 +3255,17 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 let mut restore_body = String::new();
                 restore_body.push_str("let data: serde_json::Value = serde_json::from_str(json).unwrap();\n");
 
-                if has_state_vars {
-                    // With state vars, we can only restore state names (context lost)
-                    // User would need to handle re-entering states with proper args
-                    restore_body.push_str("// Note: State stack restored with state names only; state vars lost\n");
-                    restore_body.push_str("let stack: Vec<(String, _)> = data[\"_state_stack\"].as_array()\n");
-                    restore_body.push_str("    .map(|arr| arr.iter()\n");
-                    restore_body.push_str("        .filter_map(|v| v.as_str().map(|s| (s.to_string(), Default::default())))\n");
-                    restore_body.push_str("        .collect())\n");
-                    restore_body.push_str("    .unwrap_or_default();\n");
-                } else {
-                    // Without state vars, restore as Vec<Box<dyn Any>> containing Strings
-                    restore_body.push_str("let stack: Vec<Box<dyn std::any::Any>> = data[\"_state_stack\"].as_array()\n");
-                    restore_body.push_str("    .map(|arr| arr.iter()\n");
-                    restore_body.push_str("        .filter_map(|v| v.as_str().map(|s| Box::new(s.to_string()) as Box<dyn std::any::Any>))\n");
-                    restore_body.push_str("        .collect())\n");
-                    restore_body.push_str("    .unwrap_or_default();\n");
-                }
+                // Restore stack as Vec<(String, StateContext)>
+                restore_body.push_str(&format!("let stack: Vec<(String, {}StateContext)> = data[\"_state_stack\"].as_array()\n", system.name));
+                restore_body.push_str("    .map(|arr| arr.iter()\n");
+                restore_body.push_str(&format!("        .filter_map(|v| v.as_str().map(|s| (s.to_string(), {}StateContext::Empty)))\n", system.name));
+                restore_body.push_str("        .collect())\n");
+                restore_body.push_str("    .unwrap_or_default();\n");
 
                 restore_body.push_str(&format!("let mut instance = {} {{\n", system.name));
-                restore_body.push_str("    _state: data[\"_state\"].as_str().unwrap().to_string(),\n");
                 restore_body.push_str("    _state_stack: stack,\n");
-                restore_body.push_str("    _state_context: std::collections::HashMap::new(),\n");
+                restore_body.push_str(&format!("    __compartment: {}Compartment::new(data[\"_state\"].as_str().unwrap()),\n", system.name));
+                restore_body.push_str("    __next_compartment: None,\n");
 
                 // Restore domain variables
                 for var in &system.domain {

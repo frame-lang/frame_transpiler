@@ -1,8 +1,9 @@
 # Frame V4 Specification
 
-**Status:** Normative
-**Version:** 1.0
+**Status:** Normative — All three target languages fully implemented
+**Version:** 1.1
 **Date:** February 2026
+**Test Status:** 84/84 passing (Python 28, TypeScript 28, Rust 28)
 
 ---
 

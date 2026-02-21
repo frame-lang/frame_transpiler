@@ -1,9 +1,9 @@
 # Frame V4 Transpiler Architecture Specification
 
-**Version:** 1.0  
-**Date:** February 2026  
-**Audience:** Implementation team  
-**Status:** Normative
+**Version:** 1.1
+**Date:** February 2026
+**Audience:** Implementation team
+**Status:** Normative — All three target languages (Python, TypeScript, Rust) fully implemented
 
 ---
 

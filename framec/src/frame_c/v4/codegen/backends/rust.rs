@@ -366,12 +366,24 @@ impl LanguageBackend for RustBackend {
             // Frame-specific
             CodegenNode::Transition { target_state, exit_args: _, enter_args: _, state_args: _, indent } => {
                 let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}self._transition(Self::{})", ind, target_state)
+                // Use compartment-based transition
+                let compartment_type = if let Some(ref sys_name) = ctx.system_name {
+                    format!("{}Compartment", sys_name)
+                } else {
+                    "Compartment".to_string()
+                };
+                format!("{}self.__transition({}::new(\"{}\"))", ind, compartment_type, target_state)
             }
 
             CodegenNode::ChangeState { target_state, state_args: _, indent } => {
                 let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}self._change_state(Self::{})", ind, target_state)
+                // Use string-based state change
+                let compartment_type = if let Some(ref sys_name) = ctx.system_name {
+                    format!("{}Compartment", sys_name)
+                } else {
+                    "Compartment".to_string()
+                };
+                format!("{}self.__compartment = {}::new(\"{}\")", ind, compartment_type, target_state)
             }
 
             CodegenNode::Forward { to_parent: _, indent } => {
@@ -380,11 +392,11 @@ impl LanguageBackend for RustBackend {
             }
             CodegenNode::StackPush { indent } => {
                 let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}self._state_stack.push(self._state)", ind)
+                format!("{}self._state_stack_push()", ind)
             }
             CodegenNode::StackPop { indent } => {
                 let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}self._transition(self._state_stack.pop().unwrap())", ind)
+                format!("{}self._state_stack_pop()", ind)
             }
 
             CodegenNode::StateContext { state_name } => {
