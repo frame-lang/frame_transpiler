@@ -12,7 +12,7 @@ An example of this would be a state that
 manages a dialog that is useful in many different situations. Once it has
 been dismissed the user wants to go back to whatever the prior context was.
 
-To address this kind of scenario Statecharts introduce the “history” mechanism.
+To address this kind of scenario Statecharts introduce the "history" mechanism.
 
 
 History 101
@@ -24,20 +24,24 @@ dead ending in, state `$C`.
 
 .. code-block::
 
-    #History101
+    @@system History101 {
+        machine:
+            $A {
+                gotoC() {
+                    -> $C
+                }
+            }
 
-      -machine-
+            $B {
+                gotoC() {
+                    -> $C
+                }
+            }
 
-        $A
-            |gotoC| -> $C ^
-
-        $B
-            |gotoC| -> $C ^
-
-        $C
-            |return| ^
-
-    ##
+            $C {
+                return_back() { }
+            }
+    }
 
 .. image:: ../images/intermediate_frame/history101.png
 
@@ -46,28 +50,37 @@ problem for a pure state machine we would have to do something like this:
 
 .. code-block::
 
-    #History102
+    @@system History102 {
+        machine:
+            $A {
+                gotoC() {
+                    -> $Ca
+                }
+            }
 
-      -machine-
+            $B {
+                gotoC() {
+                    -> $Cb
+                }
+            }
 
-        $A
-            |gotoC| -> $Ca ^
+            $Ca {
+                return_back() {
+                    -> $A
+                }
+            }
 
-        $B
-            |gotoC| -> $Cb ^
-
-        $Ca
-            |return| -> $A ^
-
-        $Cb
-            |return| -> $B ^
-
-    ##
+            $Cb {
+                return_back() {
+                    -> $B
+                }
+            }
+    }
 
 
 .. image:: ../images/intermediate_frame/history102.png
 
-$Ca and $Cb would be identical except for the response to the |return| message.
+$Ca and $Cb would be identical except for the response to the `return_back` message.
 This is obviously inefficient.
 
 The Solution
@@ -82,7 +95,7 @@ and capability for abstract machines:
 
 Pushdown Automata and Turning Machines share the trait of being able to store
 information for future use. Pushdown Automata specifically use a stack for
-storing history while Turning Machines theoretically have a “tape” to store
+storing history while Turning Machines theoretically have a "tape" to store
 information on. In reality if a system can store off data and access it later
 to make a decision it is effectively a Turing Machine.
 
@@ -96,54 +109,61 @@ special operators:
 
     * - Operator
       - Name
-    * - push$
+    * - ``push$``
       - State Stack Push
-    * - pop$
+    * - ``pop$``
       - State Stack Pop
 
-Let’s see how these are used:
+Let's see how these are used:
 
 .. code-block::
 
-    #History201
+    @@system History201 {
+        machine:
+            $A {
+                gotoC() {
+                    `push$
+                    -> "push$" $C
+                }
+            }
 
-      -machine-
+            $B {
+                gotoC() {
+                    `push$
+                    -> "push$" $C
+                }
+            }
 
-        $A
-            |gotoC| push$ -> "push$" $C ^
-
-        $B
-            |gotoC| push$ -> "push$" $C ^
-
-        $C
-            |return| -> "pop$" pop$ ^
-
-    ##
+            $C {
+                return_back() {
+                    -> "pop$" `pop$
+                }
+            }
+    }
 
 .. image:: ../images/intermediate_frame/history201.png
 
-What we see above is that the state stack push token precedes a transition to a
+What we see above is that the state stack push statement precedes a transition to a
 new state:
 
 .. code-block::
 
-    push$ -> $NewState
+    `push$
+    -> $NewState
 
 while the state stack pop operator produces the state to be transitioned into:
 
 .. code-block::
 
-    -> pop$
+    -> `pop$
 
 Recalling that FrameState is a delegate typedef in C# to allow references to
 methods, we can see that Frame generates a _stateStack_ variable which is
 initialized to a Stack<FrameState>() data structure. Also generated are the push
- and pop functions for the state stack operations.
+and pop functions for the state stack operations.
 
 .. note::
-    Frame is in the process of converting from a code pattern focused on
-     simple states to a new, more advanced concept of **compartments**.
-    Compartments are a essentially a **state closure** data structure that
+    Frame uses **compartments** which are essentially a **state closure** data structure that
     has a state as one of its data members but also other data members that
     represent an *instance* of a state call. More about this later but for now
     where you see *state*, or *FrameState* these will soon be converted to
@@ -170,7 +190,7 @@ History 202
 -----------
 
 In our next example we will combine HSMs for refactoring behavior out of two
-states and show how it can work together with the state history mechansism.
+states and show how it can work together with the state history mechanism.
 
 The History202 spec below starts in a `$Waiting` state and then transitions
 to `$A` or `$B` depending on how the client drives it.
@@ -179,41 +199,71 @@ From there both states have an identical handler to transition to `$C`.
 
 .. code-block::
 
-    #History202
+    @@system History202 {
+        interface:
+            gotoA()
+            gotoB()
+            gotoC()
+            goBack()
 
-     -interface-
+        machine:
+            $Waiting {
+                $>() {
+                    print("In $Waiting")
+                }
+                gotoA() {
+                    print("gotoA")
+                    -> $A
+                }
+                gotoB() {
+                    print("gotoB")
+                    -> $B
+                }
+            }
 
-     gotoA
-     gotoB
-     gotoC
-     goBack
+            $A {
+                $>() {
+                    print("In $A")
+                }
+                gotoB() {
+                    print("gotoB")
+                    -> $B
+                }
+                gotoC() {
+                    print("gotoC")
+                    `push$
+                    -> "push$" $C
+                }
+            }
 
-     -machine-
+            $B {
+                $>() {
+                    print("In $B")
+                }
+                gotoA() {
+                    print("gotoA")
+                    -> $A
+                }
+                gotoC() {
+                    print("gotoC")
+                    `push$
+                    -> "push$" $C
+                }
+            }
 
-       $Waiting
-           |>| print("In $Waiting") ^
-           |gotoA| print("|gotoA|") -> $A ^
-           |gotoB| print("|gotoB|") -> $B ^
+            $C {
+                $>() {
+                    print("In $C")
+                }
+                goBack() {
+                    print("goBack")
+                    -> "pop$" `pop$
+                }
+            }
 
-       $A
-           |>| print("In $A") ^
-           |gotoB| print("|gotoB|") -> $B ^
-           |gotoC| print("|gotoC|") push$ -> "push$" $C ^
-
-       $B
-           |>| print("In $B") ^
-           |gotoA| print("|gotoA|") -> $A ^
-           |gotoC| print("|gotoC|") push$ -> "push$" $C ^
-
-       $C
-           |>| print("In $C") ^
-           |goBack| print("|goBack|") -> "pop$" pop$ ^
-
-       -actions-
-
-       print [msg:string]
-
-   ##
+        actions:
+            print(msg: string) { }
+    }
 
 .. image:: ../images/intermediate_frame/history202.png
 
@@ -227,44 +277,71 @@ Now lets refactor the common event handler into a new base state.
 
 .. code-block::
 
-    #History203
+    @@system History203 {
+        interface:
+            gotoA()
+            gotoB()
+            gotoC()
+            goBack()
 
-       -interface-
+        machine:
+            $Waiting {
+                $>() {
+                    print("In $Waiting")
+                }
+                gotoA() {
+                    print("gotoA")
+                    -> $A
+                }
+                gotoB() {
+                    print("gotoB")
+                    -> $B
+                }
+            }
 
-       gotoA
-       gotoB
-       gotoC
-       goBack
+            $A => $AB {
+                $>() {
+                    print("In $A")
+                }
+                gotoB() {
+                    print("gotoB")
+                    -> $B
+                }
+            }
 
-       -machine-
+            $B => $AB {
+                $>() {
+                    print("In $B")
+                }
+                gotoA() {
+                    print("gotoA")
+                    -> $A
+                }
+            }
 
-       $Waiting
-           |>| print("In $Waiting") ^
-           |gotoA| print("|gotoA|") -> $A ^
-           |gotoB| print("|gotoB|") -> $B ^
+            $AB {
+                gotoC() {
+                    print("gotoC in $AB")
+                    `push$
+                    -> "push$" $C
+                }
+            }
 
-       $A => $AB
-           |>| print("In $A") ^
-           |gotoB| print("|gotoB|") -> $B ^
+            $C {
+                $>() {
+                    print("In $C")
+                }
+                goBack() {
+                    print("goBack")
+                    -> "pop$" `pop$
+                }
+            }
 
-       $B => $AB
-           |>| print("In $B") ^
-           |gotoA| print("|gotoA|") -> $A ^
+        actions:
+            print(msg: string) { }
+    }
 
-       $AB
-           |gotoC| print("|gotoC| in $AB") push$ -> "push$" $C ^
-
-       $C
-           |>| print("In $C") ^
-           |goBack| print("|goBack|") -> "pop$" pop$ ^
-
-       -actions-
-
-       print [msg:string]
-
-    ##
-
-We can see that the duplicated |gotoC| event handler is now moved into $AB and
+We can see that the duplicated `gotoC` event handler is now moved into $AB and
 both $A and $B inherit behavior from it.
 
 .. image:: ../images/intermediate_frame/history203.png

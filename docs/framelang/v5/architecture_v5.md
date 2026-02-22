@@ -1,10 +1,11 @@
 1. dfa?
 2. pda?
+3. peek$
 
 ```frame
  
 
-system NestedStateSyntax {
+@@system NestedStateSyntax {
 
     interface:
         * { 

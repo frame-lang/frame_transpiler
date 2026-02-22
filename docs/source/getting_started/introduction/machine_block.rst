@@ -28,18 +28,15 @@ State identifiers in Frame are indicated by a `$` prefix.
 
 .. code-block::
 
-    #BrokenLamp
-
-    -machine-
-
-    $Off
-
-    ##
+    @@system BrokenLamp {
+        machine:
+            $Off { }
+    }
 
 
-Although rather useless to read by, the #BrokenLamp does illuminate an important
+Although rather useless to read by, the BrokenLamp does illuminate an important
 point - a state machine can have just a single state. However it won't be
- very exciting. We will increase the wattage on it very soon and add some more.
+very exciting. We will increase the wattage on it very soon and add some more.
 
 Start State
 ^^^^^^^^^^^
@@ -56,21 +53,20 @@ with... event handlers.
 
 .. code-block::
 
-    #BrokenLamp
+    @@system BrokenLamp {
+        machine:
+            $Off {
+                turnOn() {
+                    print("I'm broken.")
+                }
+            }
+    }
 
-    -machine-
+Event handlers are defined with a name followed by parentheses and a block.
+The handler executes its statements and then implicitly returns.
 
-    $Off
-        |turnOn|
-            print("I'm broken.") ^
-
-    ##
-
-Event handlers start with a *message selector* (`|msg|`) and end with either a
-*return* (**^**) or *continue* (**:>**) token.
-
-Here we see that the `$Off` state handles the `|turnOn|` event by calling the
-print function and then returning. In general, states can be described as
+Here we see that the `$Off` state handles the `turnOn` event by calling the
+print function. In general, states can be described as
 mapping events to **behavior**. Behavior comes in two big categories -
 **taking action** and **transitioning**.
 
@@ -101,16 +97,20 @@ to make a working lamp.
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        machine:
+            $Off {
+                turnOn() {
+                    -> $On
+                }
+            }
 
-    -machine-
-
-    $Off
-        |turnOn| -> $On ^
-
-    $On
-        |turnOff| -> $Off ^
-    ##
+            $On {
+                turnOff() {
+                    -> $Off
+                }
+            }
+    }
 
 .. image:: ../../images/getting_started/lamp1.png
 
@@ -121,16 +121,20 @@ allow for arbitrary labels to be used:
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        machine:
+            $Off {
+                turnOn() {
+                    -> "turn on" $On
+                }
+            }
 
-    -machine-
-
-    $Off
-        |turnOn| -> "turn on" $On ^
-
-    $On
-        |turnOff| -> "turn\noff" $Off ^
-    ##
+            $On {
+                turnOff() {
+                    -> "turn off" $Off
+                }
+            }
+    }
 
 
 .. image:: ../../images/getting_started/lamp2.png
@@ -149,7 +153,7 @@ a transition occurs.
 
 Enter Event
 ^^^^^^^^^^^
-Upon transitioning to a new state, the system sends an enter message (`|>|`)
+Upon transitioning to a new state, the system sends an enter event (`$>`)
 to the state that is being transitioned into.
 This is used to trigger an event handler to initialize the state. Unlike
 constructors for objects, there is nothing special about this event handler
@@ -160,65 +164,68 @@ off.
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        machine:
+            $Off {
+                $>() {
+                    openSwitch()
+                }
+                turnOn() {
+                    -> $On
+                }
+            }
 
-    -machine-
+            $On {
+                $>() {
+                    closeSwitch()
+                }
+                turnOff() {
+                    -> $Off
+                }
+            }
+    }
 
-    $Off
-        |>|
-            openSwitch() ^
-        |turnOn|
-            -> $On ^
-
-    $On
-        |>|
-            closeSwitch() ^
-        |turnOff|
-            -> $Off ^
-    ##
-
-This is a perfectly fine way to implement a #Lamp. However the system also
+This is a perfectly fine way to implement a Lamp. However the system also
 sends another message which we can use to accomplish the same functionality.
 
 Exit Event
 ^^^^^^^^^^^
 Upon transitioning out of the current state, the system sends an exit
-message (`|<|`) to it first. Importantly, the exit event is sent to the current
-event before the
-enter event is sent to the next state. This allows so the current state can clean up before the new state initializes.
+event (`$<`) to it first. Importantly, the exit event is sent to the current
+state before the
+enter event is sent to the next state. This allows the current state to clean up before the new state initializes.
 
 Here is how we can use that to accomplish the same functionality we have above:
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        machine:
+            $Off {
+                turnOn() {
+                    -> $On
+                }
+            }
 
-    -machine-
+            $On {
+                $>() {
+                    closeSwitch()
+                }
+                $<() {
+                    openSwitch()
+                }
+                turnOff() {
+                    -> $Off
+                }
+            }
 
-    $Off
-        |turnOn|
-            -> $On ^
+        actions:
+            closeSwitch() { }
+            openSwitch() { }
 
-    $On
-        |>|
-            closeSwitch() ^
-        |<|
-            openSwitch() ^
-        |turnOff|
-            -> $Off ^
-
-    -actions-
-
-    closeSwitch
-    openSwitch
-    setColor [color:string]
-    getColor : string
-
-    -domain-
-
-    var color:string = "white"
-
-    ##
+        domain:
+            var color: string = "white"
+    }
 
 We can see that the `$On` state now turns off the lamp when exiting.
 
@@ -227,59 +234,65 @@ Let's add getter and setter events to do so.
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        machine:
+            $Off {
+                turnOn() {
+                    -> $On
+                }
+                getColor(): string {
+                    return self.color
+                }
+                setColor(color: string) {
+                    self.color = color
+                }
+            }
 
-    -machine-
+            $On {
+                $>() {
+                    closeSwitch()
+                }
+                $<() {
+                    openSwitch()
+                }
+                turnOff() {
+                    -> $Off
+                }
+                getColor(): string {
+                    return self.color
+                }
+                setColor(color: string) {
+                    self.color = color
+                }
+            }
 
-    $Off
-        |turnOn|
-            -> $On ^
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
+        actions:
+            closeSwitch() { }
+            openSwitch() { }
 
-    $On
-        |>|
-            closeSwitch() ^
-        |<|
-            openSwitch() ^
-        |turnOff|
-            -> $Off ^
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
+        domain:
+            var color: string = "white"
+    }
 
-    -actions-
-
-    closeSwitch
-    openSwitch
-
-    -domain-
-
-    var color:string = "white"
-
-    ##
-
-Notice that the |getColor| event handler signature is typed to return a
+Notice that the `getColor` event handler signature is typed to return a
 string:
 
 .. code-block::
 
-    |getColor| : string
-        ^(color)
+    getColor(): string {
+        return self.color
+    }
 
-To do so, the return token (^) is provided an expression to evaluate
-that is returned.
+The return statement returns the value of the expression.
 
-To set the color, the |setColor| event handler takes a color string and
+To set the color, the `setColor` event handler takes a color string and
 sets the domain variable.
 
 .. code-block::
 
-    |setColor| [color:string]
-        #.color = color ^
+    setColor(color: string) {
+        self.color = color
+    }
 
-The domain scope prefix `#.` differentiates between the
+The `self.` prefix accesses domain variables, differentiating between the
 color parameter on the event handler and the domain variable.

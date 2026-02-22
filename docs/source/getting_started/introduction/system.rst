@@ -5,46 +5,34 @@ Define a System
 Systems Engineering methodology describes two broad categories of aspects to a system -
 **structure** and **behavior**.
 
-Frame is a **Domain Specific Language (DSL)** for for defining system behavior.
-In Frame notation a Frame system specification starts with the `#` token and the name of the system
-and terminated with the `##` token:
+Frame is a **Domain Specific Language (DSL)** for defining system behavior.
+In Frame notation a Frame system specification uses the ``@@system`` directive
+followed by the name of the system in braces:
 
 ``Frame``
 
 .. code-block::
 
-    #Lamp
-    ##
-
-`#Lamp` is an empty system spec and has no behavior. However, when sent to the
-Framepiler it still generates code:
-
-``C#``
-
-.. code-block::
-
-    public partial class Lamp {
+    @@system Lamp {
     }
 
-As we can see, Frame simply generates a class. For programming languages 
+`@@system Lamp` is an empty system spec and has no behavior. However, when sent to the
+Framepiler it still generates code:
+
+``Python``
+
+.. code-block:: python
+
+    class Lamp:
+        pass
+
+As we can see, Frame simply generates a class. For programming languages
 that don't have the
 concept of a class, Frame generates other targets to implement system
 behavior.
 
-The Framepiler currently generates 8 programming languages. Here is the
-JavaScript version of the same spec:
-
-``JavaScript``
-
-.. code-block::
-
-    let Lamp = function () {
-
-        let that = {};
-        that.constructor = Lamp;
-
-        return that;
-    };
+The Framepiler currently generates multiple programming languages including Python,
+TypeScript, and Rust.
 
 Blocks
 ======
@@ -54,14 +42,15 @@ as we just saw, but if present must be implemented in a specified order.
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        interface:
 
-    -interface-
-    -machine-
-    -actions-
-    -domain-
+        machine:
 
-    ##
+        actions:
+
+        domain:
+    }
 
 We will next investigate each of these blocks, starting with the domain and
 working back to the interface.

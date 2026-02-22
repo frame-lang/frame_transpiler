@@ -5,21 +5,18 @@ Actions Block
 Declaring Actions
 -----------------
 
-Actions are declared in the -actions- block and observe all of the method
+Actions are declared in the actions block and observe all of the method
 declaration syntax discussed in the :ref:`methods` section:
 
 .. code-block::
 
-    #SystemActions
-
-      -actions-
-
-      simpleActionDecl
-      actionWithParams [p1:T p2:T]
-      actionWithReturn : RetType
-      theWorks [p1:T] : RetType
-
-    ##
+    @@system SystemActions {
+        actions:
+            simpleActionDecl() { }
+            actionWithParams(p1: T, p2: T) { }
+            actionWithReturn(): RetType { }
+            theWorks(p1: T): RetType { }
+    }
 
 The corresponding C# code is generated:
 
@@ -52,17 +49,13 @@ For our Lamp, we simply need two actions to drive the switch:
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        actions:
+            closeSwitch() { }
+            openSwitch() { }
 
-      -actions-
-
-      closeSwitch
-      openSwitch
-
-      -domain-
-
-      var color:string = "white"
-
-    ##
+        domain:
+            var color: string = "white"
+    }
 
 Next we will look at how these actions are called to implement behavior.
