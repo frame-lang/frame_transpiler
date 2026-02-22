@@ -1912,12 +1912,19 @@ fn generate_python_state_dispatch(
         let body = splice_handler_body_from_span(&handler.body_span, source, TargetLanguage::Python3, &handler_ctx);
 
         // Indent the body
+        let mut body_has_content = false;
         for line in body.lines() {
             if !line.trim().is_empty() {
                 code.push_str("    ");
                 code.push_str(line);
+                body_has_content = true;
             }
             code.push('\n');
+        }
+
+        // If body was empty (no statements), add pass to avoid IndentationError
+        if !body_has_content {
+            code.push_str("    pass\n");
         }
     }
 
@@ -2538,7 +2545,17 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             let args: Vec<&str> = state.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
                             if !args.is_empty() {
                                 let entries: Vec<String> = args.iter().enumerate()
-                                    .map(|(i, a)| format!("\"{}\": {}", i, a))
+                                    .map(|(i, a)| {
+                                        // Check for named argument (e.g., "k=3")
+                                        if let Some(eq_pos) = a.find('=') {
+                                            let name = a[..eq_pos].trim();
+                                            let value = a[eq_pos + 1..].trim();
+                                            format!("\"{}\": {}", name, value)
+                                        } else {
+                                            // Positional argument - use index as key
+                                            format!("\"{}\": {}", i, a)
+                                        }
+                                    })
                                     .collect();
                                 code.push_str(&format!("{}__compartment.state_args = {{{}}}\n", indent_str, entries.join(", ")));
                             }
@@ -2571,7 +2588,17 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             let args: Vec<&str> = state.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
                             if !args.is_empty() {
                                 let entries: Vec<String> = args.iter().enumerate()
-                                    .map(|(i, a)| format!("\"{}\": {}", i, a))
+                                    .map(|(i, a)| {
+                                        // Check for named argument (e.g., "k=3")
+                                        if let Some(eq_pos) = a.find('=') {
+                                            let name = a[..eq_pos].trim();
+                                            let value = a[eq_pos + 1..].trim();
+                                            format!("\"{}\": {}", name, value)
+                                        } else {
+                                            // Positional argument - use index as key
+                                            format!("\"{}\": {}", i, a)
+                                        }
+                                    })
                                     .collect();
                                 code.push_str(&format!("{}__compartment.state_args = {{{}}};\n", indent_str, entries.join(", ")));
                             }
@@ -2652,11 +2679,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     // Python/TypeScript: call _state_Parent(__e) to dispatch via unified state method
                     TargetLanguage::Python3 => format!("{}self._state_{}(__e)", indent_str, parent),
                     TargetLanguage::TypeScript => format!("{}this._state_{}(__e);", indent_str, parent),
-                    // Rust: call parent handler with __e parameter
-                    TargetLanguage::Rust => {
-                        let parent_handler = format!("_s_{}_{}", parent, ctx.event_name);
-                        format!("{}self.{}(__e)", indent_str, parent_handler)
-                    }
+                    // Rust: call parent state router (not specific handler) to dispatch via match
+                    TargetLanguage::Rust => format!("{}self._state_{}(__e);", indent_str, parent),
                     _ => format!("{}this._state_{}(__e);", indent_str, parent),
                 }
             } else {
