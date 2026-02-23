@@ -1,6 +1,6 @@
 # Frame V4 Transpiler Architecture Specification
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** February 2026
 **Audience:** Implementation team
 **Status:** Normative — All three target languages (Python, TypeScript, Rust) fully implemented
@@ -532,13 +532,13 @@ The system codegen builds the class tree in this order:
 2. Generate fields:
    a. __compartment
    b. __next_compartment
-   c. __state_stack (if enabled)
-   d. __return_stack
+   c. _state_stack (if enabled)
+   d. _context_stack
    e. Domain variables
 
 3. Generate constructor:
    a. Initialize state stack
-   b. Initialize return stack
+   b. Initialize context stack
    c. Create start state compartment
    d. Initialize start state's state_args (from system params)
    e. Initialize start state's state_vars
@@ -586,6 +586,13 @@ pub enum Region {
     SystemReturnAssign(SystemReturnRegion),
     SystemReturnRead(Span),
     ReturnValue(ReturnValueRegion),
+    // Context access (@@)
+    ContextParamShorthand(ContextParamRegion),  // @@.param
+    ContextReturn(Span),                         // @@:return read
+    ContextReturnAssign(ContextReturnRegion),    // @@:return = expr
+    ContextEvent(Span),                          // @@:event
+    ContextData(ContextDataRegion),              // @@:data[key]
+    ContextParams(ContextParamsRegion),          // @@:params[key]
 }
 ```
 
@@ -606,6 +613,12 @@ pub enum Region {
 | `system.return` `=` | System return assign |
 | `system.return` (not followed by `=`) | System return read |
 | `return` `<expr>` (in handler context) | Return value sugar |
+| `@@.` `<ident>` | Context parameter shorthand |
+| `@@:return` `=` | Context return assign |
+| `@@:return` (not followed by `=`) | Context return read |
+| `@@:event` | Context event name |
+| `@@:data[` `<key>` `]` | Context data access |
+| `@@:params[` `<key>` `]` | Context params explicit |
 
 **Critical:** Skip recognition inside string literals and comments of the target language.
 
@@ -725,13 +738,14 @@ For a system named `Foo` with states `$A` and `$B`, the generated class contains
 class Foo:
     # Inner classes
     class FrameEvent          (if frame_event = on)
+    class FrameContext        (if frame_event = on)
     class FooCompartment      (always)
 
     # Fields
     __compartment             (always)
     __next_compartment        (always)
-    __state_stack             (if state_stack = on)
-    __return_stack            (always)
+    _state_stack              (if state_stack = on)
+    _context_stack            (always)
     <domain vars>             (from domain:)
 
     # Constructor

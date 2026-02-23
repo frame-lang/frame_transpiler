@@ -1,6 +1,6 @@
 # Frame V4 Runtime Specification
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** February 2026
 **Audience:** Implementation team
 **Status:** Normative — All three target languages (Python, TypeScript, Rust) fully implemented
@@ -620,7 +620,7 @@ def my_operation(self, param) -> int:
 
 ## 11. Implementation Status
 
-**All features fully implemented across Python, TypeScript, and Rust (84/84 tests passing).**
+**All features fully implemented across Python, TypeScript, and Rust (87/87 tests passing).**
 
 ### 11.1 Kernel Implementation ✅
 

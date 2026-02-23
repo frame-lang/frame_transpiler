@@ -1,6 +1,6 @@
 # Frame V4 Language Reference
 
-**Version:** 1.0  
+**Version:** 1.2
 **Date:** February 2026  
 **Audience:** Implementation team  
 **Status:** Normative — this document defines the language. Ambiguities are bugs in this spec.

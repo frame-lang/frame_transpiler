@@ -16,6 +16,26 @@ See `docs/framelang/v4/frame_v4_lang_reference.md` Section 5.7 for the canonical
 
 **Key point:** The compartment is a 6-field closure for states. State variables live in `compartment.state_vars`, and the state stack stores entire compartments (enabling push/pop to preserve state vars).
 
+## System Context Architecture
+
+See `docs/framelang/v4/frame_v4_lang_reference.md` Section 9 for the full specification.
+
+**Key structures:**
+- `FrameEvent` - lean routing object (message + parameters only, no return)
+- `FrameContext` - call context with event reference, return slot, and data
+- `_context_stack` - supports reentrancy with nested interface calls
+
+**@@ syntax:**
+| Syntax | Meaning |
+|--------|---------|
+| `@@.param` | Interface parameter (shorthand) |
+| `@@:params[x]` | Interface parameter (explicit) |
+| `@@:return` | Interface return value slot |
+| `@@:event` | Interface method name |
+| `@@:data[key]` | Call-scoped data |
+
+**Key rule:** `@@` ALWAYS refers to the interface call context, even inside lifecycle handlers (`$>`, `<$`).
+
 **Official docs:** https://frame-transpiler.readthedocs.io
 
 ## Test Infrastructure

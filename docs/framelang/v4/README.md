@@ -1,9 +1,9 @@
 # Frame V4 Specification
 
 **Status:** Normative — All three target languages fully implemented
-**Version:** 1.1
+**Version:** 1.2
 **Date:** February 2026
-**Test Status:** 84/84 passing (Python 28, TypeScript 28, Rust 28)
+**Test Status:** 87/87 passing (Python 29, TypeScript 29, Rust 29)
 
 ---
 
@@ -22,7 +22,7 @@
 
 ## Quick Reference
 
-### 6 Frame Constructs
+### 7 Frame Constructs
 
 | Construct | Syntax | Purpose |
 |-----------|--------|---------|
@@ -31,7 +31,8 @@
 | Stack Push | `push$` | Save state to stack |
 | Stack Pop | `pop$` | Pop from stack |
 | State Variable | `$.varName` | Per-state instance variable |
-| System Return | `system.return` | Interface method return value |
+| System Context | `@@.param`, `@@:return` | Interface call context access |
+| System Return | `system.return` | Interface method return value (alias for `@@:return`) |
 
 ### File Structure
 
