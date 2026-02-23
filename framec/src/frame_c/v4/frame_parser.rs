@@ -566,7 +566,7 @@ impl FrameParser {
             if self.peek_string("$>") {
                 // Enter handler
                 enter = Some(self.parse_enter_handler()?);
-            } else if self.peek_string("$<") {
+            } else if self.peek_string("<$") {
                 // Exit handler
                 exit = Some(self.parse_exit_handler()?);
             } else if self.peek_string("$.") {
@@ -957,7 +957,7 @@ impl FrameParser {
     fn parse_exit_handler(&mut self) -> Result<ExitHandler, ParseError> {
         let start = self.cursor;
 
-        // Skip $<
+        // Skip <$ (exit handler token)
         self.cursor += 2;
 
         // Parse optional parameters
@@ -1702,7 +1702,7 @@ impl FrameParser {
         while self.cursor < self.source.len() {
             self.skip_whitespace();
             // Look for handler start: identifier(, $>, $<, or closing }
-            if self.peek_identifier() || self.peek_string("$>") || self.peek_string("$<") || self.peek_char('}') {
+            if self.peek_identifier() || self.peek_string("$>") || self.peek_string("<$") || self.peek_char('}') {
                 break;
             }
             self.skip_to_next_line();
@@ -1752,11 +1752,16 @@ impl FrameParser {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
                 Region::FrameSegment { span, kind, indent } => {
-                    // StateVar, SystemReturn, and SystemReturnExpr segments are inline expressions
+                    // StateVar, SystemReturn, SystemReturnExpr, and Context segments are inline expressions
                     // handled by the splicer during code generation
                     if *kind == FrameSegmentKind::StateVar
                         || *kind == FrameSegmentKind::SystemReturn
                         || *kind == FrameSegmentKind::SystemReturnExpr
+                        || *kind == FrameSegmentKind::ContextParamShorthand
+                        || *kind == FrameSegmentKind::ContextReturn
+                        || *kind == FrameSegmentKind::ContextEvent
+                        || *kind == FrameSegmentKind::ContextData
+                        || *kind == FrameSegmentKind::ContextParams
                     {
                         continue;
                     }
@@ -1841,6 +1846,14 @@ impl FrameParser {
                 // bare system.return (read expression)
                 // Handled by splicer expansion
                 Err(ParseError::Expected("SystemReturnExpr handled by splicer".to_string()))
+            }
+            // Context syntax - handled by splicer expansion
+            FrameSegmentKind::ContextParamShorthand |
+            FrameSegmentKind::ContextReturn |
+            FrameSegmentKind::ContextEvent |
+            FrameSegmentKind::ContextData |
+            FrameSegmentKind::ContextParams => {
+                Err(ParseError::Expected("Context syntax handled by splicer".to_string()))
             }
         }
     }

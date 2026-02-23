@@ -8,6 +8,12 @@ pub enum FrameSegmentKind {
     StateVar,
     SystemReturn,      // system.return = <expr> or return <expr> (sugar)
     SystemReturnExpr,  // bare system.return (read current value)
+    // System context syntax (@@)
+    ContextParamShorthand, // @@.param - shorthand for parameter access
+    ContextReturn,         // @@:return - return value slot (assignment or read)
+    ContextEvent,          // @@:event - interface event name
+    ContextData,           // @@:data[key] - call-scoped data
+    ContextParams,         // @@:params[key] - explicit parameter access
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

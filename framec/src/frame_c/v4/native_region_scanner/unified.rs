@@ -133,6 +133,109 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 seg_start = i;
             }
 
+            // System context syntax: @@ variants
+            // @@.param - shorthand parameter access
+            // @@:return - return value slot
+            // @@:event - interface event name
+            // @@:data[key] - call-scoped data
+            // @@:params[key] - explicit parameter access
+            b'@' if i + 1 < end && bytes[i + 1] == b'@' => {
+                if seg_start < i {
+                    regions.push(Region::NativeText {
+                        span: RegionSpan { start: seg_start, end: i }
+                    });
+                }
+                let ctx_start = i;
+                i += 2; // Skip "@@"
+
+                if i < end && bytes[i] == b'.' {
+                    // @@.param - shorthand parameter access
+                    i += 1; // Skip "."
+                    while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                        i += 1;
+                    }
+                    regions.push(Region::FrameSegment {
+                        span: RegionSpan { start: ctx_start, end: i },
+                        kind: FrameSegmentKind::ContextParamShorthand,
+                        indent: 0,
+                    });
+                } else if i < end && bytes[i] == b':' {
+                    i += 1; // Skip ":"
+                    // Check which context field
+                    if i + 5 < end && &bytes[i..i + 6] == b"return" {
+                        // @@:return - may be assignment or read
+                        i += 6;
+                        // Check for assignment
+                        while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') {
+                            i += 1;
+                        }
+                        if i < end && bytes[i] == b'=' && (i + 1 >= end || bytes[i + 1] != b'=') {
+                            // @@:return = <expr>
+                            i += 1; // Skip '='
+                            i = skipper.find_line_end(bytes, i, end);
+                        }
+                        regions.push(Region::FrameSegment {
+                            span: RegionSpan { start: ctx_start, end: i },
+                            kind: FrameSegmentKind::ContextReturn,
+                            indent: 0,
+                        });
+                    } else if i + 4 < end && &bytes[i..i + 5] == b"event" {
+                        // @@:event
+                        i += 5;
+                        regions.push(Region::FrameSegment {
+                            span: RegionSpan { start: ctx_start, end: i },
+                            kind: FrameSegmentKind::ContextEvent,
+                            indent: 0,
+                        });
+                    } else if i + 3 < end && &bytes[i..i + 4] == b"data" {
+                        // @@:data[key]
+                        i += 4;
+                        // Must have [key]
+                        if i < end && bytes[i] == b'[' {
+                            while i < end && bytes[i] != b']' {
+                                i += 1;
+                            }
+                            if i < end {
+                                i += 1; // Skip ']'
+                            }
+                        }
+                        regions.push(Region::FrameSegment {
+                            span: RegionSpan { start: ctx_start, end: i },
+                            kind: FrameSegmentKind::ContextData,
+                            indent: 0,
+                        });
+                    } else if i + 5 < end && &bytes[i..i + 6] == b"params" {
+                        // @@:params[key]
+                        i += 6;
+                        // Must have [key]
+                        if i < end && bytes[i] == b'[' {
+                            while i < end && bytes[i] != b']' {
+                                i += 1;
+                            }
+                            if i < end {
+                                i += 1; // Skip ']'
+                            }
+                        }
+                        regions.push(Region::FrameSegment {
+                            span: RegionSpan { start: ctx_start, end: i },
+                            kind: FrameSegmentKind::ContextParams,
+                            indent: 0,
+                        });
+                    } else {
+                        // Unknown @@: variant, treat as native
+                        regions.push(Region::NativeText {
+                            span: RegionSpan { start: ctx_start, end: i }
+                        });
+                    }
+                } else {
+                    // Just @@ without . or :, treat as native
+                    regions.push(Region::NativeText {
+                        span: RegionSpan { start: ctx_start, end: i }
+                    });
+                }
+                seg_start = i;
+            }
+
             // System return: system.return = <expr> or system.return
             b's' if i + 12 < end && &bytes[i..i + 13] == b"system.return" => {
                 if seg_start < i {

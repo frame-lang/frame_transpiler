@@ -136,12 +136,17 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         .with_visibility(Visibility::Private)
         .with_type(&nullable_compartment_type));
 
-    // Return value field for system.return (not needed for Rust since we use native return)
-    if !matches!(syntax.language, TargetLanguage::Rust) {
-        fields.push(Field::new("_return_value")
-            .with_visibility(Visibility::Private)
-            .with_type("Any"));
-    }
+    // Context stack for reentrancy - holds FrameContext objects (event ref + return + data)
+    // For Rust: Vec<{System}FrameContext>
+    // For Python/TypeScript: list/array of FrameContext objects
+    let context_stack_type = if matches!(syntax.language, TargetLanguage::Rust) {
+        format!("Vec<{}FrameContext>", system.name)
+    } else {
+        "List".to_string()
+    };
+    fields.push(Field::new("_context_stack")
+        .with_visibility(Visibility::Private)
+        .with_type(&context_stack_type));
 
     // Domain variables
     for domain_var in &system.domain {
@@ -194,10 +199,11 @@ pub fn generate_rust_compartment_types(system: &SystemAst) -> String {
 
 /// Generate FrameEvent class for Python/TypeScript
 ///
-/// The FrameEvent class encapsulates event information:
+/// The FrameEvent class is a lean routing object:
 /// - _message: string - Event name (e.g., "$>", "<$", "start")
 /// - _parameters: dict - Event parameters (positional args as indexed dict)
-/// - _return: any - Return value (set by handlers using ^(value))
+///
+/// Note: _return is NOT on FrameEvent - it's on FrameContext for proper reentrancy
 ///
 /// Returns None for Rust (which uses a different pattern)
 pub fn generate_frame_event_class(system: &SystemAst, lang: TargetLanguage) -> Option<CodegenNode> {
@@ -221,7 +227,7 @@ pub fn generate_frame_event_class(system: &SystemAst, lang: TargetLanguage) -> O
         _ => vec![],
     };
 
-    // Constructor body: initialize fields
+    // Constructor body: initialize fields (no _return - that's on FrameContext)
     let constructor_body = match lang {
         TargetLanguage::Python3 => vec![
             CodegenNode::assign(
@@ -231,10 +237,6 @@ pub fn generate_frame_event_class(system: &SystemAst, lang: TargetLanguage) -> O
             CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), "_parameters"),
                 CodegenNode::ident("parameters"),
-            ),
-            CodegenNode::assign(
-                CodegenNode::field(CodegenNode::self_ref(), "_return"),
-                CodegenNode::null(),
             ),
         ],
         TargetLanguage::TypeScript => vec![
@@ -246,9 +248,98 @@ pub fn generate_frame_event_class(system: &SystemAst, lang: TargetLanguage) -> O
                 CodegenNode::field(CodegenNode::self_ref(), "_parameters"),
                 CodegenNode::ident("parameters"),
             ),
+        ],
+        _ => vec![],
+    };
+
+    // Fields for TypeScript (Python doesn't need field declarations)
+    // Note: no _return field - that's on FrameContext for proper reentrancy
+    let fields = if matches!(lang, TargetLanguage::TypeScript) {
+        vec![
+            Field::new("_message").with_type("string").with_visibility(Visibility::Public),
+            Field::new("_parameters").with_type("Record<string, any> | null").with_visibility(Visibility::Public),
+        ]
+    } else {
+        vec![]
+    };
+
+    Some(CodegenNode::Class {
+        name: class_name,
+        fields,
+        methods: vec![
+            CodegenNode::Constructor {
+                params: constructor_params,
+                body: constructor_body,
+                super_call: None,
+            },
+        ],
+        base_classes: vec![],
+        is_abstract: false,
+        derives: vec![],
+    })
+}
+
+/// Generate FrameContext class for Python/TypeScript
+///
+/// The FrameContext class holds the call context for reentrancy support:
+/// - event: FrameEvent - Reference to the interface event (message + parameters)
+/// - _return: any - Return value slot (default or None)
+/// - _data: dict - Call-scoped data (empty by default)
+///
+/// Context is pushed when interface is called, popped when it returns.
+/// Lifecycle events ($>, <$) use the existing context without push/pop.
+///
+/// Returns None for Rust (which uses a different pattern)
+pub fn generate_frame_context_class(system: &SystemAst, lang: TargetLanguage) -> Option<CodegenNode> {
+    // Rust uses a different pattern - return None
+    if matches!(lang, TargetLanguage::Rust) {
+        return None;
+    }
+
+    let class_name = format!("{}FrameContext", system.name);
+    let event_class = format!("{}FrameEvent", system.name);
+
+    // Constructor parameters: event and optional default_return
+    let constructor_params = match lang {
+        TargetLanguage::Python3 => vec![
+            Param::new("event").with_type(&event_class),
+            Param::new("default_return"),
+        ],
+        TargetLanguage::TypeScript => vec![
+            Param::new("event").with_type(&event_class),
+            Param::new("default_return").with_type("any"),
+        ],
+        _ => vec![],
+    };
+
+    // Constructor body: initialize fields
+    let constructor_body = match lang {
+        TargetLanguage::Python3 => vec![
+            CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "event"),
+                CodegenNode::ident("event"),
+            ),
             CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), "_return"),
-                CodegenNode::null(),
+                CodegenNode::ident("default_return"),
+            ),
+            CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_data"),
+                CodegenNode::Dict(vec![]),
+            ),
+        ],
+        TargetLanguage::TypeScript => vec![
+            CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "event"),
+                CodegenNode::ident("event"),
+            ),
+            CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_return"),
+                CodegenNode::ident("default_return"),
+            ),
+            CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_data"),
+                CodegenNode::Dict(vec![]),
             ),
         ],
         _ => vec![],
@@ -257,9 +348,9 @@ pub fn generate_frame_event_class(system: &SystemAst, lang: TargetLanguage) -> O
     // Fields for TypeScript (Python doesn't need field declarations)
     let fields = if matches!(lang, TargetLanguage::TypeScript) {
         vec![
-            Field::new("_message").with_type("string").with_visibility(Visibility::Public),
-            Field::new("_parameters").with_type("Record<string, any> | null").with_visibility(Visibility::Public),
+            Field::new("event").with_type(&event_class).with_visibility(Visibility::Public),
             Field::new("_return").with_type("any").with_visibility(Visibility::Public),
+            Field::new("_data").with_type("Record<string, any>").with_visibility(Visibility::Public),
         ]
     } else {
         vec![]
@@ -485,15 +576,40 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     let system_name = &system.name;
     let mut code = String::new();
 
-    // Generate FrameEvent struct
+    // Generate FrameEvent struct (lean routing object - message + parameters only)
     code.push_str(&format!("#[derive(Clone, Debug)]\nstruct {}FrameEvent {{\n", system_name));
     code.push_str("    message: String,\n");
+    code.push_str("    parameters: std::collections::HashMap<String, String>,\n");
     code.push_str("}\n\n");
 
     // Generate FrameEvent impl with new()
     code.push_str(&format!("impl {}FrameEvent {{\n", system_name));
     code.push_str("    fn new(message: &str) -> Self {\n");
-    code.push_str("        Self { message: message.to_string() }\n");
+    code.push_str("        Self {\n");
+    code.push_str("            message: message.to_string(),\n");
+    code.push_str("            parameters: std::collections::HashMap::new(),\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    code.push_str("    fn with_parameters(message: &str, parameters: std::collections::HashMap<String, String>) -> Self {\n");
+    code.push_str("        Self { message: message.to_string(), parameters }\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
+    // Generate FrameContext struct (call context for reentrancy)
+    code.push_str(&format!("struct {}FrameContext {{\n", system_name));
+    code.push_str(&format!("    event: {}FrameEvent,\n", system_name));
+    code.push_str("    _return: Option<Box<dyn std::any::Any>>,\n");
+    code.push_str("    _data: std::collections::HashMap<String, Box<dyn std::any::Any>>,\n");
+    code.push_str("}\n\n");
+
+    // Generate FrameContext impl with new()
+    code.push_str(&format!("impl {}FrameContext {{\n", system_name));
+    code.push_str(&format!("    fn new(event: {}FrameEvent, default_return: Option<Box<dyn std::any::Any>>) -> Self {{\n", system_name));
+    code.push_str("        Self {\n");
+    code.push_str("            event,\n");
+    code.push_str("            _return: default_return,\n");
+    code.push_str("            _data: std::collections::HashMap::new(),\n");
+    code.push_str("        }\n");
     code.push_str("    }\n");
     code.push_str("}\n\n");
 
@@ -580,14 +696,11 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
         CodegenNode::Array(vec![]),
     ));
 
-    // Initialize return value (for system.return chain semantics)
-    // Not needed for Rust which uses native return
-    if !matches!(syntax.language, TargetLanguage::Rust) {
-        body.push(CodegenNode::assign(
-            CodegenNode::field(CodegenNode::self_ref(), "_return_value"),
-            CodegenNode::null(),
-        ));
-    }
+    // Initialize context stack (for reentrancy support)
+    body.push(CodegenNode::assign(
+        CodegenNode::field(CodegenNode::self_ref(), "_context_stack"),
+        CodegenNode::Array(vec![]),
+    ));
 
     // Initialize domain variables
     for domain_var in &system.domain {
@@ -1523,13 +1636,14 @@ self.__kernel(__e)"#,
                 }
             }
             TargetLanguage::Python3 => {
-                // Python: Create FrameEvent, call __kernel, return __e._return
-                // Parameters are passed as a dict with string keys "0", "1", etc.
+                // Python: Create FrameEvent + FrameContext, push context, call __kernel, pop and return
+                // Parameters are passed as a dict with parameter names as keys for @@ syntax access
+                let context_class = format!("{}FrameContext", system.name);
                 let params_code = if method.params.is_empty() {
                     "None".to_string()
                 } else {
-                    let param_items: Vec<String> = method.params.iter().enumerate()
-                        .map(|(i, p)| format!("\"{}\": {}", i, p.name))
+                    let param_items: Vec<String> = method.params.iter()
+                        .map(|p| format!("\"{}\": {}", p.name, p.name))
                         .collect();
                     format!("{{{}}}", param_items.join(", "))
                 };
@@ -1537,11 +1651,12 @@ self.__kernel(__e)"#,
                 if method.return_type.is_some() {
                     CodegenNode::NativeBlock {
                         code: format!(
-                            r#"self._return_value = None
-__e = {}("{}", {})
+                            r#"__e = {}("{}", {})
+__ctx = {}(__e, None)
+self._context_stack.append(__ctx)
 self.__kernel(__e)
-return self._return_value"#,
-                            event_class, method.name, params_code
+return self._context_stack.pop()._return"#,
+                            event_class, method.name, params_code, context_class
                         ),
                         span: None,
                     }
@@ -1549,20 +1664,25 @@ return self._return_value"#,
                     CodegenNode::NativeBlock {
                         code: format!(
                             r#"__e = {}("{}", {})
-self.__kernel(__e)"#,
-                            event_class, method.name, params_code
+__ctx = {}(__e, None)
+self._context_stack.append(__ctx)
+self.__kernel(__e)
+self._context_stack.pop()"#,
+                            event_class, method.name, params_code, context_class
                         ),
                         span: None,
                     }
                 }
             }
             TargetLanguage::TypeScript => {
-                // TypeScript: Create FrameEvent, call __kernel, return _return_value
+                // TypeScript: Create FrameEvent + FrameContext, push context, call __kernel, pop and return
+                let context_class = format!("{}FrameContext", system.name);
+                // Parameters are passed as a dict with parameter names as keys for @@ syntax access
                 let params_code = if method.params.is_empty() {
                     "null".to_string()
                 } else {
-                    let param_items: Vec<String> = method.params.iter().enumerate()
-                        .map(|(i, p)| format!("\"{}\": {}", i, p.name))
+                    let param_items: Vec<String> = method.params.iter()
+                        .map(|p| format!("\"{}\": {}", p.name, p.name))
                         .collect();
                     format!("{{{}}}", param_items.join(", "))
                 };
@@ -1570,11 +1690,12 @@ self.__kernel(__e)"#,
                 if method.return_type.is_some() {
                     CodegenNode::NativeBlock {
                         code: format!(
-                            r#"this._return_value = null;
-const __e = new {}("{}", {});
+                            r#"const __e = new {}("{}", {});
+const __ctx = new {}(__e, null);
+this._context_stack.push(__ctx);
 this.__kernel(__e);
-return this._return_value;"#,
-                            event_class, method.name, params_code
+return this._context_stack.pop()!._return;"#,
+                            event_class, method.name, params_code, context_class
                         ),
                         span: None,
                     }
@@ -1582,28 +1703,36 @@ return this._return_value;"#,
                     CodegenNode::NativeBlock {
                         code: format!(
                             r#"const __e = new {}("{}", {});
-this.__kernel(__e);"#,
-                            event_class, method.name, params_code
+const __ctx = new {}(__e, null);
+this._context_stack.push(__ctx);
+this.__kernel(__e);
+this._context_stack.pop();"#,
+                            event_class, method.name, params_code, context_class
                         ),
                         span: None,
                     }
                 }
             }
             _ => {
-                // Default: Same as TypeScript
+                // Default: Same as TypeScript with context stack
+                let context_class = format!("{}FrameContext", system.name);
+                // Parameters are passed as a dict with parameter names as keys for @@ syntax access
                 let params_code = if method.params.is_empty() {
                     "null".to_string()
                 } else {
-                    let param_items: Vec<String> = method.params.iter().enumerate()
-                        .map(|(i, p)| format!("\"{}\": {}", i, p.name))
+                    let param_items: Vec<String> = method.params.iter()
+                        .map(|p| format!("\"{}\": {}", p.name, p.name))
                         .collect();
                     format!("{{{}}}", param_items.join(", "))
                 };
                 CodegenNode::NativeBlock {
                     code: format!(
                         r#"const __e = new {}("{}", {});
-this.__kernel(__e);"#,
-                        event_class, method.name, params_code
+const __ctx = new {}(__e, null);
+this._context_stack.push(__ctx);
+this.__kernel(__e);
+this._context_stack.pop();"#,
+                        event_class, method.name, params_code, context_class
                     ),
                     span: None,
                 }
@@ -1902,8 +2031,9 @@ fn generate_python_state_dispatch(
         }
 
         // Generate parameter unpacking if handler has params
-        for (i, param) in handler.params.iter().enumerate() {
-            code.push_str(&format!("    {} = __e._parameters[\"{}\"]\n", param.name, i));
+        // Use parameter names as keys (matching interface method generation)
+        for param in handler.params.iter() {
+            code.push_str(&format!("    {} = __e._parameters[\"{}\"]\n", param.name, param.name));
         }
 
         // Generate the handler body
@@ -2009,8 +2139,9 @@ fn generate_typescript_state_dispatch(
         }
 
         // Generate parameter unpacking if handler has params
-        for (i, param) in handler.params.iter().enumerate() {
-            code.push_str(&format!("    const {} = __e._parameters?.[\"{}\"];\n", param.name, i));
+        // Use parameter names as keys (matching interface method generation)
+        for param in handler.params.iter() {
+            code.push_str(&format!("    const {} = __e._parameters?.[\"{}\"];\n", param.name, param.name));
         }
 
         // Generate the handler body
@@ -2765,16 +2896,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             // system.return = <expr> or return <expr>
             // return <expr> is sugar for system.return = <expr>; return (early exit)
             // system.return = just sets value without returning (for chain semantics)
+            //
+            // Return value is stored on context stack: _context_stack[-1]._return
+            // This enables reentrancy - nested calls have their own context
             let trimmed = segment_text.trim_start();
             let is_return_sugar = trimmed.starts_with("return ");
             let expr = extract_system_return_expr(&segment_text);
             // Expand any state variable references in the expression
             let expanded_expr = expand_state_vars_in_expr(&expr, lang);
 
-            // For Python/TypeScript with proper runtime:
-            // - Set both __e._return AND self._return_value
-            // - __e._return is for immediate returns within the same handler
-            // - _return_value persists across enter/exit handlers during transitions
             match lang {
                 TargetLanguage::Python3 => {
                     if expanded_expr.is_empty() {
@@ -2785,11 +2915,11 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             "".to_string()
                         }
                     } else if is_return_sugar {
-                        // ^ expr: set _return_value AND __e._return, then return (early exit)
-                        format!("{}self._return_value = {}\n{}__e._return = self._return_value\n{}return", indent_str, expanded_expr, indent_str, indent_str)
+                        // ^ expr: set context return, then return (early exit)
+                        format!("{}self._context_stack[-1]._return = {}\n{}return", indent_str, expanded_expr, indent_str)
                     } else {
-                        // system.return = expr: just set _return_value (chain semantics)
-                        format!("{}self._return_value = {}", indent_str, expanded_expr)
+                        // system.return = expr: just set context return (chain semantics)
+                        format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr)
                     }
                 }
                 TargetLanguage::TypeScript => {
@@ -2800,15 +2930,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             "".to_string()
                         }
                     } else if is_return_sugar {
-                        // Set _return_value AND __e._return, then return
-                        format!("{}this._return_value = {};\n{}__e._return = this._return_value;\n{}return;", indent_str, expanded_expr, indent_str, indent_str)
+                        // Set context return, then return
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     } else {
-                        // system.return = expr: just set _return_value (chain semantics)
-                        format!("{}this._return_value = {};", indent_str, expanded_expr)
+                        // system.return = expr: just set context return (chain semantics)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Rust still uses native return for now (no _return_value pattern)
+                    // Rust still uses native return for now (no context stack pattern yet)
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
                     } else {
@@ -2823,24 +2953,112 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             "".to_string()
                         }
                     } else if is_return_sugar {
-                        format!("{}__e._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     } else {
-                        format!("{}__e._return = {};", indent_str, expanded_expr)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
                     }
                 }
             }
         }
         FrameSegmentKind::SystemReturnExpr => {
-            // bare system.return - read current return value
-            // For Python/TypeScript with proper runtime: Use __e._return
+            // bare system.return - read current return value from context stack
             match lang {
-                TargetLanguage::Python3 => "__e._return".to_string(),
-                TargetLanguage::TypeScript => "__e._return".to_string(),
-                TargetLanguage::Rust => "self._return_value".to_string(),
-                _ => "__e._return".to_string(),
+                TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
+                TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                TargetLanguage::Rust => "self._return_value".to_string(), // Rust still uses native return
+                _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+            }
+        }
+        FrameSegmentKind::ContextParamShorthand => {
+            // @@.param - shorthand for parameter access
+            // Extract param name from "@@.paramName"
+            let param_name = segment_text.strip_prefix("@@.").unwrap_or(&segment_text);
+            match lang {
+                TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
+                TargetLanguage::Rust => format!("/* @@.{} - context params not implemented for Rust */", param_name),
+                _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
+            }
+        }
+        FrameSegmentKind::ContextReturn => {
+            // @@:return - return value slot (assignment or read)
+            // Check if this is assignment (@@:return = expr) or read (@@:return)
+            let trimmed = segment_text.trim();
+            if let Some(eq_pos) = trimmed.find('=') {
+                // Check it's not ==
+                if eq_pos + 1 < trimmed.len() && trimmed.as_bytes().get(eq_pos + 1) != Some(&b'=') {
+                    // Assignment: @@:return = expr
+                    let expr = trimmed[eq_pos + 1..].trim();
+                    let expanded_expr = expand_state_vars_in_expr(expr, lang);
+                    match lang {
+                        TargetLanguage::Python3 => format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr),
+                        TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
+                        TargetLanguage::Rust => format!("{}return {};", indent_str, expanded_expr),
+                        _ => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
+                    }
+                } else {
+                    // Read: @@:return (== check)
+                    match lang {
+                        TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
+                        TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                        TargetLanguage::Rust => "self._return_value".to_string(),
+                        _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                    }
+                }
+            } else {
+                // Read: @@:return
+                match lang {
+                    TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
+                    TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                    TargetLanguage::Rust => "self._return_value".to_string(),
+                    _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                }
+            }
+        }
+        FrameSegmentKind::ContextEvent => {
+            // @@:event - interface event name
+            match lang {
+                TargetLanguage::Python3 => "self._context_stack[-1].event._message".to_string(),
+                TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1].event._message".to_string(),
+                TargetLanguage::Rust => "__e.message.clone()".to_string(),
+                _ => "this._context_stack[this._context_stack.length - 1].event._message".to_string(),
+            }
+        }
+        FrameSegmentKind::ContextData => {
+            // @@:data[key] - call-scoped data
+            // Extract key from "@@:data[key]"
+            let key = extract_bracket_key(&segment_text, "@@:data");
+            match lang {
+                TargetLanguage::Python3 => format!("self._context_stack[-1]._data[\"{}\"]", key),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
+                TargetLanguage::Rust => format!("/* @@:data[\"{}\"] - context data not implemented for Rust */", key),
+                _ => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
+            }
+        }
+        FrameSegmentKind::ContextParams => {
+            // @@:params[key] - explicit parameter access
+            // Extract key from "@@:params[key]"
+            let key = extract_bracket_key(&segment_text, "@@:params");
+            match lang {
+                TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", key),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
+                TargetLanguage::Rust => format!("/* @@:params[\"{}\"] - context params not implemented for Rust */", key),
+                _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
             }
         }
     }
+}
+
+/// Extract bracketed key from syntax like "@@:data[key]" or "@@:params[key]"
+fn extract_bracket_key(text: &str, prefix: &str) -> String {
+    if let Some(rest) = text.strip_prefix(prefix) {
+        if let Some(start) = rest.find('[') {
+            if let Some(end) = rest.find(']') {
+                return rest[start + 1..end].trim().trim_matches('"').trim_matches('\'').to_string();
+            }
+        }
+    }
+    "".to_string()
 }
 
 /// Extract transition target from transition text
@@ -2997,7 +3215,7 @@ fn extract_system_return_expr(text: &str) -> String {
     String::new()
 }
 
-/// Expand state variable references ($.varName) in an expression string
+/// Expand state variable references ($.varName) and context syntax (@@) in an expression string
 /// Uses compartment.state_vars for Python/TypeScript
 fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
     let mut result = String::new();
@@ -3018,6 +3236,92 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                 TargetLanguage::TypeScript => result.push_str(&format!("this.__compartment.state_vars[\"{}\"]", var_name)),
                 TargetLanguage::Rust => result.push_str(&format!("self._sv_{}", var_name)),
                 _ => result.push_str(&format!("this.__compartment.state_vars[\"{}\"]", var_name)),
+            }
+        } else if i + 1 < bytes.len() && bytes[i] == b'@' && bytes[i + 1] == b'@' {
+            // Found @@ - context syntax
+            i += 2; // Skip "@@"
+            if i < bytes.len() && bytes[i] == b'.' {
+                // @@.param - shorthand parameter access
+                i += 1; // Skip "."
+                let start = i;
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+                let param_name = String::from_utf8_lossy(&bytes[start..i]).to_string();
+                match lang {
+                    TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name)),
+                    TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
+                    TargetLanguage::Rust => result.push_str(&format!("/* @@.{} */", param_name)),
+                    _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
+                }
+            } else if i < bytes.len() && bytes[i] == b':' {
+                i += 1; // Skip ":"
+                // Check which context field
+                if i + 5 < bytes.len() && &bytes[i..i + 6] == b"return" {
+                    // @@:return
+                    i += 6;
+                    match lang {
+                        TargetLanguage::Python3 => result.push_str("self._context_stack[-1]._return"),
+                        TargetLanguage::TypeScript => result.push_str("this._context_stack[this._context_stack.length - 1]._return"),
+                        TargetLanguage::Rust => result.push_str("/* @@:return */"),
+                        _ => result.push_str("this._context_stack[this._context_stack.length - 1]._return"),
+                    }
+                } else if i + 4 < bytes.len() && &bytes[i..i + 5] == b"event" {
+                    // @@:event
+                    i += 5;
+                    match lang {
+                        TargetLanguage::Python3 => result.push_str("self._context_stack[-1].event._message"),
+                        TargetLanguage::TypeScript => result.push_str("this._context_stack[this._context_stack.length - 1].event._message"),
+                        TargetLanguage::Rust => result.push_str("/* @@:event */"),
+                        _ => result.push_str("this._context_stack[this._context_stack.length - 1].event._message"),
+                    }
+                } else if i + 3 < bytes.len() && &bytes[i..i + 4] == b"data" {
+                    // @@:data[key]
+                    i += 4;
+                    if i < bytes.len() && bytes[i] == b'[' {
+                        i += 1; // Skip '['
+                        let start = i;
+                        while i < bytes.len() && bytes[i] != b']' {
+                            i += 1;
+                        }
+                        let key = String::from_utf8_lossy(&bytes[start..i]).trim().trim_matches('"').trim_matches('\'').to_string();
+                        if i < bytes.len() {
+                            i += 1; // Skip ']'
+                        }
+                        match lang {
+                            TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1]._data[\"{}\"]", key)),
+                            TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
+                            TargetLanguage::Rust => result.push_str(&format!("/* @@:data[{}] */", key)),
+                            _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
+                        }
+                    }
+                } else if i + 5 < bytes.len() && &bytes[i..i + 6] == b"params" {
+                    // @@:params[key]
+                    i += 6;
+                    if i < bytes.len() && bytes[i] == b'[' {
+                        i += 1; // Skip '['
+                        let start = i;
+                        while i < bytes.len() && bytes[i] != b']' {
+                            i += 1;
+                        }
+                        let key = String::from_utf8_lossy(&bytes[start..i]).trim().trim_matches('"').trim_matches('\'').to_string();
+                        if i < bytes.len() {
+                            i += 1; // Skip ']'
+                        }
+                        match lang {
+                            TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", key)),
+                            TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key)),
+                            TargetLanguage::Rust => result.push_str(&format!("/* @@:params[{}] */", key)),
+                            _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key)),
+                        }
+                    }
+                } else {
+                    // Unknown, pass through
+                    result.push_str("@@:");
+                }
+            } else {
+                // Just @@ without . or :, pass through
+                result.push_str("@@");
             }
         } else {
             result.push(bytes[i] as char);

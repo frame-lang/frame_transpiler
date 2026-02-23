@@ -234,7 +234,7 @@ Called when the state is entered via a transition. Parameters come from the tran
 ### 4.5 Exit Handler
 
 ```
-$< ( <params>? ) {
+<$ ( <params>? ) {
     <body>
 }
 ```
@@ -343,24 +343,30 @@ $.counter = <expr>      // write
 
 Reads or writes the current state's variable. Only valid within handlers of the state that declares the variable.
 
-### 5.6 System Return — `system.return`
+### 5.6 System Context Access — `@@`
+
+Access the current interface call context. See Section 9 for full semantics.
 
 ```
-system.return = <expr>  // set the interface return value
-system.return           // read the current interface return value (rare)
+@@.param            // interface parameter (shorthand)
+@@:return = <expr>  // set the interface return value
+@@:return           // read the interface return value
+@@:event            // interface method name
+@@:data[key]        // call-scoped data
+@@:params[x]        // interface parameter (explicit)
 ```
 
-Sets the value that the current interface method call will return to its caller. Managed via a return stack (independent of the state stack). See Section 8 for full semantics.
-
-**Sugar in event handlers only:**
+**Return sugar in event handlers only:**
 
 ```
-return <expr>           // in event handler: sugar for system.return = <expr>; return
+return <expr>           // in event handler: sugar for @@:return = <expr>; return
 return <expr>           // in action: native function return (NOT sugar)
 return                  // everywhere: native return, pass through unchanged
 ```
 
 The splicer distinguishes handler context from action context.
+
+**Legacy:** `system.return` is an alias for `@@:return` for backward compatibility.
 
 ---
 
@@ -491,47 +497,173 @@ Domain variables are instance fields on the generated class. They persist across
 
 ---
 
-## 9. `system.return` Semantics
+## 9. System Context (`@@`)
 
-### 9.1 Mechanism
+The **system context** provides access to the current interface call's parameters, return value, and call-scoped data. It is accessed via the `@@` prefix.
 
-`system.return` is managed via a **return stack** on the system instance. This stack is independent of the state stack.
+### 9.1 Architecture
 
-### 9.2 Lifecycle
+Every interface call creates two objects:
 
-1. Interface method with return type pushes a default value (specified or `None`) onto the return stack
-2. Kernel dispatches the event
-3. Handler (or action, or enter/exit handler) may set `system.return = <value>`
-4. If a transition occurs, the kernel processes exit → state change → enter (and possibly forwarded event)
-5. Any handler in the chain may overwrite `system.return` — **last writer wins**
-6. Kernel returns to the interface method
-7. Interface method pops the return stack and returns the value
-
-### 9.3 Reentrancy
-
-If a handler calls another interface method (reentrant call), that method pushes its own return context. The stack handles nesting:
-
+**FrameEvent** — routing mechanism:
 ```
-getDecision() called → return_stack: ["yes"]
-  handler sets system.return = "no" → return_stack: ["no"]
-  handler calls self.getStatus() → return_stack: ["no", None]
-    nested handler sets system.return = "active" → return_stack: ["no", "active"]
-    getStatus returns "active" → return_stack: ["no"]
-  handler continues...
-  getDecision returns "no" → return_stack: []
+FrameEvent {
+    _message: string      // interface method name
+    _parameters: dict     // interface parameters
+}
 ```
 
-### 9.4 Context Sensitivity of `return <expr>`
+**FrameContext** — call context:
+```
+FrameContext {
+    event: FrameEvent     // reference to interface event
+    _return: any          // return value slot
+    _data: dict           // call-scoped data
+}
+```
+
+The context is pushed onto the `_context_stack` when an interface method is called and popped when it returns. Lifecycle events (`$>`, `<$`) use the existing context without pushing.
+
+### 9.2 Syntax
+
+| Syntax | Meaning | Description |
+|--------|---------|-------------|
+| `@@.x` | Parameter shorthand | Interface parameter `x` |
+| `@@:params[x]` | Parameter explicit | Interface parameter `x` (explicit form) |
+| `@@:event` | Event name | Interface method name being handled |
+| `@@:return` | Return value | Get/set interface return value |
+| `@@:data[key]` | Call data | Get/set call-scoped data |
+
+**Key rule:** `@@` ALWAYS refers to the interface call context, even inside lifecycle handlers.
+
+### 9.3 Examples
+
+**Basic parameter and return access:**
+
+```frame
+@@system Calculator {
+    interface:
+        compute(a: int, b: int): int
+
+    machine:
+        $Ready {
+            compute(a: int, b: int): int {
+                @@:return = @@.a + @@.b
+            }
+        }
+}
+```
+
+**Accessing interface context from lifecycle handlers:**
+
+```frame
+$Processing {
+    compute(a: int, b: int): int {
+        @@:data["started"] = time.now()
+        -> $Done
+    }
+
+    <$(reason: str) {
+        // 'reason' is from handler signature (exit_args)
+        // @@.a refers to interface param, not exit param
+        print(f"Exiting: {reason}, original a={@@.a}")
+    }
+}
+
+$Done {
+    $>() {
+        elapsed = time.now() - @@:data["started"]
+        print(f"Completed {@@:event} in {elapsed}ms")
+        @@:return = @@.a + @@.b
+    }
+}
+```
+
+**Accessing context from actions:**
+
+```frame
+actions:
+    validate(): bool {
+        // Actions can access interface context
+        if @@.a < 0 or @@.b < 0:
+            @@:return = -1
+            return False
+        return True
+    }
+```
+
+### 9.4 Context Lifecycle
+
+```
+calc.compute(1, 2) called
+│
+├─► FrameEvent("compute", {a: 1, b: 2}) created
+├─► FrameContext(event, _return=None, _data={}) created
+├─► Context PUSHED to _context_stack
+│
+├─► Kernel routes event to handler
+│   ├─► Handler runs, may set @@:return, @@:data
+│   ├─► Handler triggers -> $Next
+│   │
+│   ├─► FrameEvent("<$", exit_args) created (NOT pushed)
+│   ├─► <$ handler runs, can access @@.a, @@:return
+│   │
+│   ├─► Compartment switch
+│   │
+│   ├─► FrameEvent("$>", enter_args) created (NOT pushed)
+│   └─► $> handler runs, can access @@.a, @@:return
+│
+├─► Context POPPED from _context_stack
+└─► Return context._return to caller
+```
+
+### 9.5 Reentrancy
+
+Each interface call pushes its own context. Nested calls maintain separate contexts:
+
+```
+outer() called
+  → context_stack: [{event: "outer", _return: None}]
+
+  handler sets @@:return = "outer_value"
+  → context_stack: [{event: "outer", _return: "outer_value"}]
+
+  handler calls self.inner()
+    → context_stack: [{...outer...}, {event: "inner", _return: None}]
+
+    inner handler sets @@:return = "inner_value"
+    → context_stack: [{...outer...}, {event: "inner", _return: "inner_value"}]
+
+    inner() returns "inner_value"
+    → context_stack: [{event: "outer", _return: "outer_value"}]
+
+  outer handler continues, @@:return still "outer_value"
+
+outer() returns "outer_value"
+  → context_stack: []
+```
+
+### 9.6 Return Sugar
+
+In event handlers (not actions/operations), `return <expr>` is sugar for `@@:return = <expr>; return`:
 
 | Context | `return <expr>` meaning |
 |---------|------------------------|
-| Event handler | `system.return = expr; return` (sugar) |
-| Enter handler | `system.return = expr; return` (sugar) |
-| Exit handler | `system.return = expr; return` (sugar) |
+| Event handler | `@@:return = expr; return` (sugar) |
+| Enter handler | `@@:return = expr; return` (sugar) |
+| Exit handler | `@@:return = expr; return` (sugar) |
 | Action | Native function return (no sugar) |
 | Operation | Native function return (no sugar) |
 
 `return` (bare, no expression) is always native in all contexts.
+
+### 9.7 Context Not Available
+
+`@@` is not available in:
+- Static operations (no interface call active)
+- Initial `$>` during construction (no interface call yet)
+
+Accessing `@@` in these contexts is an error.
 
 ---
 
@@ -552,7 +684,7 @@ getDecision() called → return_stack: ["yes"]
 |-------|---------|
 | `$<Name>` | State reference |
 | `$>` | Enter handler |
-| `$<` | Exit handler |
+| `<$` | Exit handler |
 | `$^` | Parent state reference (HSM) |
 | `$.` | State variable prefix |
 
@@ -566,7 +698,16 @@ getDecision() called → return_stack: ["yes"]
 | `-> pop$` | Transition to popped state |
 | `push$` | Push to state stack |
 | `pop$` | Pop from state stack |
-| `system.return` | Interface return value |
+
+### 10.4 Context Tokens
+
+| Token | Meaning |
+|-------|---------|
+| `@@.x` | Interface parameter `x` (shorthand) |
+| `@@:return` | Interface return value |
+| `@@:event` | Interface event name |
+| `@@:params[x]` | Interface parameter `x` (explicit) |
+| `@@:data[key]` | Call-scoped data |
 
 ---
 

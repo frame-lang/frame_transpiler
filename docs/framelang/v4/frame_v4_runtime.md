@@ -40,21 +40,40 @@ Compartment {
 
 ### 2.2 FrameEvent
 
-The **FrameEvent** carries event metadata through the runtime:
+The **FrameEvent** is a lean routing object:
 
 ```
 FrameEvent {
-    _message: string           # Event type identifier ("$>", "$<", "methodName")
+    _message: string           # Event type identifier ("$>", "<$", "methodName")
     _parameters: dict | null   # Event arguments (from interface call or enter/exit args)
-    _return: any              # Return value (rarely used; prefer _return_value field)
 }
 ```
 
 **Special message values:**
 - `"$>"` — Enter event (sent when entering a state)
-- `"$<"` — Exit event (sent when exiting a state)
+- `"<$"` — Exit event (sent when exiting a state)
 
-### 2.3 System Fields
+**Note:** FrameEvent has no `_return` field. Return values are managed via FrameContext.
+
+### 2.3 FrameContext
+
+The **FrameContext** holds the call context for interface method invocations:
+
+```
+FrameContext {
+    event: FrameEvent          # Reference to interface event
+    _return: any               # Return value slot (default or None)
+    _data: dict                # Call-scoped data (empty by default)
+}
+```
+
+**Key semantics:**
+- Context is PUSHED when interface method is called
+- Context is POPPED when interface method returns
+- Lifecycle events ($>, <$) use existing context (no push/pop)
+- Nested interface calls each have their own context (reentrancy support)
+
+### 2.4 System Fields
 
 Every generated system class contains:
 
@@ -62,7 +81,7 @@ Every generated system class contains:
 __compartment: Compartment           # Current state's compartment
 __next_compartment: Compartment?     # Pending transition target (null if none)
 _state_stack: list[Compartment]      # State history stack
-_return_value: any                   # Current interface return value
+_context_stack: list[FrameContext]   # Interface call context stack
 ```
 
 ---
@@ -389,20 +408,29 @@ def _state_Child(self, __e):
 
 ---
 
-## 7. System Return
+## 7. System Context and Return
 
-### 7.1 Setting Return Value
+### 7.1 Context Stack
+
+Interface methods push a `FrameContext` onto `_context_stack`. This provides:
+- Access to interface parameters via `@@.param` or `@@:params[param]`
+- Return value slot via `@@:return`
+- Call-scoped data via `@@:data[key]`
+
+### 7.2 Setting Return Value
 
 ```frame
-system.return = value
+@@:return = value
 ```
 
 Generated code:
 ```python
-self._return_value = value
+self._context_stack[-1]._return = value
 ```
 
-### 7.2 Return Sugar in Handlers
+**Legacy:** `system.return = value` is an alias for `@@:return = value`.
+
+### 7.3 Return Sugar in Handlers
 
 ```frame
 return expression
@@ -410,34 +438,75 @@ return expression
 
 In event handlers (NOT actions), this is sugar for:
 ```python
-self._return_value = expression
-__e._return = self._return_value
+self._context_stack[-1]._return = expression
 return
 ```
 
-### 7.3 Interface Method Return Chain
+### 7.4 Interface Method Pattern
 
 Interface methods:
-1. Reset `_return_value` to None (or default)
-2. Create event and send to kernel
-3. Return `_return_value` to caller
+1. Create event and context
+2. Push context onto stack
+3. Send event to kernel
+4. Pop context and return its `_return` value
 
 ```python
 def get_status(self) -> str:
-    self._return_value = None  # Or default value
-    __e = FrameEvent("get_status", None)
+    __e = FrameEvent("get_status", {})
+    __ctx = FrameContext(__e, None)  # None or default value
+    self._context_stack.append(__ctx)
     self.__kernel(__e)
-    return self._return_value
+    return self._context_stack.pop()._return
 ```
 
-### 7.4 Last Writer Wins
+### 7.5 Accessing Interface Parameters
 
-If multiple handlers in a transition chain set `system.return`, the **last** value wins:
+From handlers, actions, and non-static operations:
+
+```frame
+@@.x              # Interface parameter x (shorthand)
+@@:params[x]      # Interface parameter x (explicit)
+@@:event          # Interface method name
+```
+
+Generated code:
+```python
+self._context_stack[-1].event._parameters["x"]  # @@.x
+self._context_stack[-1].event._message          # @@:event
+```
+
+### 7.6 Call-Scoped Data
+
+Data that persists for the duration of an interface call:
+
+```frame
+@@:data["key"] = value   # Set
+value = @@:data["key"]   # Get
+```
+
+Data survives across handler → <$ → $> transitions but is cleared when the interface call returns.
+
+### 7.7 Reentrancy
+
+Each interface call pushes its own context. Nested calls are isolated:
+
+```python
+# outer() calls inner()
+_context_stack: [
+    FrameContext(event="outer", _return="outer_value", _data={}),
+    FrameContext(event="inner", _return="inner_value", _data={})
+]
+# inner's @@:return doesn't affect outer's @@:return
+```
+
+### 7.8 Last Writer Wins
+
+If multiple handlers in a transition chain set `@@:return`, the **last** value wins:
 
 ```
-Interface call → Handler sets "A"
+Interface call → Handler sets @@:return = "A"
               → Transition to State2
-              → State2's enter handler sets "B"
+              → State2's $> handler sets @@:return = "B"
               → Returns "B" (last writer)
 ```
 

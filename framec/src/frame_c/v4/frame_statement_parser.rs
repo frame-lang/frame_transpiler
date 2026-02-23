@@ -33,6 +33,14 @@ impl FrameStatementParser {
                 // bare system.return - just returns the current value
                 Ok(MirItem::SystemReturnExpr{ span })
             }
+            // Context syntax - handled inline by the splicer expansion
+            FrameSegmentKind::ContextParamShorthand |
+            FrameSegmentKind::ContextReturn |
+            FrameSegmentKind::ContextEvent |
+            FrameSegmentKind::ContextData |
+            FrameSegmentKind::ContextParams => {
+                Err(ParseError::err(ParseErrorKind::InvalidHead, "context syntax handled by splicer"))
+            }
         }
     }
 
