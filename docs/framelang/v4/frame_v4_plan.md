@@ -10,15 +10,28 @@
 ## Current Status
 
 **Test Results (2026-02-23):**
-- Python: 29/29 tests passing (100%)
-- TypeScript: 29/29 tests passing (100%)
-- Rust: 29/29 tests passing (100%)
-- C: 0/29 (In Development)
+- Python: 31/36 tests passing (86%)
+- TypeScript: 27/36 tests passing (75%)
+- Rust: 21/36 tests passing (58%)
+- C: 0/36 (In Development)
 
-**Total PRT: 87/87 tests passing (100%)**
+**Total PRT: 79/108 tests passing (73%)**
 
-**Milestone: System Context Architecture Complete**
-All three PRT languages now use the unified kernel/router/transition/context stack architecture with full `@@` syntax support.
+**Known Failing Tests:**
+| Test | Python | TypeScript | Rust | Issue |
+|------|--------|------------|------|-------|
+| 05_enter_exit | ❌ | ❌ | ❌ | TBD |
+| 15_system_return_chain | ❌ | ❌ | ✅ | Python/TS issue |
+| 17_transition_enter_args | ❌ | ❌ | ✅ | Python/TS issue |
+| 18_transition_exit_args | ❌ | ❌ | ❌ | TBD |
+| 23-25_persist | ✅ | ❌ | ❌ | TS/Rust serialization |
+| 31-32_doc_lamp | ❌ | ❌ | ❌ | TBD |
+| 35_return_init | ❌ | ❌ | ❌ | TBD |
+| 36-37_context | ✅ | ✅ | ❌ | Rust context |
+| 38_context_data | ✅ | ❌ | ❌ | TS/Rust context |
+
+**Architecture Status:**
+All three PRT languages use the unified kernel/router/transition/context stack architecture with `@@` syntax support.
 
 ---
 
@@ -95,7 +108,7 @@ All three PRT languages now use the unified kernel/router/transition/context sta
 - Full parity with PRT languages
 - FrameDict/FrameVec runtime library
 - See [frame_v4_c_implementation_plan.md](frame_v4_c_implementation_plan.md)
-- Target: 29/29 tests passing
+- Target: 36/36 tests passing
 
 ---
 
@@ -193,41 +206,46 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 
 ## Test Summary
 
-| # | Test File | Status | Validates |
-|---|-----------|--------|-----------|
-| 01 | `01_minimal` | ✅ | Basic system instantiation |
-| 02 | `02_interface` | ✅ | Interface method definitions |
-| 03 | `03_transition` | ✅ | State transitions |
-| 04 | `04_native_code` | ✅ | Native language integration |
-| 05 | `05_enter_exit` | ✅ | State entry/exit handlers |
-| 06 | `06_domain_vars` | ✅ | Domain variables |
-| 07 | `07_params` | ✅ | Event parameters |
-| 08 | `08_hsm` | ✅ | HSM explicit forward |
-| 09 | `09_stack` | ✅ | State stack operations |
-| 10 | `10_state_var_basic` | ✅ | State variables basics |
-| 11 | `11_state_var_reentry` | ✅ | State variable reentry |
-| 12 | `12_state_var_push_pop` | ✅ | State var push/pop |
-| 13 | `13_system_return` | ✅ | System return values |
-| 14 | `14_system_return_default` | ✅ | Default return values |
-| 15 | `15_system_return_chain` | ✅ | Chained return values |
-| 16 | `16_system_return_reentrant` | ✅ | Reentrant returns |
-| 17 | `17_transition_enter_args` | ✅ | Enter transition args |
-| 18 | `18_transition_exit_args` | ✅ | Exit transition args |
-| 19 | `19_transition_forward` | ✅ | Forward transitions |
-| 20 | `20_transition_pop` | ✅ | Pop transitions |
-| 21 | `21_actions_basic` | ✅ | Basic actions |
-| 22 | `22_operations_basic` | ✅ | Basic operations |
-| 23 | `23_persist_basic` | ✅ | Basic persistence |
-| 24 | `24_persist_roundtrip` | ✅ | Persistence roundtrip |
-| 25 | `25_persist_stack` | ✅ | Persistence with stack |
-| 26 | `26_state_params` | ✅ | State parameters |
-| 29 | `29_forward_enter_first` | ✅ | Send $> before non-$> forward |
-| 30 | `30_hsm_default_forward` | ✅ | State-level `=> $^` |
-| 33 | `33_doc_history_basic` | ✅ | Document history basic |
-| 34 | `34_doc_history_hsm` | ✅ | Document history HSM |
-| 36 | `36_context_basic` | ✅ | `@@.param`, `@@:return`, `@@:event` |
-| 37 | `37_context_reentrant` | ✅ | Nested interface calls, context isolation |
-| 38 | `38_context_data` | ✅ | `@@:data[key]` persistence across transitions |
+| # | Test File | P | T | R | Validates |
+|---|-----------|---|---|---|-----------|
+| 01 | `01_minimal` | ✅ | ✅ | ✅ | Basic system instantiation |
+| 02 | `02_interface` | ✅ | ✅ | ✅ | Interface method definitions |
+| 03 | `03_transition` | ✅ | ✅ | ✅ | State transitions |
+| 04 | `04_native_code` | ✅ | ✅ | ✅ | Native language integration |
+| 05 | `05_enter_exit` | ❌ | ❌ | ❌ | State entry/exit handlers |
+| 06 | `06_domain_vars` | ✅ | ✅ | ✅ | Domain variables |
+| 07 | `07_params` | ✅ | ✅ | ✅ | Event parameters |
+| 08 | `08_hsm` | ✅ | ✅ | ✅ | HSM explicit forward |
+| 09 | `09_stack` | ✅ | ✅ | ✅ | State stack operations |
+| 10 | `10_state_var_basic` | ✅ | ✅ | ✅ | State variables basics |
+| 11 | `11_state_var_reentry` | ✅ | ✅ | ✅ | State variable reentry |
+| 12 | `12_state_var_push_pop` | ✅ | ✅ | ✅ | State var push/pop |
+| 13 | `13_system_return` | ✅ | ✅ | ✅ | System return values |
+| 14 | `14_system_return_default` | ✅ | ✅ | ✅ | Default return values |
+| 15 | `15_system_return_chain` | ❌ | ❌ | ✅ | Chained return values |
+| 16 | `16_system_return_reentrant` | ✅ | ✅ | ✅ | Reentrant returns |
+| 17 | `17_transition_enter_args` | ❌ | ❌ | ✅ | Enter transition args |
+| 18 | `18_transition_exit_args` | ❌ | ❌ | ❌ | Exit transition args |
+| 19 | `19_transition_forward` | ✅ | ✅ | ✅ | Forward transitions |
+| 20 | `20_transition_pop` | ✅ | ✅ | ✅ | Pop transitions |
+| 21 | `21_actions_basic` | ✅ | ✅ | ✅ | Basic actions |
+| 22 | `22_operations_basic` | ✅ | ✅ | ✅ | Basic operations |
+| 23 | `23_persist_basic` | ✅ | ❌ | ❌ | Basic persistence |
+| 24 | `24_persist_roundtrip` | ✅ | ❌ | ❌ | Persistence roundtrip |
+| 25 | `25_persist_stack` | ✅ | ❌ | ❌ | Persistence with stack |
+| 26 | `26_state_params` | ✅ | ✅ | ✅ | State parameters |
+| 29 | `29_forward_enter_first` | ✅ | ✅ | ✅ | Send $> before non-$> forward |
+| 30 | `30_hsm_default_forward` | ✅ | ✅ | ✅ | State-level `=> $^` |
+| 31 | `31_doc_lamp_basic` | ❌ | ❌ | ❌ | Document lamp example |
+| 32 | `32_doc_lamp_hsm` | ❌ | ❌ | ❌ | Document lamp HSM example |
+| 33 | `33_doc_history_basic` | ✅ | ✅ | ✅ | Document history basic |
+| 34 | `34_doc_history_hsm` | ✅ | ✅ | ✅ | Document history HSM |
+| 35 | `35_return_init` | ❌ | ❌ | ❌ | Return value initialization |
+| 36 | `36_context_basic` | ✅ | ✅ | ❌ | `@@.param`, `@@:return`, `@@:event` |
+| 37 | `37_context_reentrant` | ✅ | ✅ | ❌ | Nested interface calls, context isolation |
+| 38 | `38_context_data` | ✅ | ❌ | ❌ | `@@:data[key]` persistence across transitions |
+
+*P=Python, T=TypeScript, R=Rust*
 
 ---
 
@@ -236,7 +254,7 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 **V4 Test Runner:**
 ```bash
 cd framepiler_test_env/tests/common/primary
-./run_tests.sh   # Runs all 29 tests for Python, TypeScript, Rust
+./run_tests.sh   # Runs all 36 tests for Python, TypeScript, Rust
 ```
 
 **Single Language:**
@@ -245,7 +263,7 @@ cd framepiler_test_env/tests/common/primary
 ./run_tests.sh 2>&1 | grep python_3
 
 # Check specific test output
-cat framepiler_test_env/python_test_crate/tests/08_hsm.py
+cat framepiler_test_env/output/python/tests/08_hsm.py
 ```
 
 ---
@@ -254,16 +272,16 @@ cat framepiler_test_env/python_test_crate/tests/08_hsm.py
 
 | Phase | Tests | Status |
 |-------|-------|--------|
-| 0-6 | 01-26 | ✅ 78/78 passing |
+| 0-6 | 01-26 | 🔶 Most passing, some issues |
 | 7.1 | 30 | ✅ 3/3 passing |
 | 8 | 29 | ✅ 3/3 passing |
-| 9 | All PRT | ✅ Rust parity complete |
+| 9 | All PRT | ✅ Architecture complete |
 | 10 | Infrastructure | ✅ Test crates working |
-| 11 | 36-38 | ✅ 9/9 passing (System Context) |
-| 12 | C | 🚧 0/29 (In Development) |
+| 11 | 36-38 | 🔶 Python passing, TS/Rust partial |
+| 12 | C | 🚧 0/36 (In Development) |
 
-**Current PRT:** 87/87 (100%) - Full language parity achieved
-**Target PRTC:** 116/116 when C is complete
+**Current PRT:** 79/108 (73%) - Architecture complete, some tests failing
+**Target PRTC:** 144/144 when C is complete and all tests pass
 
 ---
 

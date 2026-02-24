@@ -904,12 +904,20 @@ clean:
 - [ ] `save_state()` implementation
 - [ ] `restore_state()` implementation
 
-### Phase 11: Remaining Features (Tests 26-38)
-- [ ] State parameters
-- [ ] Forward enter first
-- [ ] HSM default forward
-- [ ] Document history
-- [ ] Context tests (36-38)
+### Phase 11: State Parameters & HSM Extensions (Tests 26, 29-30)
+- [ ] State parameters (`$State(params)`)
+- [ ] Forward enter first (`-> =>`)
+- [ ] HSM default forward (state-level `=> $^`)
+
+### Phase 12: Document Examples (Tests 31-34)
+- [ ] Doc lamp basic/HSM
+- [ ] Doc history basic/HSM
+
+### Phase 13: Return & Context Extensions (Tests 35-38)
+- [ ] Return initialization
+- [ ] Context basic (`@@.param`, `@@:return`, `@@:event`)
+- [ ] Context reentrant (nested interface calls)
+- [ ] Context data (`@@:data[key]`)
 
 ---
 
@@ -948,7 +956,7 @@ The C backend emits a **single self-contained `.c` file** containing:
 
 ## 10. Success Criteria
 
-- [ ] **29/29 tests passing** (parity with PRT)
+- [ ] **36/36 tests passing** (parity with PRT)
 - [ ] **No memory leaks** (Valgrind clean on all tests)
 - [ ] **Compiles clean** with `-Wall -Wextra -Werror` on gcc and clang
 - [ ] **Full feature parity** - every Frame construct works identically to PRT
