@@ -50,6 +50,7 @@ Required. Must appear before `@@system`. Specifies the target language for code 
 | `python_3` | Python 3 |
 | `typescript` | TypeScript |
 | `rust` | Rust |
+| `c` | C (C11) |
 
 No other values are valid. Unknown values are parse errors (E001).
 

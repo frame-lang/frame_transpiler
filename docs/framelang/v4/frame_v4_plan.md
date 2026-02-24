@@ -1,23 +1,24 @@
 # Frame V4 Implementation Plan
 
-**Version:** 2.0
+**Version:** 2.1
 **Date:** February 2026
 **Status:** Active Development
-**Approach:** Test-Driven (PRT: Python, Rust, TypeScript)
+**Approach:** Test-Driven (PRTC: Python, Rust, TypeScript, C)
 
 ---
 
 ## Current Status
 
-**Test Results (2026-02-21):**
-- Python: 28/28 tests passing (100%)
-- TypeScript: 28/28 tests passing (100%)
-- Rust: 28/28 tests passing (100%)
+**Test Results (2026-02-23):**
+- Python: 29/29 tests passing (100%)
+- TypeScript: 29/29 tests passing (100%)
+- Rust: 29/29 tests passing (100%)
+- C: 0/29 (In Development)
 
-**Total: 84/84 tests passing (100%)**
+**Total PRT: 87/87 tests passing (100%)**
 
-**Milestone: Full Language Parity Achieved**
-All three target languages (Python, TypeScript, Rust) now use the unified kernel/router/transition compartment architecture.
+**Milestone: System Context Architecture Complete**
+All three PRT languages now use the unified kernel/router/transition/context stack architecture with full `@@` syntax support.
 
 ---
 
@@ -79,20 +80,37 @@ All three target languages (Python, TypeScript, Rust) now use the unified kernel
 - Rust: `rust_test_crate/tests/`
 - Rust tests run via cargo for dependency support
 
+### Phase 11: System Context Architecture ✅
+- FrameEvent as lean routing object (message + parameters only)
+- FrameContext with event reference, _return slot, and _data dict
+- `_context_stack` for reentrancy support
+- `@@` syntax: `@@.param`, `@@:return`, `@@:event`, `@@:data[key]`, `@@:params[key]`
+- Tests 36-38 passing (context_basic, context_reentrant, context_data)
+
+---
+
+## In Progress
+
+### Phase 12: C Language Implementation 🚧
+- Full parity with PRT languages
+- FrameDict/FrameVec runtime library
+- See [frame_v4_c_implementation_plan.md](frame_v4_c_implementation_plan.md)
+- Target: 29/29 tests passing
+
 ---
 
 ## Runtime Architecture (Implemented)
 
 ### Python & TypeScript Runtime
 
-Full kernel/router/transition pattern:
+Full kernel/router/transition/context pattern:
 
 ```python
 class System:
     __compartment: Compartment           # Current state
     __next_compartment: Compartment?     # Deferred transition
     _state_stack: list[Compartment]      # History stack
-    _return_value: any                   # Return chain
+    _context_stack: list[FrameContext]   # Interface call context stack
 
     def __kernel(self, __e):
         self.__router(__e)
@@ -149,16 +167,17 @@ impl System {
 
 ### Phase 9: Rust Compartment Architecture - COMPLETE ✅
 
-**Rust now uses the SAME kernel/router/transition pattern as Python/TypeScript:**
+**All languages use the SAME kernel/router/transition/context pattern:**
 
-| Feature | Python | TypeScript | Rust |
-|---------|--------|------------|------|
-| State vars | `compartment.state_vars["name"]` | `compartment.stateVars["name"]` | `__compartment.state_vars.get("name")` |
-| Compartment | `__compartment` | `#compartment` | `__compartment` |
-| Transitions | Deferred via `__next_compartment` | Deferred via `#nextCompartment` | Deferred via `__next_compartment` |
-| Event routing | FrameEvent + kernel/router | FrameEvent + kernel/router | FrameEvent + kernel/router |
-| HSM forwarding | `=> $^` → parent method call | `=> $^` → parent method call | `=> $^` → parent method call |
-| State stack | `Vec[(String, StateContext)]` | `Array<Compartment>` | `Vec<(String, StateContext)>` |
+| Feature | Python | TypeScript | Rust | C |
+|---------|--------|------------|------|---|
+| State vars | `compartment.state_vars["name"]` | `compartment.stateVars["name"]` | `__compartment.state_vars.get("name")` | `FrameDict_get(compartment->state_vars, "name")` |
+| Compartment | `__compartment` | `#compartment` | `__compartment` | `self->__compartment` |
+| Transitions | Deferred via `__next_compartment` | Deferred via `#nextCompartment` | Deferred via `__next_compartment` | Deferred via `self->__next_compartment` |
+| Event routing | FrameEvent + kernel/router | FrameEvent + kernel/router | FrameEvent + kernel/router | FrameEvent + kernel/router |
+| HSM forwarding | `=> $^` → parent method call | `=> $^` → parent method call | `=> $^` → parent method call | `=> $^` → parent function call |
+| State stack | `list[Compartment]` | `Array<Compartment>` | `Vec<Compartment>` | `FrameVec*` of `Compartment*` |
+| Context stack | `list[FrameContext]` | `Array<FrameContext>` | `Vec<FrameContext>` | `FrameVec*` of `FrameContext*` |
 
 **Key Implementation Details:**
 - `SystemCompartment` struct with all 6 fields (state, state_args, state_vars, enter_args, exit_args, forward_event)
@@ -204,6 +223,11 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 | 26 | `26_state_params` | ✅ | State parameters |
 | 29 | `29_forward_enter_first` | ✅ | Send $> before non-$> forward |
 | 30 | `30_hsm_default_forward` | ✅ | State-level `=> $^` |
+| 33 | `33_doc_history_basic` | ✅ | Document history basic |
+| 34 | `34_doc_history_hsm` | ✅ | Document history HSM |
+| 36 | `36_context_basic` | ✅ | `@@.param`, `@@:return`, `@@:event` |
+| 37 | `37_context_reentrant` | ✅ | Nested interface calls, context isolation |
+| 38 | `38_context_data` | ✅ | `@@:data[key]` persistence across transitions |
 
 ---
 
@@ -211,8 +235,8 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 
 **V4 Test Runner:**
 ```bash
-cd framepiler_test_env/common/test-frames/v4/prt
-./run_tests.sh   # Runs all 28 tests for Python, TypeScript, Rust
+cd framepiler_test_env/tests/common/primary
+./run_tests.sh   # Runs all 29 tests for Python, TypeScript, Rust
 ```
 
 **Single Language:**
@@ -233,9 +257,13 @@ cat framepiler_test_env/python_test_crate/tests/08_hsm.py
 | 0-6 | 01-26 | ✅ 78/78 passing |
 | 7.1 | 30 | ✅ 3/3 passing |
 | 8 | 29 | ✅ 3/3 passing |
-| 9 | All | ✅ Rust parity complete |
+| 9 | All PRT | ✅ Rust parity complete |
+| 10 | Infrastructure | ✅ Test crates working |
+| 11 | 36-38 | ✅ 9/9 passing (System Context) |
+| 12 | C | 🚧 0/29 (In Development) |
 
-**Current:** 84/84 (100%) - Full language parity achieved
+**Current PRT:** 87/87 (100%) - Full language parity achieved
+**Target PRTC:** 116/116 when C is complete
 
 ---
 
@@ -246,5 +274,6 @@ cat framepiler_test_env/python_test_crate/tests/08_hsm.py
 | [frame_v4_lang_reference.md](frame_v4_lang_reference.md) | ✅ Complete |
 | [frame_v4_architecture.md](frame_v4_architecture.md) | ✅ Complete |
 | [frame_v4_codegen_spec.md](frame_v4_codegen_spec.md) | ✅ Complete |
-| [frame_v4_runtime.md](frame_v4_runtime.md) | ✅ NEW - Runtime specification |
+| [frame_v4_runtime.md](frame_v4_runtime.md) | ✅ Complete |
 | [frame_v4_error_codes.md](frame_v4_error_codes.md) | ✅ Complete |
+| [frame_v4_c_implementation_plan.md](frame_v4_c_implementation_plan.md) | ✅ NEW - C implementation plan |

@@ -1,7 +1,7 @@
 # Frame V4 Specification
 
-**Status:** Normative — All three target languages fully implemented
-**Version:** 1.2
+**Status:** Normative — Three target languages fully implemented, C in development
+**Version:** 1.3
 **Date:** February 2026
 **Test Status:** 87/87 passing (Python 29, TypeScript 29, Rust 29)
 
@@ -17,6 +17,18 @@
 | [frame_v4_codegen_spec.md](frame_v4_codegen_spec.md) | Generated code specification for all targets |
 | [frame_v4_error_codes.md](frame_v4_error_codes.md) | Error and warning code reference |
 | [frame_v4_plan.md](frame_v4_plan.md) | Implementation plan and status |
+| [frame_v4_c_implementation_plan.md](frame_v4_c_implementation_plan.md) | C language implementation plan |
+
+---
+
+## Target Languages
+
+| Language | Status | File Extension |
+|----------|--------|----------------|
+| Python 3 | ✅ Complete | `.fpy` |
+| TypeScript | ✅ Complete | `.fts` |
+| Rust | ✅ Complete | `.frs` |
+| C | 🚧 In Development | `.fc` |
 
 ---
 

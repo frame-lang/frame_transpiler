@@ -667,6 +667,7 @@ pub struct EmitContext {
 | Python | `if/elif` on `self._compartment.state` | `if/elif` on event | `self._compartment.state_vars["name"]` |
 | TypeScript | `switch (this._compartment.state)` | `switch` on event | `this._compartment.stateVars["name"]` |
 | Rust | `match self._compartment.state.as_str()` | `match` on event | `self._compartment.state_vars.get("name")` |
+| C | `if/else if` on `strcmp(state, "Name")` | `if/else if` on event | `FrameDict_get(self->__compartment->state_vars, "name")` |
 
 ### 6.3 Backend-Specific Compartment
 
@@ -708,11 +709,25 @@ struct Compartment {
 }
 ```
 
+```c
+// C
+typedef struct Compartment {
+    const char* state;
+    FrameDict* state_args;
+    FrameDict* state_vars;
+    FrameDict* enter_args;
+    FrameDict* exit_args;
+    FrameEvent* forward_event;
+    struct Compartment* parent_compartment;
+} Compartment;
+```
+
 | Backend | Compartment | State vars | State stack |
 |---------|-------------|------------|-------------|
 | Python | Class instance | `dict` via `state_vars` | `list` of compartments |
 | TypeScript | Object | `Record` via `stateVars` | `Array` of compartments |
 | Rust | Struct instance | `HashMap` via `state_vars` | `Vec<Compartment>` |
+| C | Struct pointer | `FrameDict*` via `state_vars` | `FrameVec*` of `Compartment*` |
 
 **Benefits of unified approach:**
 - Same mental model across all languages

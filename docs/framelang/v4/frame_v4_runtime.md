@@ -11,7 +11,7 @@
 
 The Frame runtime implements a **deferred transition** model where state changes are cached during event handling and processed by a central kernel after handler completion. This architecture prevents stack overflow in long-running services and enables powerful features like event forwarding.
 
-**Language Parity:** All three target languages (Python, TypeScript, Rust) implement the identical kernel/router/transition architecture described in this document.
+**Language Parity:** All four target languages (Python, TypeScript, Rust, C) implement the identical kernel/router/transition architecture described in this document.
 
 ---
 
