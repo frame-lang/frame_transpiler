@@ -3844,7 +3844,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Rust still uses native return for now (no context stack pattern yet)
+                    // Rust: handlers have return types, use direct return
+                    // Note: Context stack architecture not yet implemented for Rust
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
                     } else {
