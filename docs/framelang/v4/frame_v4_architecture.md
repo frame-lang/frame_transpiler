@@ -3,7 +3,7 @@
 **Version:** 1.1
 **Date:** February 2026
 **Audience:** Implementation team
-**Status:** Normative — All three target languages (Python, TypeScript, Rust) fully implemented
+**Status:** Normative — Python 29/36, TypeScript 25/36, Rust 25/36 (79/108 total)
 
 ---
 

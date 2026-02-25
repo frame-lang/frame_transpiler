@@ -26,8 +26,8 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **Version**: v0.87.2
 - **Branch**: `v4_pure` (V4 pipeline development)
 - **Active Work**: V4 pure preprocessor architecture
-- **PRT Languages**: Python 3, TypeScript, Rust (priority targets)
-- **V4 Test Status**: Python 9/9, Rust 9/9, TypeScript 2/9
+- **Active Languages**: Python 3, TypeScript, Rust, C
+- **V4 Test Status**: Python 29/36 (81%), TypeScript 25/36 (69%), Rust 25/36 (69%) — 79/108 total (73%)
 - **Shared Test Environment**: Active - using `framepiler_test_env`
 - **LLVM**: on indefinite hold
 
@@ -126,8 +126,8 @@ if __name__ == '__main__':
 
 ### V4 Testing
 ```bash
-# Run all V4 PRT tests
-cd framepiler_test_env/common/test-frames/v4/prt
+# Run all V4 tests
+cd framepiler_test_env/tests
 ./run_tests.sh
 
 # Output location
@@ -228,24 +228,20 @@ cargo update
 
 **V4 Tests (Current Development):**
 ```
-framepiler_test_env/common/test-frames/v4/prt/
-├── 01_minimal.frm          # Minimal system, no handlers
-├── 02_interface.frm        # Interface methods with return values
-├── 03_transition.frm       # State transitions
-├── 04_native_code.frm      # Native code preservation (imports, helpers)
-├── 05_enter_exit.frm       # Enter/exit handlers
-├── 06_domain_vars.frm      # Domain variable initialization
-├── 07_params.frm           # Handler parameters
-├── 08_hsm.frm              # Hierarchical state machine (parent forwarding)
-├── 09_stack.frm            # Stack push/pop operations
-└── run_tests.sh            # Test runner script
+framepiler_test_env/tests/common/primary/
+├── 01_minimal.fpy/.fts/.frs    # Minimal system, no handlers
+├── 02_interface.fpy/.fts/.frs  # Interface methods with return values
+├── 03_transition.fpy/.fts/.frs # State transitions
+├── ...                          # 36 tests total
+├── 38_context_data.fpy/.fts/.frs
+└── run_tests.sh                 # Test runner script
 ```
 
 **Run V4 tests:**
 ```bash
-cd framepiler_test_env/common/test-frames/v4/prt
-./run_tests.sh              # All tests, all languages
-# Output: /tmp/v4_prt_tests/
+cd framepiler_test_env/tests/common/primary
+./run_tests.sh              # All 36 tests × 3 languages
+# Output: framepiler_test_env/output/{python,typescript,rust}/tests/
 ```
 
 **V3 Tests (LEGACY - Shared Environment):**
@@ -441,7 +437,7 @@ exposed via the `framec` CLI. It exercises validation and execution for
 language-specific V3 categories using the shared harness library
 (`framec::frame_c::v3::test_harness_rs`) without going through
 `framec_tests/runner/frame_test_runner.py`. Python remains the reference
-for non-PRT suites, but for PRT V3 categories the Rust path is now a
+for other suites, but for V3 categories the Rust path is now a
 first-class option.
 
 CLI entry:
@@ -539,7 +535,7 @@ Exec-curated mode:
 
 Scope (as of v0.86.69):
 - Validation + compare-python:
-  - PRT V3 categories:
+  - V3 categories:
     - `v3_core`, `v3_control_flow`, `v3_systems`,
       `v3_persistence`, `v3_systems_runtime` for
       python/typescript/rust.
@@ -563,7 +559,7 @@ Rust-native snapshot shape:
     parse/encode/compare semantics.
   - Invokes the Python and TypeScript persistence helpers via subprocesses
     (`frame_persistence_py`, `frame_persistence_ts`) and asserts that all
-    three PRT targets agree on the DTO shape. This is the Rust-native
+    three targets agree on the DTO shape. This is the Rust-native
     counterpart to `tools/test_cross_language_snapshot_shape.py`.
 
 # GraphViz target

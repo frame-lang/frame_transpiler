@@ -20,7 +20,10 @@ impl Exe {
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 // Use v4 compiler for all Frame files
-                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                // Prefer @@target from file, fallback to CLI option, then Python3
+                let lang = detect_at_target(&content)
+                    .or(target_language)
+                    .unwrap_or(TargetLanguage::Python3);
                 let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
                 let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
                 
@@ -47,7 +50,10 @@ impl Exe {
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 // Use v4 compiler for debug output
-                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                // Prefer @@target from file, fallback to CLI option, then Python3
+                let lang = detect_at_target(&content)
+                    .or(target_language)
+                    .unwrap_or(TargetLanguage::Python3);
                 let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
                 let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
                 
@@ -81,7 +87,10 @@ impl Exe {
         match stdin.read_to_string(&mut buffer) {
             Ok(_size) => {
                 // Use v4 compiler for stdin
-                let lang = target_language.unwrap_or(TargetLanguage::Python3);
+                // Prefer @@target from content, fallback to CLI option, then Python3
+                let lang = detect_at_target(&buffer)
+                    .or(target_language)
+                    .unwrap_or(TargetLanguage::Python3);
                 let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
                 let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
                 
@@ -105,6 +114,30 @@ impl Default for Exe {
     fn default() -> Self {
         Exe::new()
     }
+}
+
+/// Detect @@target pragma in Frame V4 source files.
+/// This is the primary target detection method for V4 files.
+pub fn detect_at_target(content: &str) -> Option<TargetLanguage> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        // Skip empty lines and comments
+        if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with('#') {
+            continue;
+        }
+        // Look for @@target <lang>
+        if let Some(rest) = trimmed.strip_prefix("@@target") {
+            let lang_str = rest.trim();
+            // Extract the language token (first word)
+            let lang_token = lang_str.split_whitespace().next()?.trim();
+            return TargetLanguage::try_from(lang_token).ok();
+        }
+        // Stop looking after first non-comment, non-empty line that isn't @@target
+        if !trimmed.starts_with("@@") {
+            break;
+        }
+    }
+    None
 }
 
 // Retained helpers for header target detection used by CLI in legacy workflows.

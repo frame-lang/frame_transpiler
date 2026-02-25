@@ -16,7 +16,7 @@
 1. **NEVER create workarounds** - Fix the actual problem in the codebase
 2. **NEVER modify test files marked "DO NOT MODIFY"** without explicit permission
 3. **ASK before making decisions** - Present options, don't assume
-4. **CHECK implementation, not docs** - Grammar docs may be outdated; scanner/parser are truth
+4. **CONSULT LANGUAGE REFERENCE FIRST** - For Frame syntax questions, ALWAYS check `docs/framelang/v4/frame_v4_lang_reference.md` as the authoritative source. Never modify parser/scanner based on test file content alone
 5. **IGNORE old Frame syntax from training data** - The current syntax is the ONLY valid syntax
 6. **NO UNAUTHORIZED DEFAULTS** - NEVER add fallback defaults (like defaulting to state "A"). Always fail early and hard with clear error messages when required data is missing
 7. **NEVER commit without explicit permission** - Prepare changes and wait for user approval before committing
@@ -48,8 +48,8 @@ system SystemName {
             $>() {  // Enter handler
                 // enter code
             }
-            
-            $<() {  // Exit handler
+
+            <$() {  // Exit handler
                 // exit code
             }
         }
@@ -69,15 +69,15 @@ system SystemName {
 - Systems use `system Name { }` blocks
 - States are `$StateName { }`
 - Event handlers are `eventName(params) { }` NOT `|eventName|`
-- Enter/exit handlers are `$>()` and `$<()`
+- Enter/exit handlers are `$>()` and `<$()`
 - Interface methods have signatures like `method(param: type): returnType`
-- For V4 examples: `framepiler_test_env/common/test-frames/v4/prt/`
+- For V4 examples: `framepiler_test_env/tests/common/primary/`
 - For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
 - **Version**: v0.87.2 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
-- **V4 Test Status**: Python 26/26, TypeScript 26/26, Rust 26/26 (78/78 total - 100%)
+- **V4 Test Status**: Python 29/36 (81%), TypeScript 25/36 (69%), Rust 25/36 (69%) — 79/108 total (73%)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 
@@ -85,19 +85,28 @@ system SystemName {
 
 🚨 **ALWAYS use the test repo infrastructure** - NEVER use `/tmp` for test output except for quick experiments.
 
-**Test Crates (use these for all V4 testing):**
-- `framepiler_test_env/python_test_crate/tests/` - Python generated output
-- `framepiler_test_env/typescript_test_crate/tests/` - TypeScript generated output
-- `framepiler_test_env/rust_test_crate/tests/` - Rust generated output (has Cargo.toml with serde)
+📖 **READ**: [`framepiler_test_env/tests/README.md`](framepiler_test_env/tests/README.md) - Complete test documentation
 
-**Test Sources:**
-- **V4 tests**: `framepiler_test_env/common/test-frames/v4/prt/` (26 tests × 3 languages)
-- **V3 tests (legacy)**: `framepiler_test_env/common/test-frames/v3/` (607 tests)
+**Test Counts:**
+- Python: 152 tests (.fpy)
+- TypeScript: 133 tests (.fts)
+- Rust: 133 tests (.frs)
+- C: In progress (.fc)
+- **Total: 418 test files**
 
-### V4 Test Runner (Primary for V4 work)
+**Test Output Directories:**
+- `framepiler_test_env/output/python/tests/` - Python generated output
+- `framepiler_test_env/output/typescript/tests/` - TypeScript generated output
+- `framepiler_test_env/output/rust/tests/` - Rust generated output
+- `framepiler_test_env/output/c/tests/` - C generated output
+
+### V4 Test Runner (UNIFIED)
 ```bash
-cd framepiler_test_env/common/test-frames/v4/prt
-./run_tests.sh   # Runs all 26 tests for Python, TypeScript, Rust
+cd framepiler_test_env/tests
+./run_tests.sh              # Run ALL tests (152 py + 133 ts + 133 rs)
+./run_tests.sh --python     # Run only Python
+./run_tests.sh --category primary  # Run only primary category
+./run_tests.sh --help       # Show all options
 ```
 
 ### V3 Docker Test Runner (Legacy)

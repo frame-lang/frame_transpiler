@@ -1,9 +1,9 @@
 # Frame V4 C Language Implementation Plan
 
-**Version:** 2.0
+**Version:** 3.0
 **Date:** February 2026
-**Status:** Planning
-**Approach:** Full Parity with PRT (Python, Rust, TypeScript)
+**Status:** In Progress
+**Approach:** Phased Implementation per `adding_new_language_backend.md`
 
 ---
 
@@ -21,54 +21,677 @@
 
 ---
 
-## 2. Runtime Generation Strategy
+## 2. Implementation Phases
 
-### 2.1 Per-System Generation (Current Approach)
+Following the phased approach from `adding_new_language_backend.md`, C implementation proceeds in 6 phases with validation tests at each stage.
 
-Like PRT, each system generates its own runtime types with system-specific prefixes:
+| Phase | Feature Set | Primary Tests | Extended Tests | Status |
+|-------|-------------|---------------|----------------|--------|
+| 1 | Core System Structure | 01, 02, 04, 06 | core/*, interfaces/*, data_types/*, operators/* | ⬜ |
+| 2 | Transitions & Lifecycle | 03, 05 | automata/*, control_flow/transition_* | ⬜ |
+| 3 | Parameters & Return Values | 07, 13-16, 35 | capabilities/system_return_* | ⬜ |
+| 4 | State Variables & Stack | 09-12, 20 | core/stack_*, exec_smoke/stack_* | ⬜ |
+| 5 | Hierarchical State Machines | 08, 19, 29, 30 | control_flow/forward_*, systems/*forward* | ⬜ |
+| 6 | Actions, Operations & Persistence | 21-26 | capabilities/actions_*, scoping/* | ⬜ |
+
+**Advanced Tests (after Phase 6):**
+- Documentation examples: 31-34
+- Context features: 36-38
+- Transition arguments: 17, 18
+
+---
+
+## 3. Phase 1: Core System Structure
+
+**Goal:** Generate a compilable C system with basic interface methods and event routing.
+
+### Features to Implement
+- [ ] Per-system runtime types (FrameDict, FrameVec, FrameEvent, Compartment)
+- [ ] System struct generation
+- [ ] Constructor (`System_new`) / Destructor (`System_destroy`)
+- [ ] `__kernel` method (event dispatcher)
+- [ ] `__router` method (state dispatch)
+- [ ] State handler functions (one per state)
+- [ ] `__compartment` field (current state closure)
+- [ ] Interface method wrappers (public API)
+
+### Primary Validation Tests
+
+| Test | Description | Key Features |
+|------|-------------|--------------|
+| `primary/01_minimal.fc` | Single state, single method | System instantiation, interface method, return value |
+| `primary/02_interface.fc` | Multiple interface methods | Multiple handlers, method signatures |
+| `primary/04_native_code.fc` | Native code pass-through | "Oceans model" - native code preserved |
+| `primary/06_domain_vars.fc` | Domain variables | `domain:` section, field initialization |
+
+### Extended Validation Tests
+
+| Category | Tests | Validates |
+|----------|-------|-----------|
+| `core/simple_interface.fc` | 1 | Basic interface generation |
+| `core/basic_cli_compile.fc` | 1 | CLI compilation |
+| `interfaces/interface_handlers_emitted.fc` | 1 | Handler emission |
+| `interfaces/interface_with_param.fc` | 1 | Parameterized interfaces |
+| `data_types/*.fc` | 6 | Dict, list, string, int handling |
+| `operators/*.fc` | 5 | Arithmetic, comparison, logical, ternary |
+
+### C-Specific Implementation
+
+#### Runtime Types (Generated Per-System)
 
 ```c
-// my_system.c - everything self-contained
-typedef struct MySystem_FrameDictEntry { ... } MySystem_FrameDictEntry;
-typedef struct MySystem_FrameDict { ... } MySystem_FrameDict;
-typedef struct MySystem_FrameVec { ... } MySystem_FrameVec;
-typedef struct MySystem_FrameEvent { ... } MySystem_FrameEvent;
-typedef struct MySystem_FrameContext { ... } MySystem_FrameContext;
-typedef struct MySystem_Compartment { ... } MySystem_Compartment;
-typedef struct MySystem { ... } MySystem;
+// For system "Foo", generate:
+typedef struct Foo_FrameDictEntry { ... } Foo_FrameDictEntry;
+typedef struct Foo_FrameDict { ... } Foo_FrameDict;
+typedef struct Foo_FrameVec { ... } Foo_FrameVec;
+typedef struct Foo_FrameEvent { ... } Foo_FrameEvent;
+typedef struct Foo_Compartment { ... } Foo_Compartment;
+typedef struct Foo { ... } Foo;
 ```
 
-**Benefits:**
-- Self-contained: each `.c` file compiles independently
-- Matches PRT model exactly
-- Easy validation: just compile and run each test file
-- No linking complexity
-
-**Future Option:** `@@codegen { runtime: shared }` could emit a shared `frame_runtime.h` instead. Not implemented initially.
-
-### 2.2 Generated Runtime Types
-
-Each system `Foo` generates these types (all prefixed with `Foo_`):
-
-| Type | Purpose |
-|------|---------|
-| `Foo_FrameDictEntry` | Hash map entry (key + value + next) |
-| `Foo_FrameDict` | String-keyed dictionary |
-| `Foo_FrameVec` | Dynamic array |
-| `Foo_FrameEvent` | Event routing object |
-| `Foo_FrameContext` | Interface call context |
-| `Foo_Compartment` | State closure |
-| `Foo` | The system struct itself |
-
-### 2.3 FrameDict Implementation (Generated Per-System)
-
-For a system named `Foo`, the generated code includes:
+#### System Structure
 
 ```c
-// ============================================================================
-// Foo_FrameDict - String-keyed dictionary (generated per-system)
-// ============================================================================
+typedef struct Foo {
+    // Runtime infrastructure
+    Foo_Compartment* __compartment;           // Current state
+    Foo_Compartment* __next_compartment;      // Deferred transition target
+    Foo_FrameVec* _state_stack;               // Stack of compartments
+    Foo_FrameVec* _context_stack;             // Stack of FrameContext*
 
+    // Domain variables (system-specific)
+    int max_retries;
+    char* label;
+} Foo;
+```
+
+#### Interface Method Pattern
+
+```c
+int Foo_compute(Foo* self, int a, int b) {
+    Foo_FrameDict* params = Foo_FrameDict_new();
+    Foo_FrameDict_set(params, "a", (void*)(intptr_t)a);
+    Foo_FrameDict_set(params, "b", (void*)(intptr_t)b);
+    Foo_FrameEvent* __e = Foo_FrameEvent_new("compute", params);
+
+    Foo_FrameContext* __ctx = Foo_FrameContext_new(__e, NULL);
+    Foo_FrameVec_push(self->_context_stack, __ctx);
+
+    Foo__kernel(self, __e);
+
+    Foo_FrameContext* ctx = Foo_FrameVec_pop(self->_context_stack);
+    int result = (int)(intptr_t)ctx->_return;
+
+    Foo_FrameContext_destroy(ctx);
+    Foo_FrameDict_destroy(params);
+    Foo_FrameEvent_destroy(__e);
+
+    return result;
+}
+```
+
+### Phase 1 Verification
+
+```bash
+cd framepiler_test_env/tests/common
+
+# Primary tests
+for test in primary/01_minimal primary/02_interface primary/04_native_code primary/06_domain_vars; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Extended tests
+for test in core/simple_interface interfaces/interface_handlers_emitted; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+```
+
+---
+
+## 4. Phase 2: Transitions & Lifecycle
+
+**Goal:** Implement state transitions with proper enter/exit handler invocation.
+
+### Features to Implement
+- [ ] Basic transition (`-> $State`)
+- [ ] Enter handler (`$>`)
+- [ ] Exit handler (`$<`)
+- [ ] Deferred transition pattern (transition executes after handler completes)
+- [ ] Kernel transition processing loop
+
+### Primary Validation Tests
+
+| Test | Description | Key Features |
+|------|-------------|--------------|
+| `primary/03_transition.fc` | Basic state transition | `-> $State`, state tracking |
+| `primary/05_enter_exit.fc` | Enter/exit handlers | `$>()`, `<$()`, lifecycle order |
+
+### Extended Validation Tests
+
+| Category | Tests | Validates |
+|----------|-------|-----------|
+| `control_flow/transition_basic.fc` | 1 | Basic transition syntax |
+| `control_flow/transition_basic_exec.fc` | 1 | Transition execution |
+| `automata/moore_machine.fc` | 1 | Moore pattern (output on entry) |
+| `automata/mealy_machine.fc` | 1 | Mealy pattern (output on transition) |
+
+### C-Specific Implementation
+
+#### Transition Expansion
+
+```c
+// -> $Processing
+{
+    Foo_Compartment* __compartment = Foo_Compartment_new("Processing");
+    Foo__transition(self, __compartment);
+    return;
+}
+```
+
+#### Kernel with Transition Processing
+
+```c
+static void Foo__kernel(Foo* self, Foo_FrameEvent* __e) {
+    Foo__router(self, __e);
+
+    while (self->__next_compartment != NULL) {
+        Foo_Compartment* next = self->__next_compartment;
+        self->__next_compartment = NULL;
+
+        // Exit current state
+        Foo_FrameEvent exit_event = { "<$", self->__compartment->exit_args };
+        Foo__router(self, &exit_event);
+
+        // Switch compartment
+        Foo_Compartment_destroy(self->__compartment);
+        self->__compartment = next;
+
+        // Enter new state
+        Foo_FrameEvent enter_event = { "$>", self->__compartment->enter_args };
+        Foo__router(self, &enter_event);
+    }
+}
+```
+
+### Phase 2 Verification
+
+```bash
+# Primary tests
+for test in primary/03_transition primary/05_enter_exit; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Automata tests
+for test in automata/moore_machine automata/mealy_machine; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+```
+
+---
+
+## 5. Phase 3: Parameters & Return Values
+
+**Goal:** Support event parameters and interface return values.
+
+### Features to Implement
+- [ ] Event parameter passing via `__e->_parameters`
+- [ ] `return expr` sugar (sets context return and exits handler)
+- [ ] `system.return = expr` explicit assignment
+- [ ] Interface header default return values (`method(): int = 10`)
+- [ ] Context stack for reentrancy (`_context_stack`)
+- [ ] `FrameContext` type with `_return` slot
+
+### Primary Validation Tests
+
+| Test | Description | Key Features |
+|------|-------------|--------------|
+| `primary/07_params.fc` | Event parameters | Parameter unpacking from `_parameters` |
+| `primary/13_system_return.fc` | Return values | `return expr`, `system.return = expr` |
+| `primary/14_system_return_default.fc` | Default returns | Interface header `= default` |
+| `primary/15_system_return_chain.fc` | Chained returns | Return through multiple states |
+| `primary/16_system_return_reentrant.fc` | Nested calls | Reentrant interface calls |
+| `primary/35_return_init.fc` | Return initialization | Default values in interface |
+
+### Extended Validation Tests
+
+| Category | Tests | Validates |
+|----------|-------|-----------|
+| `capabilities/system_return_header_defaults.fc` | 1 | Interface header default values |
+| `systems/interface_with_param.fc` | 1 | Parameterized interface |
+
+### C-Specific Implementation
+
+#### FrameContext
+
+```c
+typedef struct {
+    Foo_FrameEvent* event;      // Reference to interface event
+    void* _return;              // Return value slot
+    Foo_FrameDict* _data;       // Call-scoped data dictionary
+} Foo_FrameContext;
+```
+
+#### Parameter Unpacking
+
+```c
+// For handler: event(a: int, b: str)
+if (strcmp(__e->_message, "event") == 0) {
+    int a = (int)(intptr_t)Foo_FrameDict_get(__e->_parameters, "a");
+    char* b = (char*)Foo_FrameDict_get(__e->_parameters, "b");
+    // Handler body...
+}
+```
+
+#### System Return Expansion
+
+```c
+// "return expr" -> set return value and exit
+{
+    Foo_FrameContext* __ctx = (Foo_FrameContext*)Foo_FrameVec_last(self->_context_stack);
+    __ctx->_return = (void*)(intptr_t)expr;
+    return;
+}
+```
+
+### Phase 3 Verification
+
+```bash
+for test in primary/07_params primary/13_system_return primary/14_system_return_default \
+            primary/15_system_return_chain primary/16_system_return_reentrant primary/35_return_init; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Capability tests
+framec -l c capabilities/system_return_header_defaults.fc -o /tmp/test.c
+gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+/tmp/test || echo "FAIL: capabilities/system_return_header_defaults"
+```
+
+---
+
+## 6. Phase 4: State Variables & Stack
+
+**Goal:** Support state-local variables and state stack for push/pop transitions.
+
+### Features to Implement
+- [ ] State variables (`$.var` syntax)
+- [ ] State variable storage in `__compartment->state_vars`
+- [ ] State stack (`_state_stack` field)
+- [ ] `push$` - Push current compartment to stack
+- [ ] `-> pop$` - Pop compartment and transition to it
+- [ ] `Compartment_copy` for push operation
+- [ ] State variable preservation across push/pop
+
+### Primary Validation Tests
+
+| Test | Description | Key Features |
+|------|-------------|--------------|
+| `primary/09_stack.fc` | Push/pop transitions | `push$`, `-> pop$` |
+| `primary/10_state_var_basic.fc` | Basic state variables | `$.var` declaration and access |
+| `primary/11_state_var_reentry.fc` | State variable reset | Variables reset on re-entry |
+| `primary/12_state_var_push_pop.fc` | Variables with stack | Variables preserved on pop |
+| `primary/20_transition_pop.fc` | Pop transition details | Pop transition mechanics |
+
+### Extended Validation Tests
+
+| Category | Tests | Validates |
+|----------|-------|-----------|
+| `core/stack_ops.fc` | 1 | Stack operations |
+| `exec_smoke/stack_ops.fc` | 1 | Stack smoke test |
+| `exec_smoke/stack_then_transition.fc` | 1 | Stack then transition |
+| `control_flow/stack_then_transition_exec.fc` | 1 | Stack control flow |
+| `control_flow/stack_pop_then_transition_exec.fc` | 1 | Pop then transition |
+
+### C-Specific Implementation
+
+#### State Variable Access
+
+```c
+// $.counter = 5
+Foo_FrameDict_set(self->__compartment->state_vars, "counter", (void*)(intptr_t)5);
+
+// $.counter (read)
+int counter = (int)(intptr_t)Foo_FrameDict_get(self->__compartment->state_vars, "counter");
+```
+
+#### Push Operation
+
+```c
+// push$
+Foo_FrameVec_push(self->_state_stack, Foo_Compartment_copy(self->__compartment));
+```
+
+#### Pop Transition
+
+```c
+// -> pop$
+{
+    Foo_Compartment* __saved = (Foo_Compartment*)Foo_FrameVec_pop(self->_state_stack);
+    Foo__transition(self, __saved);
+    return;
+}
+```
+
+### Phase 4 Verification
+
+```bash
+for test in primary/09_stack primary/10_state_var_basic primary/11_state_var_reentry \
+            primary/12_state_var_push_pop primary/20_transition_pop; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Stack smoke tests
+for test in exec_smoke/stack_ops exec_smoke/stack_then_transition; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+```
+
+---
+
+## 7. Phase 5: Hierarchical State Machines
+
+**Goal:** Support parent states and event forwarding.
+
+### Features to Implement
+- [ ] Parent state declaration (`$Child => $Parent`)
+- [ ] Event forwarding (`=> $^` or `=> $Parent`)
+- [ ] Transition with forward (`-> => $State`)
+- [ ] Default forward (unhandled events automatically forward)
+- [ ] `forward_event` field in compartment
+- [ ] Kernel forward processing
+
+### Primary Validation Tests
+
+| Test | Description | Key Features |
+|------|-------------|--------------|
+| `primary/08_hsm.fc` | Basic HSM | `=> $Parent`, `=> $^` |
+| `primary/19_transition_forward.fc` | Transition then forward | `-> => $State` |
+| `primary/29_forward_enter_first.fc` | Forward with enter | Enter before forward |
+| `primary/30_hsm_default_forward.fc` | Default forwarding | Auto-forward unhandled |
+
+### Extended Validation Tests
+
+| Category | Tests | Validates |
+|----------|-------|-----------|
+| `core/forward_parent.fc` | 1 | Basic parent forwarding |
+| `control_flow/forward_*.fc` | 15+ | Various forward patterns |
+| `systems/child_forwards_then_transition_exec.fc` | 1 | Child-to-parent forwarding |
+| `systems/nested_parent_forward_then_transition_exec.fc` | 1 | Nested parent forwarding |
+
+### C-Specific Implementation
+
+#### Forward Expansion
+
+```c
+// => $^
+{
+    Foo__state_Parent(self, __e);
+    return;
+}
+```
+
+#### Transition with Forward
+
+```c
+// -> => $Target
+{
+    Foo_Compartment* __compartment = Foo_Compartment_new("Target");
+    __compartment->forward_event = __e;  // Stash event
+    Foo__transition(self, __compartment);
+    return;
+}
+```
+
+#### Kernel Forward Processing
+
+```c
+// In kernel, after transition:
+if (next->forward_event == NULL) {
+    Foo_FrameEvent enter_event = { "$>", self->__compartment->enter_args };
+    Foo__router(self, &enter_event);
+} else {
+    Foo_FrameEvent* fwd = next->forward_event;
+    next->forward_event = NULL;
+
+    if (strcmp(fwd->_message, "$>") == 0) {
+        Foo__router(self, fwd);
+    } else {
+        Foo_FrameEvent enter_event = { "$>", self->__compartment->enter_args };
+        Foo__router(self, &enter_event);
+        Foo__router(self, fwd);
+    }
+}
+```
+
+### Phase 5 Verification
+
+```bash
+for test in primary/08_hsm primary/19_transition_forward \
+            primary/29_forward_enter_first primary/30_hsm_default_forward; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Forward pattern tests
+ls control_flow/forward_*.fc | while read test; do
+    framec -l c "$test" -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c 2>/dev/null
+    /tmp/test 2>/dev/null || echo "FAIL: $test"
+done
+```
+
+---
+
+## 8. Phase 6: Actions, Operations & Persistence
+
+**Goal:** Support action methods, operations, and state persistence.
+
+### Features to Implement
+- [ ] Actions section (`actions:`) - internal methods
+- [ ] Action wrappers (public API for actions)
+- [ ] Operations section (`operations:`) - pure functions
+- [ ] State parameters (`$State(param: type)`)
+- [ ] State serialization (`save_state()`, `load_state()`)
+- [ ] cJSON integration for persistence
+
+### Primary Validation Tests
+
+| Test | Description | Key Features |
+|------|-------------|--------------|
+| `primary/21_actions_basic.fc` | Action methods | `actions:` section |
+| `primary/22_operations_basic.fc` | Operation methods | `operations:` section |
+| `primary/23_persist_basic.fc` | Basic persistence | `save_state()` |
+| `primary/24_persist_roundtrip.fc` | Save and restore | `load_state()` |
+| `primary/25_persist_stack.fc` | Persist with stack | Stack serialization |
+| `primary/26_state_params.fc` | Parameterized states | `$State(a: int)` |
+
+### Extended Validation Tests
+
+| Category | Tests | Validates |
+|----------|-------|-----------|
+| `capabilities/actions_emitted.fc` | 1 | Action method emission |
+| `capabilities/actions_call_wrappers.fc` | 1 | Action wrapper generation |
+| `capabilities/operations_emitted.fc` | 1 | Operation method emission |
+| `scoping/function_scope.fc` | 1 | Function scoping |
+| `scoping/nested_functions.fc` | 1 | Nested function scoping |
+
+### C-Specific Implementation
+
+#### Actions
+
+```c
+// actions: validate() { ... }
+static bool Foo__action_validate(Foo* self) {
+    // Action implementation
+}
+
+// Public wrapper
+bool Foo_validate(Foo* self) {
+    return Foo__action_validate(self);
+}
+```
+
+#### Operations
+
+```c
+// operations: utility(): int { ... }
+int Foo_utility(Foo* self) {
+    // Operation implementation
+}
+
+// Static operation (no self)
+int Foo_add(int a, int b) {
+    return a + b;
+}
+```
+
+#### Persistence (using cJSON)
+
+```c
+char* Foo_save_state(Foo* self) {
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "state", self->__compartment->state);
+    // Serialize state_vars, _state_stack, domain vars...
+    char* json = cJSON_Print(root);
+    cJSON_Delete(root);
+    return json;  // Caller must free
+}
+
+Foo* Foo_restore_state(const char* json) {
+    Foo* self = malloc(sizeof(Foo));
+    cJSON* root = cJSON_Parse(json);
+    // Restore compartment (NO enter event)
+    // Restore domain vars, _state_stack...
+    cJSON_Delete(root);
+    return self;
+}
+```
+
+### Phase 6 Verification
+
+```bash
+# Simple tests
+for test in primary/21_actions_basic primary/22_operations_basic primary/26_state_params; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Persistence tests (need cJSON)
+for test in primary/23_persist_basic primary/24_persist_roundtrip primary/25_persist_stack; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c cJSON.c
+    /tmp/test || echo "FAIL: $test"
+done
+
+# Capability tests
+for test in capabilities/actions_emitted capabilities/operations_emitted capabilities/actions_call_wrappers; do
+    framec -l c ${test}.fc -o /tmp/test.c
+    gcc -Wall -Wextra -o /tmp/test /tmp/test.c
+    /tmp/test || echo "FAIL: $test"
+done
+```
+
+---
+
+## 9. Advanced Tests
+
+After completing all 6 phases, validate with documentation examples and context features.
+
+### Documentation Examples
+
+| Test | Description |
+|------|-------------|
+| `primary/31_doc_lamp_basic.fc` | Basic lamp example from docs |
+| `primary/32_doc_lamp_hsm.fc` | HSM lamp example |
+| `primary/33_doc_history_basic.fc` | History pattern |
+| `primary/34_doc_history_hsm.fc` | HSM with history |
+
+### Context Features
+
+| Test | Description |
+|------|-------------|
+| `primary/36_context_basic.fc` | Context access (`@@.`) |
+| `primary/37_context_reentrant.fc` | Reentrant context |
+| `primary/38_context_data.fc` | Context data (`@@:data`) |
+
+### Transition Arguments
+
+| Test | Description |
+|------|-------------|
+| `primary/17_transition_enter_args.fc` | Enter arguments (`-> (args) $State`) |
+| `primary/18_transition_exit_args.fc` | Exit arguments (`-> $State (args)`) |
+
+### Context Syntax Expansion
+
+```c
+// @@.x -> access interface parameter
+Foo_FrameContext* __ctx = (Foo_FrameContext*)Foo_FrameVec_last(self->_context_stack);
+void* x = Foo_FrameDict_get(__ctx->event->_parameters, "x");
+
+// @@:return = value
+__ctx->_return = value;
+
+// @@:data[key] = value
+Foo_FrameDict_set(__ctx->_data, "key", value);
+```
+
+---
+
+## 10. Comprehensive Test Categories
+
+### Control Flow Tests (39 tests)
+
+Frame statements in various control flow contexts:
+
+| Pattern | C Considerations |
+|---------|------------------|
+| `if_*` | Standard C if/else |
+| `while_*` | Standard C while |
+| `transition_*` | Return after transition |
+| `forward_*` | Return after forward |
+| `stack_*` | Stack operations |
+
+### Validator Tests (3 tests)
+
+Terminal statement validation:
+
+| Test | Validates |
+|------|-----------|
+| `validator/terminal_last_transition.fc` | Transitions must be terminal |
+| `validator/terminal_last_forward.fc` | Forwards must be terminal |
+| `validator/terminal_last_stack_ops.fc` | Stack ops must be terminal |
+
+### Systems Tests (11 tests)
+
+System-level integration tests covering complex patterns.
+
+### Exec Smoke Tests (5 tests)
+
+Quick validation of common patterns.
+
+---
+
+## 11. Runtime Data Structures
+
+### FrameDict (Hash Map)
+
+```c
 typedef struct Foo_FrameDictEntry {
     char* key;
     void* value;
@@ -81,186 +704,56 @@ typedef struct {
     int size;
 } Foo_FrameDict;
 
-static unsigned int Foo_hash_string(const char* str) {
-    unsigned int hash = 5381;
-    int c;
-    while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c;
-    }
-    return hash;
-}
+// API
+static Foo_FrameDict* Foo_FrameDict_new(void);
+static void Foo_FrameDict_set(Foo_FrameDict* d, const char* key, void* value);
+static void* Foo_FrameDict_get(Foo_FrameDict* d, const char* key);
+static Foo_FrameDict* Foo_FrameDict_copy(Foo_FrameDict* src);
+static void Foo_FrameDict_destroy(Foo_FrameDict* d);
+```
 
-static Foo_FrameDict* Foo_FrameDict_new(void) {
-    Foo_FrameDict* d = malloc(sizeof(Foo_FrameDict));
-    d->bucket_count = 16;
-    d->buckets = calloc(d->bucket_count, sizeof(Foo_FrameDictEntry*));
-    d->size = 0;
-    return d;
-}
+### FrameVec (Dynamic Array)
 
-static void Foo_FrameDict_set(Foo_FrameDict* d, const char* key, void* value) {
-    unsigned int idx = Foo_hash_string(key) % d->bucket_count;
-    Foo_FrameDictEntry* entry = d->buckets[idx];
-    while (entry) {
-        if (strcmp(entry->key, key) == 0) {
-            entry->value = value;
-            return;
-        }
-        entry = entry->next;
-    }
-    Foo_FrameDictEntry* new_entry = malloc(sizeof(Foo_FrameDictEntry));
-    new_entry->key = strdup(key);
-    new_entry->value = value;
-    new_entry->next = d->buckets[idx];
-    d->buckets[idx] = new_entry;
-    d->size++;
-}
-
-static void* Foo_FrameDict_get(Foo_FrameDict* d, const char* key) {
-    unsigned int idx = Foo_hash_string(key) % d->bucket_count;
-    Foo_FrameDictEntry* entry = d->buckets[idx];
-    while (entry) {
-        if (strcmp(entry->key, key) == 0) {
-            return entry->value;
-        }
-        entry = entry->next;
-    }
-    return NULL;
-}
-
-static Foo_FrameDict* Foo_FrameDict_copy(Foo_FrameDict* src) {
-    Foo_FrameDict* dst = Foo_FrameDict_new();
-    for (int i = 0; i < src->bucket_count; i++) {
-        Foo_FrameDictEntry* entry = src->buckets[i];
-        while (entry) {
-            Foo_FrameDict_set(dst, entry->key, entry->value);
-            entry = entry->next;
-        }
-    }
-    return dst;
-}
-
-static void Foo_FrameDict_destroy(Foo_FrameDict* d) {
-    for (int i = 0; i < d->bucket_count; i++) {
-        Foo_FrameDictEntry* entry = d->buckets[i];
-        while (entry) {
-            Foo_FrameDictEntry* next = entry->next;
-            free(entry->key);
-            free(entry);
-            entry = next;
-        }
-    }
-    free(d->buckets);
-    free(d);
-}
-
-// ============================================================================
-// Foo_FrameVec - Dynamic array (generated per-system)
-// ============================================================================
-
+```c
 typedef struct {
     void** items;
     int size;
     int capacity;
 } Foo_FrameVec;
 
-static Foo_FrameVec* Foo_FrameVec_new(void) {
-    Foo_FrameVec* v = malloc(sizeof(Foo_FrameVec));
-    v->capacity = 8;
-    v->size = 0;
-    v->items = malloc(sizeof(void*) * v->capacity);
-    return v;
-}
-
-static void Foo_FrameVec_push(Foo_FrameVec* v, void* item) {
-    if (v->size >= v->capacity) {
-        v->capacity *= 2;
-        v->items = realloc(v->items, sizeof(void*) * v->capacity);
-    }
-    v->items[v->size++] = item;
-}
-
-static void* Foo_FrameVec_pop(Foo_FrameVec* v) {
-    if (v->size == 0) return NULL;
-    return v->items[--v->size];
-}
-
-static void* Foo_FrameVec_last(Foo_FrameVec* v) {
-    if (v->size == 0) return NULL;
-    return v->items[v->size - 1];
-}
-
-static int Foo_FrameVec_size(Foo_FrameVec* v) {
-    return v->size;
-}
-
-static void Foo_FrameVec_destroy(Foo_FrameVec* v) {
-    free(v->items);
-    free(v);
-}
+// API
+static Foo_FrameVec* Foo_FrameVec_new(void);
+static void Foo_FrameVec_push(Foo_FrameVec* v, void* item);
+static void* Foo_FrameVec_pop(Foo_FrameVec* v);
+static void* Foo_FrameVec_last(Foo_FrameVec* v);
+static int Foo_FrameVec_size(Foo_FrameVec* v);
+static void Foo_FrameVec_destroy(Foo_FrameVec* v);
 ```
 
----
-
-## 3. Core Data Structures (Full Parity)
-
-All types are prefixed with the system name (e.g., `Foo_`). Examples below use `Foo` as the system name.
-
-### 3.1 FrameEvent
-
-**Exactly matches PRT:**
+### FrameEvent
 
 ```c
 typedef struct {
     const char* _message;           // Event type: "$>", "<$", "methodName"
-    Foo_FrameDict* _parameters;     // Event parameters (dict, not typed struct!)
+    Foo_FrameDict* _parameters;     // Event parameters
 } Foo_FrameEvent;
-
-static Foo_FrameEvent* Foo_FrameEvent_new(const char* message, Foo_FrameDict* parameters) {
-    Foo_FrameEvent* e = malloc(sizeof(Foo_FrameEvent));
-    e->_message = message;
-    e->_parameters = parameters;
-    return e;
-}
-
-static void Foo_FrameEvent_destroy(Foo_FrameEvent* e) {
-    // Note: _parameters ownership depends on context
-    free(e);
-}
 ```
 
-### 3.2 FrameContext
-
-**Exactly matches PRT:**
+### FrameContext
 
 ```c
 typedef struct {
     Foo_FrameEvent* event;          // Reference to interface event
-    void* _return;                  // Return value slot (void* for any type)
+    void* _return;                  // Return value slot
     Foo_FrameDict* _data;           // Call-scoped data dictionary
 } Foo_FrameContext;
-
-static Foo_FrameContext* Foo_FrameContext_new(Foo_FrameEvent* event, void* default_return) {
-    Foo_FrameContext* ctx = malloc(sizeof(Foo_FrameContext));
-    ctx->event = event;
-    ctx->_return = default_return;
-    ctx->_data = Foo_FrameDict_new();
-    return ctx;
-}
-
-static void Foo_FrameContext_destroy(Foo_FrameContext* ctx) {
-    Foo_FrameDict_destroy(ctx->_data);
-    free(ctx);
-}
 ```
 
-### 3.3 Compartment
-
-**Exactly matches PRT - all 6 fields + parent:**
+### Compartment
 
 ```c
 typedef struct Foo_Compartment {
-    const char* state;                      // State name (string, not enum!)
+    const char* state;                      // State name
     Foo_FrameDict* state_args;              // $State(args) parameters
     Foo_FrameDict* state_vars;              // $.varName storage
     Foo_FrameDict* enter_args;              // -> (args) $State
@@ -268,681 +761,27 @@ typedef struct Foo_Compartment {
     Foo_FrameEvent* forward_event;          // -> => forwarding
     struct Foo_Compartment* parent_compartment;  // HSM parent
 } Foo_Compartment;
-
-static Foo_Compartment* Foo_Compartment_new(const char* state) {
-    Foo_Compartment* c = malloc(sizeof(Foo_Compartment));
-    c->state = state;
-    c->state_args = Foo_FrameDict_new();
-    c->state_vars = Foo_FrameDict_new();
-    c->enter_args = Foo_FrameDict_new();
-    c->exit_args = Foo_FrameDict_new();
-    c->forward_event = NULL;
-    c->parent_compartment = NULL;
-    return c;
-}
-
-static Foo_Compartment* Foo_Compartment_copy(Foo_Compartment* src) {
-    Foo_Compartment* c = malloc(sizeof(Foo_Compartment));
-    c->state = src->state;
-    c->state_args = Foo_FrameDict_copy(src->state_args);
-    c->state_vars = Foo_FrameDict_copy(src->state_vars);
-    c->enter_args = Foo_FrameDict_copy(src->enter_args);
-    c->exit_args = Foo_FrameDict_copy(src->exit_args);
-    c->forward_event = src->forward_event;  // Shallow copy OK
-    c->parent_compartment = src->parent_compartment;
-    return c;
-}
-
-static void Foo_Compartment_destroy(Foo_Compartment* c) {
-    Foo_FrameDict_destroy(c->state_args);
-    Foo_FrameDict_destroy(c->state_vars);
-    Foo_FrameDict_destroy(c->enter_args);
-    Foo_FrameDict_destroy(c->exit_args);
-    free(c);
-}
-```
-
-### 3.4 System Structure
-
-**Exactly matches PRT:**
-
-```c
-typedef struct Foo {
-    // Runtime infrastructure
-    Foo_Compartment* __compartment;           // Current state
-    Foo_Compartment* __next_compartment;      // Deferred transition target
-    Foo_FrameVec* _state_stack;               // Stack of compartments
-    Foo_FrameVec* _context_stack;             // Stack of Foo_FrameContext*
-
-    // Domain variables (system-specific)
-    int max_retries;
-    char* label;
-    // ... etc
-} Foo;
 ```
 
 ---
 
-## 4. Feature-by-Feature Implementation
-
-### 4.1 Source File Structure
-
-| Frame Syntax | C Implementation |
-|--------------|------------------|
-| Preamble (native code) | Pass through as-is (likely `#include` statements) |
-| `@@target c` | Triggers C code generation |
-| `@@codegen { ... }` | Configures generation options |
-| `@@persist` | Generates JSON serialize/deserialize functions |
-| `@@system Name { ... }` | Generates struct + functions |
-| Postamble (native code) | Pass through as-is |
-
-**File extension:** `.fc` (Frame C) for source, generates `.h` + `.c`
-
-### 4.2 Interface Methods
-
-| Frame | C |
-|-------|---|
-| `start()` | `void MySystem_start(MySystem* self)` |
-| `process(data, priority)` | `void MySystem_process(MySystem* self, void* data, void* priority)` |
-| `getStatus(): str` | `char* MySystem_getStatus(MySystem* self)` |
-| `compute(a: int, b: int): int` | `int MySystem_compute(MySystem* self, int a, int b)` |
-| `getDecision(): str = "yes"` | Default return value in context initialization |
-
-**Interface method pattern (exactly like PRT):**
-
-```c
-int MySystem_compute(MySystem* self, int a, int b) {
-    // Create event with parameters
-    FrameDict* params = FrameDict_new();
-    FrameDict_set(params, "a", (void*)(intptr_t)a);
-    FrameDict_set(params, "b", (void*)(intptr_t)b);
-    FrameEvent* __e = FrameEvent_new("compute", params);
-
-    // Create and push context
-    FrameContext* __ctx = FrameContext_new(__e, NULL);
-    FrameVec_push(self->_context_stack, __ctx);
-
-    // Route through kernel
-    MySystem_kernel(self, __e);
-
-    // Pop context and return
-    FrameContext* ctx = FrameVec_pop(self->_context_stack);
-    int result = (int)(intptr_t)ctx->_return;
-
-    // Cleanup
-    FrameContext_destroy(ctx);
-    FrameDict_destroy(params);
-    FrameEvent_destroy(__e);
-
-    return result;
-}
-```
-
-### 4.3 Machine Section - States
-
-| Frame | C |
-|-------|---|
-| `$Ready { ... }` | `static void MySystem_state_Ready(MySystem* self, FrameEvent* __e)` |
-| `$Processing => $Base { ... }` | Same + parent tracking |
-| First state = start state | `Compartment_new("Ready")` in constructor |
-
-### 4.4 Event Handlers
-
-| Frame | C |
-|-------|---|
-| `process(data) { ... }` | `if (strcmp(__e->_message, "process") == 0) { ... }` |
-| `$>() { ... }` | `if (strcmp(__e->_message, "$>") == 0) { ... }` |
-| `<$() { ... }` | `if (strcmp(__e->_message, "<$") == 0) { ... }` |
-| `$>(reason) { ... }` | Access via `FrameDict_get(__e->_parameters, "reason")` |
-
-**State handler pattern:**
-
-```c
-static void MySystem_state_Ready(MySystem* self, FrameEvent* __e) {
-    if (strcmp(__e->_message, "$>") == 0) {
-        // State variable initialization
-        FrameDict_set(self->__compartment->state_vars, "counter", (void*)0);
-        // Enter handler body...
-    }
-    else if (strcmp(__e->_message, "<$") == 0) {
-        // Exit handler body...
-    }
-    else if (strcmp(__e->_message, "process") == 0) {
-        void* data = FrameDict_get(__e->_parameters, "data");
-        // Handler body...
-    }
-    // Unhandled events: do nothing (explicit-only forwarding)
-}
-```
-
-### 4.5 State Variables (`$.varName`)
-
-| Frame | C Expansion |
-|-------|-------------|
-| `$.counter = 5` | `FrameDict_set(self->__compartment->state_vars, "counter", (void*)(intptr_t)5)` |
-| `$.counter` (read) | `(int)(intptr_t)FrameDict_get(self->__compartment->state_vars, "counter")` |
-| `$.label: str = "default"` | `FrameDict_set(..., "label", strdup("default"))` |
-| `$.data = {}` | `FrameDict_set(..., "data", FrameDict_new())` |
-
-### 4.6 Transitions
-
-| Frame | C Expansion |
-|-------|-------------|
-| `-> $Target` | Create compartment, call transition, return |
-| `-> $Target(a, b)` | Set state_args before transition |
-| `-> (x, y) $Target` | Set enter_args before transition |
-| `(reason) -> $Target` | Set exit_args on current compartment |
-| `-> => $Target` | Set forward_event before transition |
-| `-> pop$` | Pop from state stack, transition to it |
-
-**Simple transition:**
-
-```c
-// -> $Processing
-{
-    Compartment* __compartment = Compartment_new("Processing");
-    MySystem_transition(self, __compartment);
-    return;
-}
-```
-
-**Transition with all args:**
-
-```c
-// (cleanup_reason) -> (init_data) $Target(config)
-{
-    // Exit args on current compartment
-    FrameDict_set(self->__compartment->exit_args, "0", cleanup_reason);
-
-    // Create target compartment
-    Compartment* __compartment = Compartment_new("Target");
-
-    // State args
-    FrameDict_set(__compartment->state_args, "0", config);
-
-    // Enter args
-    FrameDict_set(__compartment->enter_args, "0", init_data);
-
-    MySystem_transition(self, __compartment);
-    return;
-}
-```
-
-**Event forwarding:**
-
-```c
-// -> => $Target
-{
-    Compartment* __compartment = Compartment_new("Target");
-    __compartment->forward_event = __e;  // Stash event
-    MySystem_transition(self, __compartment);
-    return;
-}
-```
-
-### 4.7 HSM Parent Forward (`=> $^`)
-
-| Frame | C |
-|-------|---|
-| `=> $^` (in handler) | `MySystem_state_Parent(self, __e); return;` |
-| `=> $^` (state-level default) | `else { MySystem_state_Parent(self, __e); }` |
-
-**Parent tracking:**
-
-```c
-// $Child => $Parent
-static void MySystem_state_Child(MySystem* self, FrameEvent* __e) {
-    if (strcmp(__e->_message, "handled_event") == 0) {
-        // Handle locally
-    }
-    else if (strcmp(__e->_message, "partial") == 0) {
-        // Do something
-        MySystem_state_Parent(self, __e);  // => $^
-        return;
-    }
-    // With state-level => $^:
-    else {
-        MySystem_state_Parent(self, __e);
-    }
-}
-```
-
-### 4.8 State Stack (`push$` / `pop$`)
-
-| Frame | C |
-|-------|---|
-| `push$` | `FrameVec_push(self->_state_stack, Compartment_copy(self->__compartment))` |
-| `pop$` | `Compartment_destroy(FrameVec_pop(self->_state_stack))` |
-| `-> pop$` | `MySystem_transition(self, FrameVec_pop(self->_state_stack))` |
-
-### 4.9 System Context (`@@`)
-
-| Frame | C Expansion |
-|-------|-------------|
-| `@@.x` | `FrameDict_get(((FrameContext*)FrameVec_last(self->_context_stack))->event->_parameters, "x")` |
-| `@@:params[x]` | Same as above |
-| `@@:return = value` | `((FrameContext*)FrameVec_last(self->_context_stack))->_return = value` |
-| `@@:return` (read) | `((FrameContext*)FrameVec_last(self->_context_stack))->_return` |
-| `@@:event` | `((FrameContext*)FrameVec_last(self->_context_stack))->event->_message` |
-| `@@:data[key]` | `FrameDict_get(((FrameContext*)FrameVec_last(self->_context_stack))->_data, "key")` |
-| `@@:data[key] = v` | `FrameDict_set(((FrameContext*)FrameVec_last(self->_context_stack))->_data, "key", v)` |
-
-**Macro helpers for readability:**
-
-```c
-#define FRAME_CTX(self) ((FrameContext*)FrameVec_last((self)->_context_stack))
-#define FRAME_PARAM(self, key) FrameDict_get(FRAME_CTX(self)->event->_parameters, key)
-#define FRAME_RETURN(self) FRAME_CTX(self)->_return
-#define FRAME_DATA(self, key) FrameDict_get(FRAME_CTX(self)->_data, key)
-#define FRAME_DATA_SET(self, key, val) FrameDict_set(FRAME_CTX(self)->_data, key, val)
-```
-
-### 4.10 Return Sugar
-
-| Frame (in handler) | C |
-|--------------------|---|
-| `return expr` | `FRAME_RETURN(self) = expr; return;` |
-| `return` (bare) | `return;` (native) |
-
-| Frame (in action) | C |
-|-------------------|---|
-| `return expr` | `return expr;` (native function return) |
-
-### 4.11 Actions
-
-| Frame | C |
-|-------|---|
-| `actions: validate() { ... }` | `static bool MySystem_validate(MySystem* self) { ... }` |
-
-Actions CAN access:
-- Domain vars: `self->domain_var`
-- State vars: `FrameDict_get(self->__compartment->state_vars, "x")`
-- Context: `FRAME_RETURN(self) = ...`
-
-Actions CANNOT:
-- Call `MySystem_transition()`
-- Use `push$` / `pop$`
-
-### 4.12 Operations
-
-| Frame | C |
-|-------|---|
-| `operations: utility(): int { ... }` | `int MySystem_utility(MySystem* self) { ... }` |
-| `static add(a, b): int { ... }` | `int MySystem_add(int a, int b) { ... }` (no self) |
-
-Operations:
-- CAN access domain vars
-- CANNOT access state vars, context, transitions
-
-### 4.13 Domain Variables
-
-| Frame | C |
-|-------|---|
-| `var count: int = 0` | `int count;` field + `self->count = 0;` in constructor |
-| `var label: str = "default"` | `char* label;` field + `self->label = strdup("default");` |
-| `var cache = {}` | `FrameDict* cache;` field + `self->cache = FrameDict_new();` |
-
-### 4.14 Persistence (`@@persist`)
-
-Generates:
-- `char* MySystem_save_state(MySystem* self)` - returns JSON string
-- `MySystem* MySystem_restore_state(const char* json)` - returns new instance
-
-**JSON library:** Use cJSON (MIT license, single header) or generate minimal JSON manually.
-
-```c
-char* MySystem_save_state(MySystem* self) {
-    // Serialize:
-    // - __compartment (state, state_vars, state_args)
-    // - _state_stack
-    // - domain variables
-    // Returns JSON string (caller must free)
-}
-
-MySystem* MySystem_restore_state(const char* json) {
-    MySystem* self = malloc(sizeof(MySystem));
-    // Parse JSON
-    // Set __compartment directly (NO enter event)
-    // Restore domain vars
-    // Restore _state_stack
-    return self;
-}
-```
-
----
-
-## 5. Runtime Methods
-
-### 5.1 Kernel (exactly like PRT)
-
-```c
-static void MySystem_kernel(MySystem* self, FrameEvent* __e) {
-    // Step 1: Route event
-    MySystem_router(self, __e);
-
-    // Step 2: Process deferred transitions
-    while (self->__next_compartment != NULL) {
-        Compartment* next = self->__next_compartment;
-        self->__next_compartment = NULL;
-
-        // Exit current state
-        FrameEvent exit_event = { "<$", self->__compartment->exit_args };
-        MySystem_router(self, &exit_event);
-
-        // Switch compartment
-        Compartment_destroy(self->__compartment);
-        self->__compartment = next;
-
-        // Enter or forward
-        if (next->forward_event == NULL) {
-            FrameEvent enter_event = { "$>", self->__compartment->enter_args };
-            MySystem_router(self, &enter_event);
-        } else {
-            FrameEvent* fwd = next->forward_event;
-            next->forward_event = NULL;
-
-            if (strcmp(fwd->_message, "$>") == 0) {
-                MySystem_router(self, fwd);
-            } else {
-                FrameEvent enter_event = { "$>", self->__compartment->enter_args };
-                MySystem_router(self, &enter_event);
-                MySystem_router(self, fwd);
-            }
-        }
-    }
-}
-```
-
-### 5.2 Router
-
-```c
-static void MySystem_router(MySystem* self, FrameEvent* __e) {
-    const char* state = self->__compartment->state;
-
-    if (strcmp(state, "Ready") == 0) {
-        MySystem_state_Ready(self, __e);
-    }
-    else if (strcmp(state, "Processing") == 0) {
-        MySystem_state_Processing(self, __e);
-    }
-    else if (strcmp(state, "Done") == 0) {
-        MySystem_state_Done(self, __e);
-    }
-}
-```
-
-### 5.3 Transition
-
-```c
-static void MySystem_transition(MySystem* self, Compartment* next) {
-    self->__next_compartment = next;
-}
-```
-
----
-
-## 6. Constructor / Destructor
-
-### 6.1 Constructor
-
-```c
-MySystem* MySystem_new(/* system params */) {
-    MySystem* self = malloc(sizeof(MySystem));
-
-    // Initialize stacks
-    self->_state_stack = FrameVec_new();
-    self->_context_stack = FrameVec_new();
-
-    // Initialize compartment (start state)
-    self->__compartment = Compartment_new("Ready");
-    self->__next_compartment = NULL;
-
-    // Initialize domain vars
-    self->max_retries = 3;
-    self->label = strdup("default");
-
-    // Send initial enter event (NO context push - not an interface call)
-    FrameEvent enter_event = { "$>", NULL };
-    MySystem_kernel(self, &enter_event);
-
-    return self;
-}
-```
-
-### 6.2 Destructor
-
-```c
-void MySystem_destroy(MySystem* self) {
-    // Destroy compartment
-    Compartment_destroy(self->__compartment);
-
-    // Destroy state stack contents
-    while (FrameVec_size(self->_state_stack) > 0) {
-        Compartment_destroy(FrameVec_pop(self->_state_stack));
-    }
-    FrameVec_destroy(self->_state_stack);
-
-    // Destroy context stack contents (should be empty)
-    while (FrameVec_size(self->_context_stack) > 0) {
-        FrameContext_destroy(FrameVec_pop(self->_context_stack));
-    }
-    FrameVec_destroy(self->_context_stack);
-
-    // Destroy domain vars
-    free(self->label);
-
-    free(self);
-}
-```
-
----
-
-## 7. Test Infrastructure
-
-### 7.1 Directory Structure
-
-Each test is a single self-contained `.c` file (like PRT's single-file tests):
-
-```
-framepiler_test_env/
-├── c_test_crate/
-│   ├── Makefile
-│   ├── cJSON.h              # JSON library (for persistence tests only)
-│   ├── cJSON.c
-│   ├── bin/                 # Compiled executables
-│   └── tests/
-│       ├── 01_minimal.c     # Self-contained: runtime + system + main()
-│       ├── 02_interface.c
-│       ├── 03_transition.c
-│       └── ...
-```
-
-### 7.2 Single-File Test Pattern
-
-Each generated `.c` file contains everything:
-
-```c
-// 01_minimal.c - SELF-CONTAINED
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-
-// ============================================================================
-// MinimalTest Runtime (generated)
-// ============================================================================
-
-typedef struct MinimalTest_FrameDictEntry { ... } MinimalTest_FrameDictEntry;
-typedef struct MinimalTest_FrameDict { ... } MinimalTest_FrameDict;
-// ... all runtime types and functions with MinimalTest_ prefix ...
-
-// ============================================================================
-// MinimalTest System (generated)
-// ============================================================================
-
-typedef struct MinimalTest { ... } MinimalTest;
-// ... kernel, router, states, interface methods ...
-
-// ============================================================================
-// Test Harness (from Frame source postamble)
-// ============================================================================
-
-int main(void) {
-    printf("=== Test 01: Minimal ===\n");
-
-    MinimalTest* s = MinimalTest_new();
-    assert(s != NULL);
-    assert(strcmp(s->__compartment->state, "Ready") == 0);
-
-    MinimalTest_destroy(s);
-
-    printf("PASS\n");
-    return 0;
-}
-```
-
-### 7.3 Makefile
-
-```makefile
-CC = gcc
-CFLAGS = -Wall -Wextra -Werror -g -std=c11
-
-# Simple tests (no JSON dependency)
-SIMPLE_TESTS = $(filter-out tests/23_% tests/24_% tests/25_%,$(wildcard tests/*.c))
-SIMPLE_BINS = $(patsubst tests/%.c,bin/%,$(SIMPLE_TESTS))
-
-# Persistence tests (need cJSON)
-PERSIST_TESTS = tests/23_persist_basic.c tests/24_persist_roundtrip.c tests/25_persist_stack.c
-PERSIST_BINS = $(patsubst tests/%.c,bin/%,$(PERSIST_TESTS))
-
-all: $(SIMPLE_BINS) $(PERSIST_BINS)
-
-# Simple tests: single file compilation
-bin/%: tests/%.c
-	@mkdir -p bin
-	$(CC) $(CFLAGS) -o $@ $<
-
-# Persistence tests: link with cJSON
-bin/23_%: tests/23_%.c cJSON.c
-	@mkdir -p bin
-	$(CC) $(CFLAGS) -o $@ $< cJSON.c
-
-bin/24_%: tests/24_%.c cJSON.c
-	@mkdir -p bin
-	$(CC) $(CFLAGS) -o $@ $< cJSON.c
-
-bin/25_%: tests/25_%.c cJSON.c
-	@mkdir -p bin
-	$(CC) $(CFLAGS) -o $@ $< cJSON.c
-
-test: $(SIMPLE_BINS) $(PERSIST_BINS)
-	@for bin in bin/*; do echo "=== Running $$bin ==="; ./$$bin || exit 1; done
-
-valgrind: $(SIMPLE_BINS) $(PERSIST_BINS)
-	@for bin in bin/*; do valgrind --leak-check=full --error-exitcode=1 ./$$bin || exit 1; done
-
-clean:
-	rm -rf bin
-```
-
----
-
-## 8. Implementation Phases
-
-### Phase 1: Minimal System (Tests 01-03)
-- [ ] Per-system runtime generation (FrameDict, FrameVec, etc.)
-- [ ] Basic struct generation
-- [ ] Constructor / destructor
-- [ ] Kernel / router / transition
-- [ ] Simple state dispatch
-- [ ] Basic transitions
-
-### Phase 2: Native Code & Enter/Exit (Tests 04-06)
-- [ ] Preamble / postamble pass-through
-- [ ] Enter / exit handlers
-- [ ] Domain variables
-
-### Phase 3: Parameters (Test 07)
-- [ ] Event parameters via FrameDict
-- [ ] Parameter access in handlers
-
-### Phase 4: HSM (Test 08)
-- [ ] Parent state tracking
-- [ ] `=> $^` in-handler forward
-- [ ] State-level default forward
-
-### Phase 5: State Stack (Test 09)
-- [ ] `push$` with Compartment_copy
-- [ ] `pop$` standalone
-- [ ] `-> pop$` transition
-
-### Phase 6: State Variables (Tests 10-12)
-- [ ] State var declarations
-- [ ] Initialization on enter
-- [ ] Preservation on push/pop
-
-### Phase 7: System Context (Tests 13-16, 36-38)
-- [ ] FrameContext implementation
-- [ ] Context stack push/pop
-- [ ] `@@.param`, `@@:return`, `@@:event`, `@@:data`
-- [ ] Reentrancy tests
-
-### Phase 8: Extended Transitions (Tests 17-20)
-- [ ] Enter args
-- [ ] Exit args
-- [ ] Event forwarding
-- [ ] Pop transition
-
-### Phase 9: Actions & Operations (Tests 21-22)
-- [ ] Action functions (static, private)
-- [ ] Operation functions (public)
-- [ ] Static operations (no self)
-
-### Phase 10: Persistence (Tests 23-25)
-- [ ] cJSON integration (linked, not generated)
-- [ ] `save_state()` implementation
-- [ ] `restore_state()` implementation
-
-### Phase 11: State Parameters & HSM Extensions (Tests 26, 29-30)
-- [ ] State parameters (`$State(params)`)
-- [ ] Forward enter first (`-> =>`)
-- [ ] HSM default forward (state-level `=> $^`)
-
-### Phase 12: Document Examples (Tests 31-34)
-- [ ] Doc lamp basic/HSM
-- [ ] Doc history basic/HSM
-
-### Phase 13: Return & Context Extensions (Tests 35-38)
-- [ ] Return initialization
-- [ ] Context basic (`@@.param`, `@@:return`, `@@:event`)
-- [ ] Context reentrant (nested interface calls)
-- [ ] Context data (`@@:data[key]`)
-
----
-
-## 9. Code Generation Changes
+## 12. Code Generation Changes
 
 ### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `framec/src/frame_c/visitors/mod.rs` | Add `TargetLanguage::C` if not present |
-| `framec/src/frame_c/v4/codegen/backends/c.rs` | Complete rewrite for V4 parity |
+| `framec/src/frame_c/visitors/mod.rs` | Ensure `TargetLanguage::C` exists |
+| `framec/src/frame_c/v4/codegen/backends/c.rs` | Implement full C backend |
 | `framec/src/frame_c/v4/codegen/system_codegen.rs` | C-specific codegen paths |
 | `framec/src/frame_c/v4/pipeline/compiler.rs` | Register C target |
 
-### Backend Implementation
+### Generated File Structure
 
-The C backend emits a **single self-contained `.c` file** containing:
+Each `.fc` file generates a single self-contained `.c` file containing:
 
-1. Standard includes (`stdlib.h`, `string.h`, `stdio.h`, `stdbool.h`)
-2. Per-system runtime types and functions (all `static` except public API):
-   - `SystemName_FrameDict` and helpers
-   - `SystemName_FrameVec` and helpers
-   - `SystemName_FrameEvent`
-   - `SystemName_FrameContext`
-   - `SystemName_Compartment`
+1. Standard includes (`stdlib.h`, `string.h`, `stdio.h`, `stdbool.h`, `stdint.h`)
+2. Per-system runtime types (all `static` except public API)
 3. System struct definition
 4. Static kernel/router/transition functions
 5. Static state handler functions
@@ -950,23 +789,58 @@ The C backend emits a **single self-contained `.c` file** containing:
 7. Public constructor/destructor
 8. Native preamble/postamble (including `main()` for tests)
 
-**Future option:** `@@codegen { c_header: separate }` could generate `.h` + `.c` pair.
+---
+
+## 13. Complete Validation Checklist
+
+### Phase Completion
+
+| Phase | Primary Tests | Extended Categories | Pass |
+|-------|---------------|---------------------|------|
+| 1 | 01, 02, 04, 06 | core/*, interfaces/*, data_types/*, operators/* | [ ] |
+| 2 | 03, 05 | automata/*, control_flow/transition_* | [ ] |
+| 3 | 07, 13-16, 35 | capabilities/system_return_* | [ ] |
+| 4 | 09-12, 20 | core/stack_*, exec_smoke/stack_* | [ ] |
+| 5 | 08, 19, 29, 30 | control_flow/forward_*, systems/*forward* | [ ] |
+| 6 | 21-26 | capabilities/actions_*, scoping/* | [ ] |
+
+### Advanced Validation
+
+| Category | Tests | Pass |
+|----------|-------|------|
+| Doc examples | 31-34 | [ ] |
+| Context features | 36-38 | [ ] |
+| Transition args | 17, 18 | [ ] |
+| Validator | 3 tests | [ ] |
+| Control flow | 39 tests | [ ] |
+| Systems | 11 tests | [ ] |
+| Exec smoke | 5 tests | [ ] |
+
+### Summary
+
+| Level | Test Count |
+|-------|------------|
+| Primary (phases 1-6) | 27 |
+| Advanced (docs, context, args) | 9 |
+| Extended (all categories) | ~101 |
+| **Total** | **~137** |
 
 ---
 
-## 10. Success Criteria
+## 14. Success Criteria
 
-- [ ] **36/36 tests passing** (parity with PRT)
+- [ ] **~137 tests passing** (full parity with PRT)
 - [ ] **No memory leaks** (Valgrind clean on all tests)
 - [ ] **Compiles clean** with `-Wall -Wextra -Werror` on gcc and clang
 - [ ] **Full feature parity** - every Frame construct works identically to PRT
-- [ ] **Runtime library tested** independently
+- [ ] **Self-contained output** - each `.c` file compiles independently
 
 ---
 
-## 11. Non-Goals (Out of Scope)
+## 15. Non-Goals (Out of Scope)
 
 - Thread safety (same as PRT - not thread-safe by default)
 - Optimization beyond correctness
 - C89 compatibility (we use C11)
 - Windows-specific code (POSIX assumed for now)
+- Separate header files (future `@@codegen { c_header: separate }` option)

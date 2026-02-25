@@ -17,15 +17,15 @@ V4 is a **pure preprocessor** for `@@system` blocks. Native code passes through 
 - **Migration Guide**: [`docs/framepiler_design/architecture_v4/MIGRATION_V3_TO_V4.md`](framepiler_design/architecture_v4/MIGRATION_V3_TO_V4.md)
 
 **V4 Test Infrastructure:**
-- Test location: `framepiler_test_env/common/test-frames/v4/prt/`
-- Run tests: `cd framepiler_test_env/common/test-frames/v4/prt && ./run_tests.sh`
-- Output: `/tmp/v4_prt_tests/`
+- Test location: `framepiler_test_env/tests/common/primary/` (36 tests × 3 languages)
+- Run tests: `cd framepiler_test_env/tests/common/primary && ./run_tests.sh`
+- Output: `framepiler_test_env/output/{python,typescript,rust}/tests/`
 
-**V4 Test Status (v0.87.3):**
-- Python: 9/9 pass
-- Rust: 9/9 pass
-- TypeScript: 9/9 pass
-- **Total: 27/27 pass**
+**V4 Test Status (v0.87.2):**
+- Python: 29/36 pass (81%)
+- TypeScript: 25/36 pass (69%)
+- Rust: 25/36 pass (69%)
+- **Total: 79/108 pass (73%)**
 
 Below is the living index of the most relevant specs and plans across `framelang_design` and `framepiler_design`.
 

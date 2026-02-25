@@ -40,31 +40,33 @@ See `docs/framelang/v4/frame_v4_lang_reference.md` Section 9 for the full specif
 
 ## Test Infrastructure
 
-**ALWAYS use the test crate infrastructure for V4 tests, not /tmp.**
+**V4 Test Status:** Python 30/152, TypeScript 26/133, Rust 25/133, C 12/12 — 93/430 total
 
-```
-framepiler_test_env/
-├── rust_test_crate/       # cargo run --bin <test>
-│   ├── Cargo.toml         # serde, serde_json deps
-│   └── tests/             # Generated .rs files
-├── typescript_test_crate/ # npx ts-node tests/<test>.ts
-│   ├── package.json       # ts-node, @types/node
-│   └── tests/             # Generated .ts files
-├── python_test_crate/     # python3 tests/<test>.py
-│   └── tests/             # Generated .py files
-```
+**Test sources:** `framepiler_test_env/tests/` (dynamically discovered)
+- `.fpy` — Python sources
+- `.fts` — TypeScript sources
+- `.frs` — Rust sources
+- `.fc` — C sources
+
+**Generated output:**
+- `framepiler_test_env/output/python/tests/` — Python .py files
+- `framepiler_test_env/output/typescript/tests/` — TypeScript .ts files
+- `framepiler_test_env/output/rust/tests/` — Rust .rs files
+- `framepiler_test_env/output/c/tests/` — C .c files
 
 ### Running Tests
 
-| Language | Command |
-|----------|---------|
-| Rust | `cd rust_test_crate && cargo run --bin <name>` |
-| TypeScript | `cd typescript_test_crate && npx ts-node tests/<name>.ts` |
-| Python | `python3 python_test_crate/tests/<name>.py` |
+```bash
+cd framepiler_test_env/tests
+./run_tests.sh              # Runs all tests for all languages
+./run_tests.sh --c          # C tests only
+./run_tests.sh --category primary  # Primary category only
+./run_tests.sh --help       # Show all options
+```
 
 ### When to Use /tmp
 
-Only for quick one-off experiments. For any test that should be validated or committed, generate into the test crate so dependencies (serde, etc.) are available.
+Only for quick one-off experiments. For any test that should be validated or committed, generate into the test infrastructure so dependencies are available.
 
 ## Key Documents
 
@@ -192,13 +194,14 @@ if __name__ == '__main__':
 
 ## Target Languages
 
-**PRT (Priority):**
-- Python 3 - Active
-- Rust - Active
-- TypeScript - Active
+**Active:**
+- Python 3
+- TypeScript
+- Rust
+- C
 
 **Deferred:**
-- C#, Java, C, C++ - Not actively maintained
+- C#, Java, C++ - Not actively maintained
 
 ## What's in V5 (Future)
 

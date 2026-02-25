@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** February 2026
 **Audience:** Implementation team
-**Status:** Normative — All three target languages (Python, TypeScript, Rust) fully implemented
+**Status:** Normative — Python 29/36, TypeScript 25/36, Rust 25/36 (79/108 total)
 
 ---
 
@@ -620,7 +620,7 @@ def my_operation(self, param) -> int:
 
 ## 11. Implementation Status
 
-**All features fully implemented across Python, TypeScript, and Rust (87/87 tests passing).**
+**Core features implemented across Python, TypeScript, and Rust. Current status: 79/108 tests passing (73%).**
 
 ### 11.1 Kernel Implementation ✅
 
