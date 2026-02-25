@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerC;
 
 /// C syntax skipper - handles //, /* */, and strings
-struct CSkipper;
+pub struct CSkipper;
 
 impl SyntaxSkipper for CSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

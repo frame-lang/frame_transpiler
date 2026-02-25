@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerRust;
 
 /// Rust syntax skipper - handles //, /* */, strings, and raw strings
-struct RustSkipper;
+pub struct RustSkipper;
 
 impl SyntaxSkipper for RustSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

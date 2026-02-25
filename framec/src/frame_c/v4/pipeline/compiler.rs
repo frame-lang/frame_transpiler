@@ -6,8 +6,10 @@
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::utils::RunError;
 use super::config::{PipelineConfig, CompileMode};
-use crate::frame_c::v4::codegen::{generate_system, generate_rust_compartment_types, generate_compartment_class, generate_frame_event_class, generate_frame_context_class, get_backend, EmitContext};
+use crate::frame_c::v4::codegen::{generate_system, generate_rust_compartment_types, generate_c_compartment_types, generate_compartment_class, generate_frame_event_class, generate_frame_context_class, get_backend, EmitContext};
 use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
+use crate::frame_c::v4::pragma_scanner::{PragmaScanner, PragmaRegion};
+use crate::frame_c::v4::native_region_scanner::unified::SyntaxSkipper;
 
 /// Result of module compilation
 #[derive(Debug)]
@@ -48,42 +50,95 @@ impl CompileError {
     }
 }
 
-/// Skip @@ pragma lines (like @@target, @@run-expect) but keep native code
-fn skip_pragmas_keep_native(text: &str) -> String {
-    let mut result = String::new();
-    let mut in_comment = false;
+/// Extract native code from a source region, skipping Frame pragmas.
+///
+/// Uses PragmaScanner with language-specific SyntaxSkipper to properly handle
+/// strings and comments. This ensures `@@` appearing inside string literals
+/// or comments in the target language is NOT treated as a pragma.
+///
+/// # Arguments
+/// * `bytes` - Source bytes to scan
+/// * `lang` - Target language (determines string/comment syntax)
+///
+/// # Returns
+/// Native code regions concatenated, with pragma lines removed
+fn extract_native_code(bytes: &[u8], lang: TargetLanguage) -> String {
+    // Get language-specific syntax skipper
+    let result = match lang {
+        TargetLanguage::Python3 => {
+            use crate::frame_c::v4::native_region_scanner::python::PythonSkipper;
+            PragmaScanner.scan(&PythonSkipper, bytes)
+        }
+        TargetLanguage::TypeScript => {
+            use crate::frame_c::v4::native_region_scanner::typescript::TypeScriptSkipper;
+            PragmaScanner.scan(&TypeScriptSkipper, bytes)
+        }
+        TargetLanguage::Rust => {
+            use crate::frame_c::v4::native_region_scanner::rust::RustSkipper;
+            PragmaScanner.scan(&RustSkipper, bytes)
+        }
+        TargetLanguage::C => {
+            use crate::frame_c::v4::native_region_scanner::c::CSkipper;
+            PragmaScanner.scan(&CSkipper, bytes)
+        }
+        TargetLanguage::Cpp => {
+            use crate::frame_c::v4::native_region_scanner::cpp::CppSkipper;
+            PragmaScanner.scan(&CppSkipper, bytes)
+        }
+        TargetLanguage::Java => {
+            use crate::frame_c::v4::native_region_scanner::java::JavaSkipper;
+            PragmaScanner.scan(&JavaSkipper, bytes)
+        }
+        TargetLanguage::CSharp => {
+            use crate::frame_c::v4::native_region_scanner::csharp::CSharpSkipper;
+            PragmaScanner.scan(&CSharpSkipper, bytes)
+        }
+        _ => {
+            // Fallback: use simple line-based filtering
+            return skip_pragmas_simple(std::str::from_utf8(bytes).unwrap_or(""));
+        }
+    };
 
+    match result {
+        Ok(scan_result) => {
+            let mut output = String::new();
+            for region in scan_result.regions {
+                if let PragmaRegion::NativeText { span } = region {
+                    if span.start < span.end && span.end <= bytes.len() {
+                        if let Ok(text) = std::str::from_utf8(&bytes[span.start..span.end]) {
+                            output.push_str(text);
+                        }
+                    }
+                }
+            }
+            output
+        }
+        Err(_) => {
+            // Fallback on error
+            skip_pragmas_simple(std::str::from_utf8(bytes).unwrap_or(""))
+        }
+    }
+}
+
+/// Simple line-based pragma removal (fallback when PragmaScanner fails)
+fn skip_pragmas_simple(text: &str) -> String {
+    let mut result = String::new();
     for line in text.lines() {
         let trimmed = line.trim();
-
-        // Track multi-line comments
-        if trimmed.contains("/*") {
-            in_comment = true;
-        }
-        if trimmed.contains("*/") {
-            in_comment = false;
-        }
-
-        // Skip @@ pragma lines but keep everything else
         if trimmed.starts_with("@@") {
             continue;
         }
-
-        // Skip # comments at the start (Frame comments in prolog)
-        if trimmed.starts_with('#') && !in_comment {
-            // Keep Python comments that look like shebangs or pragmas
-            if trimmed.starts_with("#!") || trimmed.starts_with("# -*-") {
-                result.push_str(line);
-                result.push('\n');
-            }
-            continue;
-        }
-
         result.push_str(line);
         result.push('\n');
     }
-
     result
+}
+
+/// Legacy wrapper for backward compatibility - uses extract_native_code with Python default
+fn skip_pragmas_keep_native(text: &str) -> String {
+    // Default to simple filtering when language is not known
+    // This maintains backward compatibility with existing callers
+    skip_pragmas_simple(text)
 }
 
 /// Compile a Frame module from source bytes
@@ -275,11 +330,17 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
 
             // Generate FrameEvent and Compartment classes BEFORE the main system class
             // Rust: Uses enum-of-structs pattern (specialized), no FrameEvent class
+            // C: Uses per-system runtime types (FrameDict, FrameVec, structs)
             // Python/TypeScript: Use FrameEvent class and canonical 7-field Compartment class
             if matches!(config.target, TargetLanguage::Rust) {
                 let compartment_types = generate_rust_compartment_types(system);
                 if !compartment_types.is_empty() {
                     result.push_str(&compartment_types);
+                }
+            } else if matches!(config.target, TargetLanguage::C) {
+                let c_runtime = generate_c_compartment_types(system);
+                if !c_runtime.is_empty() {
+                    result.push_str(&c_runtime);
                 }
             } else {
                 // Generate FrameEvent class first
@@ -351,11 +412,17 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
 
                 // Generate FrameEvent, FrameContext, and Compartment classes BEFORE the main system class
                 // Rust: Uses enum-of-structs pattern (specialized), generates types inline
+                // C: Uses per-system runtime types (FrameDict, FrameVec, structs)
                 // Python/TypeScript: Use FrameEvent, FrameContext, and canonical 7-field Compartment classes
                 if matches!(config.target, TargetLanguage::Rust) {
                     let compartment_types = generate_rust_compartment_types(system);
                     if !compartment_types.is_empty() {
                         result.push_str(&compartment_types);
+                    }
+                } else if matches!(config.target, TargetLanguage::C) {
+                    let c_runtime = generate_c_compartment_types(system);
+                    if !c_runtime.is_empty() {
+                        result.push_str(&c_runtime);
                     }
                 } else {
                     // Generate FrameEvent class first

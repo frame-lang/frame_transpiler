@@ -242,6 +242,40 @@ Called when the state is entered via a transition. Parameters come from the tran
 
 Called when the state is exited via a transition. Parameters come from the transition's exit args.
 
+### 4.5.1 Enter/Exit Parameter Mapping
+
+Enter and exit args are passed **positionally** to their respective handlers. The first transition arg maps to the first handler parameter, second to second, and so on.
+
+```frame
+$Idle {
+    start() {
+        -> ("from_idle", 42) $Active    # Position 0: "from_idle", Position 1: 42
+    }
+}
+
+$Active {
+    $>(source: str, value: int) {       # source ← position 0, value ← position 1
+        print(f"Entered from {source} with {value}")
+    }
+}
+```
+
+The same applies to exit args:
+
+```frame
+$Active {
+    stop() {
+        ("goodbye", 99) -> $Idle        # Position 0: "goodbye", Position 1: 99
+    }
+}
+
+$Active {
+    <$(msg: str, code: int) {           # msg ← position 0, code ← position 1
+        print(f"Exiting: {msg} ({code})")
+    }
+}
+```
+
 ### 4.6 HSM Parent Forward (`=> $^`)
 
 **V4 uses explicit-only forwarding.** Unhandled events are NOT automatically forwarded to parent states.
@@ -722,7 +756,115 @@ The Framepiler does **not** parse, validate, or transform native code. The targe
 
 ---
 
-## 12. Validation Errors
+## 12. Scanning Architecture
+
+Frame V4 uses a layered scanning architecture with specialized state-machine scanners. Each scanner operates on raw bytes and respects language-specific string/comment syntax via the `SyntaxSkipper` trait.
+
+### 12.1 Scanner Hierarchy
+
+| Scanner | Purpose | Input | Output |
+|---------|---------|-------|--------|
+| `PrologScanner` | Find `@@target` pragma | Source bytes | Span of `@@target` line |
+| `PragmaScanner` | Identify all `@@` pragmas vs native code | Source bytes + SyntaxSkipper | `Vec<PragmaRegion>` |
+| `OutlineScanner` | Find system structure (states, handlers) | Source bytes + language | `Vec<OutlineItem>` |
+| `ImportScanner` | Identify import statements | Source bytes | Import spans |
+| `NativeRegionScanner` | Find Frame statements in handler bodies | Body bytes + SyntaxSkipper | `Vec<Region>` |
+| `BodyCloser` | Find matching closing brace | Source bytes from `{` | Position of `}` |
+
+### 12.2 SyntaxSkipper Trait
+
+Language-specific string/comment handling is encapsulated in the `SyntaxSkipper` trait:
+
+```rust
+pub trait SyntaxSkipper {
+    /// Get the body closer for this language
+    fn body_closer(&self) -> Box<dyn BodyCloser>;
+
+    /// Skip a comment starting at position i. Returns Some(new_pos) if skipped.
+    fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize>;
+
+    /// Skip a string literal starting at position i. Returns Some(new_pos) if skipped.
+    fn skip_string(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize>;
+
+    /// Find end of Frame statement line, respecting strings/comments.
+    fn find_line_end(&self, bytes: &[u8], start: usize, end: usize) -> usize;
+
+    /// Find matching close paren, respecting strings.
+    fn balanced_paren_end(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize>;
+}
+```
+
+Each target language implements `SyntaxSkipper`:
+
+| Language | Comments | Strings |
+|----------|----------|---------|
+| Python | `#`, `"""`, `'''` | `"..."`, `'...'`, `"""..."""`, `'''...'''` |
+| TypeScript | `//`, `/* */` | `"..."`, `'...'`, `` `...` `` |
+| Rust | `//`, `/* */` | `"..."`, `r#"..."#` |
+| C/C++ | `//`, `/* */` | `"..."`, `'...'` |
+| Java | `//`, `/* */` | `"..."` |
+| C# | `//`, `/* */` | `"..."`, `@"..."`, `$"..."` |
+
+### 12.3 PragmaScanner
+
+The `PragmaScanner` identifies Frame pragma lines (`@@target`, `@@system`, `@@codegen`, etc.) while respecting language-specific strings and comments. This is essential for the "oceans model" where native code passes through unchanged.
+
+**Purpose:** Separate Frame pragmas from native code regions.
+
+**Algorithm:**
+1. Scan byte-by-byte from start of file
+2. At start-of-line (SOL), check for `@@` token
+3. Use `SyntaxSkipper` to skip strings and comments
+4. `@@` inside strings/comments is NOT a pragma
+5. Return spans of pragma lines vs native text regions
+
+**Output:**
+
+```rust
+pub enum PragmaRegion {
+    /// Native code - passes through verbatim
+    NativeText { span: RegionSpan },
+    /// Frame pragma line (@@target, @@system, etc.)
+    PragmaLine { span: RegionSpan, kind: PragmaKind },
+}
+
+pub enum PragmaKind {
+    Target,      // @@target <lang>
+    Codegen,     // @@codegen { ... }
+    System,      // @@system Name { ... }
+    Persist,     // @@persist
+    Async,       // @@async
+    RunExpect,   // @@run-expect <pattern>
+    Other,       // Future pragmas
+}
+```
+
+**Correctness guarantee:** `@@` appearing inside a string literal or comment in the native code will NOT be recognized as a pragma:
+
+```python
+# This is safe - @@target inside string is not a pragma
+print("@@target python_3")
+
+# This is safe - @@system inside comment is not a pragma
+# @@system FakeSystem { }
+```
+
+### 12.4 Scanning Pipeline
+
+The compilation pipeline uses scanners in sequence:
+
+```
+1. PrologScanner     → Find @@target, determine language
+2. PragmaScanner     → Separate pragmas from native code
+3. OutlineScanner    → Parse @@system structure
+4. NativeRegionScanner → Find Frame statements in handler bodies
+```
+
+**Key invariant:** Native code regions identified by `PragmaScanner` pass through verbatim. The transpiler never parses or transforms content inside native regions.
+
+---
+
+## 13. Validation Errors
 
 | Code | Condition |
 |------|-----------|
@@ -739,7 +881,7 @@ The Framepiler does **not** parse, validate, or transform native code. The targe
 
 ---
 
-## 13. Complete Example
+## 14. Complete Example
 
 ```frame
 # Native Python preamble

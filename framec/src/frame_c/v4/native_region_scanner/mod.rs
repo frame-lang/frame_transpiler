@@ -5,7 +5,8 @@ pub enum FrameSegmentKind {
     Forward,
     StackPush,
     StackPop,
-    StateVar,
+    StateVar,          // $.varName (read access)
+    StateVarAssign,    // $.varName = expr (assignment)
     SystemReturn,      // system.return = <expr> or return <expr> (sugar)
     SystemReturnExpr,  // bare system.return (read current value)
     // System context syntax (@@)

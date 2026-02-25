@@ -11,6 +11,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 
 pub mod body_closer;
 pub mod native_region_scanner;
+pub mod pragma_scanner;
 pub mod frame_statement_parser;
 pub mod mir;
 pub mod mir_assembler;

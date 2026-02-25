@@ -10,9 +10,9 @@
 ## Current Status
 
 **Test Results (2026-02-23):**
-- Python: 31/36 tests passing (86%)
-- TypeScript: 27/36 tests passing (75%)
-- Rust: 21/36 tests passing (58%)
+- Python: 29/36 tests passing (81%)
+- TypeScript: 25/36 tests passing (69%)
+- Rust: 25/36 tests passing (69%)
 - C: 0/36 (In Development)
 
 **Total PRT: 79/108 tests passing (73%)**
@@ -20,15 +20,15 @@
 **Known Failing Tests:**
 | Test | Python | TypeScript | Rust | Issue |
 |------|--------|------------|------|-------|
-| 05_enter_exit | ❌ | ❌ | ❌ | TBD |
-| 15_system_return_chain | ❌ | ❌ | ✅ | Python/TS issue |
-| 17_transition_enter_args | ❌ | ❌ | ✅ | Python/TS issue |
-| 18_transition_exit_args | ❌ | ❌ | ❌ | TBD |
+| 05_enter_exit | ❌ | ❌ | ❌ | COMPILE FAIL |
+| 15_system_return_chain | ❌ | ❌ | ✅ | Python/TS return chain |
+| 17_transition_enter_args | ❌ | ❌ | ✅ | Python/TS enter args |
+| 18_transition_exit_args | ❌ | ❌ | ❌ | All exit args |
 | 23-25_persist | ✅ | ❌ | ❌ | TS/Rust serialization |
-| 31-32_doc_lamp | ❌ | ❌ | ❌ | TBD |
-| 35_return_init | ❌ | ❌ | ❌ | TBD |
-| 36-37_context | ✅ | ✅ | ❌ | Rust context |
-| 38_context_data | ✅ | ❌ | ❌ | TS/Rust context |
+| 31-32_doc_lamp | ❌ | ❌ | ❌ | COMPILE FAIL |
+| 35_return_init | ❌ | ❌ | ❌ | COMPILE FAIL |
+| 36-37_context | ✅ | ✅ | ❌ | Rust context stack |
+| 38_context_data | ✅ | ❌ | ❌ | TS/Rust context data |
 
 **Architecture Status:**
 All three PRT languages use the unified kernel/router/transition/context stack architecture with `@@` syntax support.
@@ -206,13 +206,13 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 
 ## Test Summary
 
-| # | Test File | P | T | R | Validates |
-|---|-----------|---|---|---|-----------|
+| # | Test File | Py | TS | Rs | Validates |
+|---|-----------|:--:|:--:|:--:|-----------|
 | 01 | `01_minimal` | ✅ | ✅ | ✅ | Basic system instantiation |
 | 02 | `02_interface` | ✅ | ✅ | ✅ | Interface method definitions |
 | 03 | `03_transition` | ✅ | ✅ | ✅ | State transitions |
 | 04 | `04_native_code` | ✅ | ✅ | ✅ | Native language integration |
-| 05 | `05_enter_exit` | ❌ | ❌ | ❌ | State entry/exit handlers |
+| 05 | `05_enter_exit` | ❌ | ❌ | ❌ | State entry/exit handlers (COMPILE FAIL) |
 | 06 | `06_domain_vars` | ✅ | ✅ | ✅ | Domain variables |
 | 07 | `07_params` | ✅ | ✅ | ✅ | Event parameters |
 | 08 | `08_hsm` | ✅ | ✅ | ✅ | HSM explicit forward |
@@ -236,16 +236,16 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 | 26 | `26_state_params` | ✅ | ✅ | ✅ | State parameters |
 | 29 | `29_forward_enter_first` | ✅ | ✅ | ✅ | Send $> before non-$> forward |
 | 30 | `30_hsm_default_forward` | ✅ | ✅ | ✅ | State-level `=> $^` |
-| 31 | `31_doc_lamp_basic` | ❌ | ❌ | ❌ | Document lamp example |
-| 32 | `32_doc_lamp_hsm` | ❌ | ❌ | ❌ | Document lamp HSM example |
+| 31 | `31_doc_lamp_basic` | ❌ | ❌ | ❌ | Document lamp example (COMPILE FAIL) |
+| 32 | `32_doc_lamp_hsm` | ❌ | ❌ | ❌ | Document lamp HSM example (COMPILE FAIL) |
 | 33 | `33_doc_history_basic` | ✅ | ✅ | ✅ | Document history basic |
 | 34 | `34_doc_history_hsm` | ✅ | ✅ | ✅ | Document history HSM |
-| 35 | `35_return_init` | ❌ | ❌ | ❌ | Return value initialization |
+| 35 | `35_return_init` | ❌ | ❌ | ❌ | Return value initialization (COMPILE FAIL) |
 | 36 | `36_context_basic` | ✅ | ✅ | ❌ | `@@.param`, `@@:return`, `@@:event` |
 | 37 | `37_context_reentrant` | ✅ | ✅ | ❌ | Nested interface calls, context isolation |
 | 38 | `38_context_data` | ✅ | ❌ | ❌ | `@@:data[key]` persistence across transitions |
 
-*P=Python, T=TypeScript, R=Rust*
+*Py=Python (29/36), TS=TypeScript (25/36), Rs=Rust (25/36) — Total: 79/108 (73%)*
 
 ---
 
@@ -253,18 +253,23 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 
 **V4 Test Runner:**
 ```bash
-cd framepiler_test_env/tests/common/primary
+cd /path/to/frame_transpiler/framepiler_test_env/tests/common/primary
 ./run_tests.sh   # Runs all 36 tests for Python, TypeScript, Rust
 ```
 
 **Single Language:**
 ```bash
-# Python only
+# Filter results
 ./run_tests.sh 2>&1 | grep python_3
 
 # Check specific test output
-cat framepiler_test_env/output/python/tests/08_hsm.py
+cat /path/to/framepiler_test_env/output/python/tests/08_hsm.py
 ```
+
+**Test file extensions:**
+- `.fpy` — Python test sources
+- `.fts` — TypeScript test sources
+- `.frs` — Rust test sources
 
 ---
 
@@ -272,7 +277,7 @@ cat framepiler_test_env/output/python/tests/08_hsm.py
 
 | Phase | Tests | Status |
 |-------|-------|--------|
-| 0-6 | 01-26 | 🔶 Most passing, some issues |
+| 0-6 | 01-26 | 🔶 Most passing (05, 15, 17, 18 failing) |
 | 7.1 | 30 | ✅ 3/3 passing |
 | 8 | 29 | ✅ 3/3 passing |
 | 9 | All PRT | ✅ Architecture complete |
@@ -280,8 +285,52 @@ cat framepiler_test_env/output/python/tests/08_hsm.py
 | 11 | 36-38 | 🔶 Python passing, TS/Rust partial |
 | 12 | C | 🚧 0/36 (In Development) |
 
-**Current PRT:** 79/108 (73%) - Architecture complete, some tests failing
+**Current PRT:** 79/108 (73%) — Python 29/36, TypeScript 25/36, Rust 25/36
 **Target PRTC:** 144/144 when C is complete and all tests pass
+
+---
+
+---
+
+## Future Roadmap
+
+### Phase 13: System Usage Tagging (Planned) 📋
+
+**Feature:** Optional `@@System()` syntax for tracking and validating system usage in native code.
+
+**Motivation:**
+- Catch typos in system names at transpile time, not runtime
+- Enable cross-system reference validation in multi-system files
+- Foundation for IDE tooling, refactoring support, and documentation generation
+
+**Syntax:**
+```python
+@@system Calculator { ... }
+
+# Native code with optional tagging:
+calc = @@Calculator()      # Tagged - tracked and validated by transpiler
+calc.compute(1, 2)         # Future: could extend to method validation
+```
+
+**Design Decision:** Option B - Optional annotation
+- Use `@@System()` when validation is desired
+- Use `System()` for untagged (legacy/simple) usage
+- Preserves backward compatibility
+- Maintains "oceans model" philosophy (native code mostly unchanged)
+
+**Implementation Path:**
+1. Extend PragmaScanner to recognize `@@SystemName()` patterns
+2. Add `SystemUsage` entries to Arcanum symbol table
+3. Validator cross-references usages against defined systems
+4. Error on undefined system names: `@@UndefinedSystem()` → compile error
+
+**Benefits:**
+| Benefit | Description |
+|---------|-------------|
+| Typo detection | `@@Calculater()` caught at transpile time |
+| Cross-system validation | Verify System A correctly references System B |
+| Refactoring support | Find all usages when renaming a system |
+| Tooling foundation | IDE support, documentation generation |
 
 ---
 

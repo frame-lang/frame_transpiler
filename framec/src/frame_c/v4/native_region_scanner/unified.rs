@@ -113,7 +113,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
 
             // ===== MID-LINE FRAME CONSTRUCTS =====
 
-            // State variable reference: $.varName
+            // State variable reference: $.varName or assignment: $.varName = expr
             b'$' if i + 1 < end && bytes[i + 1] == b'.' => {
                 if seg_start < i {
                     regions.push(Region::NativeText {
@@ -125,11 +125,47 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
                     i += 1;
                 }
-                regions.push(Region::FrameSegment {
-                    span: RegionSpan { start: var_start, end: i },
-                    kind: FrameSegmentKind::StateVar,
-                    indent: 0,
-                });
+                // Check for assignment: skip whitespace, look for = (but not ==)
+                let mut j = i;
+                while j < end && (bytes[j] == b' ' || bytes[j] == b'\t') {
+                    j += 1;
+                }
+                if j < end && bytes[j] == b'=' && (j + 1 >= end || bytes[j + 1] != b'=') {
+                    // This is an assignment: $.varName = expr
+                    // Capture up to semicolon or newline
+                    j += 1; // Skip '='
+                    while j < end && bytes[j] != b';' && bytes[j] != b'\n' {
+                        // Handle nested parentheses/braces
+                        if bytes[j] == b'(' {
+                            let mut depth = 1;
+                            j += 1;
+                            while j < end && depth > 0 {
+                                if bytes[j] == b'(' { depth += 1; }
+                                if bytes[j] == b')' { depth -= 1; }
+                                j += 1;
+                            }
+                        } else {
+                            j += 1;
+                        }
+                    }
+                    // Include the semicolon if present
+                    if j < end && bytes[j] == b';' {
+                        j += 1;
+                    }
+                    regions.push(Region::FrameSegment {
+                        span: RegionSpan { start: var_start, end: j },
+                        kind: FrameSegmentKind::StateVarAssign,
+                        indent: 0,
+                    });
+                    i = j;
+                } else {
+                    // Just a read access
+                    regions.push(Region::FrameSegment {
+                        span: RegionSpan { start: var_start, end: i },
+                        kind: FrameSegmentKind::StateVar,
+                        indent: 0,
+                    });
+                }
                 seg_start = i;
             }
 

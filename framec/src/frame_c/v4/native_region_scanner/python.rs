@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerPy;
 
 /// Python syntax skipper - handles # comments, strings, and triple-quoted strings
-struct PythonSkipper;
+pub struct PythonSkipper;
 
 impl SyntaxSkipper for PythonSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

@@ -9,6 +9,8 @@ pub struct CBackend;
 
 impl LanguageBackend for CBackend {
     fn emit(&self, node: &CodegenNode, ctx: &mut EmitContext) -> String {
+        let system_name = ctx.system_name.clone().unwrap_or_default();
+
         match node {
             CodegenNode::Module { imports, items } => {
                 let mut result = String::new();
@@ -29,15 +31,58 @@ impl LanguageBackend for CBackend {
             CodegenNode::Class { name, fields, methods, .. } => {
                 let mut result = String::new();
 
+                // Forward declarations for the struct and functions
+                result.push_str(&format!("// Forward declarations\n"));
+                result.push_str(&format!("typedef struct {} {};\n", name, name));
+                result.push_str(&format!("static void {}_kernel({}* self, {}_FrameEvent* __e);\n", name, name, name));
+                result.push_str(&format!("static void {}_router({}* self, {}_FrameEvent* __e);\n", name, name, name));
+                result.push_str(&format!("static void {}_transition({}* self, {}_Compartment* next);\n", name, name, name));
+
+                // Add forward declarations for state handler methods
+                for method in methods {
+                    if let CodegenNode::Method { name: method_name, .. } = method {
+                        if method_name.starts_with("_state_") {
+                            result.push_str(&format!("static void {}_{}({}* self, {}_FrameEvent* __e);\n",
+                                name, method_name.trim_start_matches('_'), name, name));
+                        }
+                    }
+                }
+
+                // Add forward declarations for actions and operations
+                for method in methods {
+                    if let CodegenNode::Method { name: method_name, params, return_type, is_static, .. } = method {
+                        // Skip state handlers, kernel, router, transition (already declared)
+                        if method_name.starts_with("_state_")
+                            || method_name.starts_with("__")
+                            || method_name == "new"
+                            || method_name == "destroy" {
+                            continue;
+                        }
+                        // Skip interface methods (they get public declarations)
+                        // Actions/Operations are not interface methods - they're internal
+                        // Check if method is an action or operation by visibility and not being interface
+                        let return_str = if return_type.is_none() {
+                            "void".to_string()
+                        } else {
+                            self.convert_type_to_c(return_type, &system_name)
+                        };
+                        let params_str = self.emit_params_with_self(params, ctx, !*is_static, &system_name);
+                        let static_kw = if *is_static { "static " } else { "" };
+                        result.push_str(&format!("{}{} {}_{} ({});\n",
+                            static_kw, return_str, name, method_name, params_str));
+                    }
+                }
+                result.push('\n');
+
                 // Struct definition
-                result.push_str(&format!("{}typedef struct {} {{\n", ctx.get_indent(), name));
+                result.push_str(&format!("{}struct {} {{\n", ctx.get_indent(), name));
                 ctx.push_indent();
                 for field in fields {
-                    let type_ann = field.type_annotation.as_ref().unwrap_or(&"void*".to_string()).clone();
-                    result.push_str(&format!("{}{} {};\n", ctx.get_indent(), type_ann, field.name));
+                    let c_type = self.convert_type_to_c(&field.type_annotation, &system_name);
+                    result.push_str(&format!("{}{} {};\n", ctx.get_indent(), c_type, field.name));
                 }
                 ctx.pop_indent();
-                result.push_str(&format!("{}}} {};\n\n", ctx.get_indent(), name));
+                result.push_str(&format!("{}}};\n\n", ctx.get_indent()));
 
                 // Function declarations and definitions
                 for method in methods {
@@ -59,15 +104,54 @@ impl LanguageBackend for CBackend {
                 result
             }
 
-            CodegenNode::Method { name, params, return_type, body, .. } => {
-                let return_str = return_type.as_ref().unwrap_or(&"void".to_string()).clone();
-                let params_str = self.emit_params(params, ctx);
+            CodegenNode::Method { name, params, return_type, body, is_static, .. } => {
+                // Convert return type - but for Frame machinery methods with no return type, use void not void*
+                let return_str = if return_type.is_none() {
+                    "void".to_string()
+                } else {
+                    self.convert_type_to_c(return_type, &system_name)
+                };
 
-                let mut result = format!("{}{} {}({}) {{\n", ctx.get_indent(), return_str, name, params_str);
+                // For Frame system methods, add self parameter
+                let is_frame_method = !*is_static && !system_name.is_empty();
+                let params_str = self.emit_params_with_self(params, ctx, is_frame_method, &system_name);
+
+                // Method name - prefix with system name for ALL methods in Frame systems
+                let func_name = if !system_name.is_empty() {
+                    if name.starts_with("__") {
+                        // Private methods like __kernel, __router -> System_kernel
+                        format!("{}_{}", system_name, name.trim_start_matches('_'))
+                    } else if name.starts_with("_state_") {
+                        // State handlers like _state_Start -> System_state_Start
+                        format!("{}_{}", system_name, name.trim_start_matches('_'))
+                    } else if name.starts_with("_") {
+                        // Other private methods
+                        format!("{}_{}", system_name, name.trim_start_matches('_'))
+                    } else {
+                        // Public methods
+                        format!("{}_{}", system_name, name)
+                    }
+                } else {
+                    name.clone()
+                };
+
+                let static_kw = if *is_static || name.starts_with("_") { "static " } else { "" };
+                let mut result = format!("{}{}{} {}({}) {{\n", ctx.get_indent(), static_kw, return_str, func_name, params_str);
                 ctx.push_indent();
+
                 for stmt in body {
-                    result.push_str(&self.emit(stmt, ctx));
-                    result.push_str(";\n");
+                    let stmt_str = self.emit(stmt, ctx);
+                    result.push_str(&stmt_str);
+                    // Add semicolon if needed
+                    if !stmt_str.trim().is_empty()
+                        && !stmt_str.trim().ends_with('}')
+                        && !stmt_str.trim().ends_with(';')
+                        && !matches!(stmt, CodegenNode::If { .. } | CodegenNode::While { .. } | CodegenNode::For { .. } | CodegenNode::Match { .. } | CodegenNode::Comment { .. } | CodegenNode::Empty)
+                    {
+                        result.push_str(";\n");
+                    } else if !stmt_str.trim().is_empty() {
+                        result.push('\n');
+                    }
                 }
                 ctx.pop_indent();
                 result.push_str(&format!("{}}}\n", ctx.get_indent()));
@@ -75,15 +159,25 @@ impl LanguageBackend for CBackend {
             }
 
             CodegenNode::Constructor { params, body, .. } => {
-                let class_name = ctx.system_name.clone().unwrap_or("Struct".to_string());
+                let class_name = system_name.clone();
                 let params_str = self.emit_params(params, ctx);
 
                 let mut result = format!("{}{}* {}_new({}) {{\n", ctx.get_indent(), class_name, class_name, params_str);
                 ctx.push_indent();
                 result.push_str(&format!("{}{}* self = malloc(sizeof({}));\n", ctx.get_indent(), class_name, class_name));
+
                 for stmt in body {
-                    result.push_str(&self.emit(stmt, ctx));
-                    result.push_str(";\n");
+                    let stmt_str = self.emit(stmt, ctx);
+                    result.push_str(&stmt_str);
+                    if !stmt_str.trim().is_empty()
+                        && !stmt_str.trim().ends_with('}')
+                        && !stmt_str.trim().ends_with(';')
+                        && !matches!(stmt, CodegenNode::If { .. } | CodegenNode::While { .. } | CodegenNode::Comment { .. } | CodegenNode::Empty)
+                    {
+                        result.push_str(";\n");
+                    } else if !stmt_str.trim().is_empty() {
+                        result.push('\n');
+                    }
                 }
                 result.push_str(&format!("{}return self;\n", ctx.get_indent()));
                 ctx.pop_indent();
@@ -91,12 +185,13 @@ impl LanguageBackend for CBackend {
                 result
             }
 
-            CodegenNode::VarDecl { name, type_annotation, init, .. } => {
-                let type_str = type_annotation.as_ref().unwrap_or(&"int".to_string()).clone();
+            CodegenNode::VarDecl { name, type_annotation, init, is_const } => {
+                let type_str = self.convert_type_to_c(type_annotation, &system_name);
+                let const_kw = if *is_const { "const " } else { "" };
                 if let Some(init_expr) = init {
-                    format!("{}{} {} = {}", ctx.get_indent(), type_str, name, self.emit(init_expr, ctx))
+                    format!("{}{}{} {} = {}", ctx.get_indent(), const_kw, type_str, name, self.emit(init_expr, ctx))
                 } else {
-                    format!("{}{} {}", ctx.get_indent(), type_str, name)
+                    format!("{}{}{} {}", ctx.get_indent(), const_kw, type_str, name)
                 }
             }
 
@@ -115,13 +210,29 @@ impl LanguageBackend for CBackend {
             CodegenNode::If { condition, then_block, else_block } => {
                 let mut result = format!("{}if ({}) {{\n", ctx.get_indent(), self.emit(condition, ctx));
                 ctx.push_indent();
-                for stmt in then_block { result.push_str(&self.emit(stmt, ctx)); result.push_str(";\n"); }
+                for stmt in then_block {
+                    let s = self.emit(stmt, ctx);
+                    result.push_str(&s);
+                    if !s.trim().is_empty() && !s.trim().ends_with('}') && !s.trim().ends_with(';') {
+                        result.push_str(";\n");
+                    } else if !s.trim().is_empty() {
+                        result.push('\n');
+                    }
+                }
                 ctx.pop_indent();
 
                 if let Some(else_stmts) = else_block {
                     result.push_str(&format!("{}}} else {{\n", ctx.get_indent()));
                     ctx.push_indent();
-                    for stmt in else_stmts { result.push_str(&self.emit(stmt, ctx)); result.push_str(";\n"); }
+                    for stmt in else_stmts {
+                        let s = self.emit(stmt, ctx);
+                        result.push_str(&s);
+                        if !s.trim().is_empty() && !s.trim().ends_with('}') && !s.trim().ends_with(';') {
+                            result.push_str(";\n");
+                        } else if !s.trim().is_empty() {
+                            result.push('\n');
+                        }
+                    }
                     ctx.pop_indent();
                 }
                 result.push_str(&format!("{}}}", ctx.get_indent()));
@@ -129,24 +240,67 @@ impl LanguageBackend for CBackend {
             }
 
             CodegenNode::Match { scrutinee, arms } => {
-                let mut result = format!("{}switch ({}) {{\n", ctx.get_indent(), self.emit(scrutinee, ctx));
-                ctx.push_indent();
-                for arm in arms {
-                    result.push_str(&format!("{}case {}:\n", ctx.get_indent(), self.emit(&arm.pattern, ctx)));
+                // For string comparison, use if-else chain instead of switch
+                let scrutinee_str = self.emit(scrutinee, ctx);
+                let is_string_match = scrutinee_str.contains("_message") || scrutinee_str.contains("state");
+
+                if is_string_match {
+                    let mut result = String::new();
+                    for (i, arm) in arms.iter().enumerate() {
+                        let cond = if i == 0 { "if" } else { "} else if" };
+                        let pattern_str = self.emit(&arm.pattern, ctx);
+                        result.push_str(&format!("{}{} (strcmp({}, {}) == 0) {{\n",
+                            ctx.get_indent(), cond, scrutinee_str, pattern_str));
+                        ctx.push_indent();
+                        for stmt in &arm.body {
+                            let s = self.emit(stmt, ctx);
+                            result.push_str(&s);
+                            if !s.trim().is_empty() && !s.trim().ends_with('}') && !s.trim().ends_with(';') {
+                                result.push_str(";\n");
+                            } else if !s.trim().is_empty() {
+                                result.push('\n');
+                            }
+                        }
+                        ctx.pop_indent();
+                    }
+                    result.push_str(&format!("{}}}", ctx.get_indent()));
+                    result
+                } else {
+                    let mut result = format!("{}switch ({}) {{\n", ctx.get_indent(), scrutinee_str);
                     ctx.push_indent();
-                    for stmt in &arm.body { result.push_str(&self.emit(stmt, ctx)); result.push_str(";\n"); }
-                    result.push_str(&format!("{}break;\n", ctx.get_indent()));
+                    for arm in arms {
+                        result.push_str(&format!("{}case {}:\n", ctx.get_indent(), self.emit(&arm.pattern, ctx)));
+                        ctx.push_indent();
+                        for stmt in &arm.body {
+                            let s = self.emit(stmt, ctx);
+                            result.push_str(&s);
+                            if !s.trim().is_empty() && !s.trim().ends_with('}') && !s.trim().ends_with(';') {
+                                result.push_str(";\n");
+                            } else if !s.trim().is_empty() {
+                                result.push('\n');
+                            }
+                        }
+                        result.push_str(&format!("{}break;\n", ctx.get_indent()));
+                        ctx.pop_indent();
+                    }
                     ctx.pop_indent();
+                    result.push_str(&format!("{}}}", ctx.get_indent()));
+                    result
                 }
-                ctx.pop_indent();
-                result.push_str(&format!("{}}}", ctx.get_indent()));
-                result
             }
 
             CodegenNode::While { condition, body } => {
                 let mut result = format!("{}while ({}) {{\n", ctx.get_indent(), self.emit(condition, ctx));
                 ctx.push_indent();
-                for stmt in body { result.push_str(&self.emit(stmt, ctx)); result.push_str(";\n"); }
+                for stmt in body {
+                    let s = self.emit(stmt, ctx);
+                    result.push_str(&s);
+                    if !s.trim().is_empty() && !s.trim().ends_with('}') && !s.trim().ends_with(';') {
+                        result.push_str(";\n");
+                    } else if !s.trim().is_empty() {
+                        result.push('\n');
+                    }
+                }
                 ctx.pop_indent();
                 result.push_str(&format!("{}}}", ctx.get_indent()));
                 result
@@ -176,26 +330,64 @@ impl LanguageBackend for CBackend {
             }
 
             CodegenNode::MethodCall { object, method, args } => {
-                // C doesn't have methods, generate function call with self
+                // Convert method calls to C function calls
+                let obj_str = self.emit(object, ctx);
                 let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
-                let all_args = if args_str.is_empty() {
-                    self.emit(object, ctx)
+
+                // Special handling for common patterns
+                if method == "push" || method == "append" {
+                    // Convert to FrameVec_push
+                    if args_str.is_empty() {
+                        format!("{}_FrameVec_push({})", system_name, obj_str)
+                    } else {
+                        format!("{}_FrameVec_push({}, {})", system_name, obj_str, args_str.join(", "))
+                    }
+                } else if method == "pop" {
+                    format!("{}_FrameVec_pop({})", system_name, obj_str)
+                } else if method == "copy" {
+                    // Compartment copy
+                    format!("{}_Compartment_copy({})", system_name, obj_str)
+                } else if method == "get" {
+                    // Dict get
+                    format!("{}_FrameDict_get({}, {})", system_name, obj_str, args_str.join(", "))
                 } else {
-                    format!("{}, {}", self.emit(object, ctx), args_str.join(", "))
-                };
-                format!("{}({})", method, all_args)
+                    // General method call -> function call with object as first arg
+                    let all_args = if args_str.is_empty() {
+                        obj_str
+                    } else {
+                        format!("{}, {}", obj_str, args_str.join(", "))
+                    };
+                    format!("{}({})", method, all_args)
+                }
             }
 
-            CodegenNode::FieldAccess { object, field } => format!("{}->{}", self.emit(object, ctx), field),
+            CodegenNode::FieldAccess { object, field } => {
+                let obj_str = self.emit(object, ctx);
+                // If object is self or a pointer, use ->
+                if obj_str == "self" || obj_str.starts_with("self->") || obj_str.contains("->") {
+                    format!("{}->{}", obj_str, field)
+                } else {
+                    format!("{}.{}", obj_str, field)
+                }
+            }
+
             CodegenNode::IndexAccess { object, index } => format!("{}[{}]", self.emit(object, ctx), self.emit(index, ctx)),
             CodegenNode::SelfRef => "self".to_string(),
 
             CodegenNode::Array(elements) => {
-                let elems: Vec<String> = elements.iter().map(|e| self.emit(e, ctx)).collect();
-                format!("{{ {} }}", elems.join(", "))
+                if elements.is_empty() {
+                    // Empty array initialization - in C we'd initialize to NULL/0
+                    "NULL".to_string()
+                } else {
+                    let elems: Vec<String> = elements.iter().map(|e| self.emit(e, ctx)).collect();
+                    format!("{{ {} }}", elems.join(", "))
+                }
             }
 
-            CodegenNode::Dict(_) => "/* Dict not supported in C */".to_string(),
+            CodegenNode::Dict(_) => {
+                // Create a new FrameDict
+                format!("{}_FrameDict_new()", system_name)
+            }
 
             CodegenNode::Ternary { condition, then_expr, else_expr } => {
                 format!("({}) ? ({}) : ({})", self.emit(condition, ctx), self.emit(then_expr, ctx), self.emit(else_expr, ctx))
@@ -206,31 +398,43 @@ impl LanguageBackend for CBackend {
 
             CodegenNode::New { class, args } => {
                 let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
-                format!("{}_new({})", class, args_str.join(", "))
+                // Convert to C constructor call
+                let c_class = if class.contains("Compartment") {
+                    format!("{}_Compartment", system_name)
+                } else if class.contains("FrameEvent") {
+                    format!("{}_FrameEvent", system_name)
+                } else if class.contains("FrameContext") {
+                    format!("{}_FrameContext", system_name)
+                } else {
+                    class.clone()
+                };
+                format!("{}_new({})", c_class, args_str.join(", "))
             }
 
             // Frame-specific
             CodegenNode::Transition { target_state, indent, .. } => {
-                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}_transition(self, {})", ind, target_state)
+                let ind = " ".repeat(*indent);
+                format!("{}{}{}_transition(self, {}_Compartment_new(\"{}\"))",
+                    ctx.get_indent(), ind, system_name, system_name, target_state)
             }
             CodegenNode::ChangeState { target_state, indent, .. } => {
-                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}_change_state(self, {})", ind, target_state)
+                let ind = " ".repeat(*indent);
+                format!("{}{}/* change_state to {} */", ctx.get_indent(), ind, target_state)
             }
             CodegenNode::Forward { indent, .. } => {
-                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}return", ind)
+                let ind = " ".repeat(*indent);
+                format!("{}{}return", ctx.get_indent(), ind)
             }
             CodegenNode::StackPush { indent } => {
-                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}_state_stack_push(self)", ind)
+                let ind = " ".repeat(*indent);
+                format!("{}{}{}_FrameVec_push(self->_state_stack, {}_Compartment_copy(self->__compartment))",
+                    ctx.get_indent(), ind, system_name, system_name)
             }
             CodegenNode::StackPop { indent } => {
-                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
-                format!("{}_state_stack_pop(self)", ind)
+                let ind = " ".repeat(*indent);
+                format!("{}{}{}_FrameVec_pop(self->_state_stack)", ctx.get_indent(), ind, system_name)
             }
-            CodegenNode::StateContext { state_name } => format!("self->_state_context[\"{}\"]", state_name),
+            CodegenNode::StateContext { state_name } => format!("/* state context for {} */", state_name),
 
             CodegenNode::SendEvent { event, args } => {
                 let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
@@ -247,17 +451,20 @@ impl LanguageBackend for CBackend {
     }
 
     fn runtime_imports(&self) -> Vec<String> {
-        vec!["#include <stdlib.h>".to_string(), "#include <stdio.h>".to_string()]
+        // Runtime imports are now included in generate_c_compartment_types
+        vec![]
     }
 
     fn class_syntax(&self) -> ClassSyntax { ClassSyntax::c() }
     fn target_language(&self) -> TargetLanguage { TargetLanguage::C }
 
     fn null_keyword(&self) -> &'static str { "NULL" }
+    fn true_keyword(&self) -> &'static str { "true" }
+    fn false_keyword(&self) -> &'static str { "false" }
 }
 
 impl CBackend {
-    fn emit_params(&self, params: &[Param], ctx: &EmitContext) -> String {
+    fn emit_params(&self, params: &[Param], _ctx: &EmitContext) -> String {
         if params.is_empty() {
             "void".to_string()
         } else {
@@ -265,6 +472,58 @@ impl CBackend {
                 let type_ann = p.type_annotation.as_ref().unwrap_or(&"int".to_string()).clone();
                 format!("{} {}", type_ann, p.name)
             }).collect::<Vec<_>>().join(", ")
+        }
+    }
+
+    fn emit_params_with_self(&self, params: &[Param], _ctx: &EmitContext, add_self: bool, system_name: &str) -> String {
+        let mut result = Vec::new();
+
+        if add_self && !system_name.is_empty() {
+            result.push(format!("{}* self", system_name));
+        }
+
+        for p in params {
+            let type_str = self.convert_type_to_c(&p.type_annotation, system_name);
+            result.push(format!("{} {}", type_str, p.name));
+        }
+
+        if result.is_empty() {
+            "void".to_string()
+        } else {
+            result.join(", ")
+        }
+    }
+
+    /// Convert Frame/Python/TypeScript types to C types
+    fn convert_type_to_c(&self, type_ann: &Option<String>, system_name: &str) -> String {
+        match type_ann.as_ref().map(|s| s.as_str()) {
+            None => "void*".to_string(),
+            Some("void") | Some("None") => "void".to_string(),
+            Some("bool") | Some("boolean") => "bool".to_string(),
+            Some("int") | Some("number") | Some("Any") => "int".to_string(),  // Default Any to int for C
+            Some("float") | Some("double") => "double".to_string(),
+            Some("str") | Some("string") | Some("String") => "char*".to_string(),
+            Some("list") | Some("List") | Some("Array") | Some("Array<any>") => {
+                format!("{}_FrameVec*", system_name)
+            }
+            Some("dict") | Some("Dict") | Some("Record<string, any>") => {
+                format!("{}_FrameDict*", system_name)
+            }
+            Some(t) if t.contains("Compartment") => {
+                format!("{}_Compartment*", system_name)
+            }
+            Some(t) if t.contains("FrameEvent") => {
+                format!("{}_FrameEvent*", system_name)
+            }
+            Some(t) if t.contains("FrameContext") => {
+                format!("{}_FrameContext*", system_name)
+            }
+            Some(t) if t.ends_with("| null") || t.ends_with("| None") => {
+                // Optional type - just use the base type (will be pointer)
+                let base = t.split('|').next().unwrap().trim();
+                self.convert_type_to_c(&Some(base.to_string()), system_name)
+            }
+            Some(other) => other.to_string(),
         }
     }
 }

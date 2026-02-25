@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerTs;
 
 /// TypeScript syntax skipper - handles //, /* */, strings, and template literals
-struct TypeScriptSkipper;
+pub struct TypeScriptSkipper;
 
 impl SyntaxSkipper for TypeScriptSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

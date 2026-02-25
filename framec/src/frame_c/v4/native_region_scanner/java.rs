@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerJava;
 
 /// Java syntax skipper - handles //, /* */, and strings (same as C)
-struct JavaSkipper;
+pub struct JavaSkipper;
 
 impl SyntaxSkipper for JavaSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

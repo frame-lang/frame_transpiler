@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerCs;
 
 /// C# syntax skipper - handles //, /* */, preprocessor #, strings, verbatim @"", interpolated $""
-struct CSharpSkipper;
+pub struct CSharpSkipper;
 
 impl SyntaxSkipper for CSharpSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

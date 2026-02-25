@@ -423,14 +423,14 @@ impl FrameParser {
     fn parse_interface_method(&mut self) -> Result<InterfaceMethod, ParseError> {
         let start = self.cursor;
         let name = self.parse_identifier()?;
-        
+
         // Parse parameters
         let params = if self.peek_char('(') {
             self.parse_method_params()?
         } else {
             vec![]
         };
-        
+
         // Parse return type
         let return_type = if self.peek_char(':') {
             self.cursor += 1;
@@ -439,7 +439,23 @@ impl FrameParser {
         } else {
             None
         };
-        
+
+        // Skip optional default return value (= expr)
+        // This is parsed but ignored for now - the default is stored in interface semantics
+        self.skip_whitespace();
+        if self.peek_char('=') {
+            self.cursor += 1;
+            self.skip_whitespace();
+            // Skip until newline or next method/section
+            while self.cursor < self.source.len() {
+                let ch = self.source[self.cursor];
+                if ch == b'\n' || ch == b'\r' {
+                    break;
+                }
+                self.cursor += 1;
+            }
+        }
+
         Ok(InterfaceMethod {
             name,
             params,
@@ -1752,9 +1768,10 @@ impl FrameParser {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
                 Region::FrameSegment { span, kind, indent } => {
-                    // StateVar, SystemReturn, SystemReturnExpr, and Context segments are inline expressions
-                    // handled by the splicer during code generation
+                    // StateVar, StateVarAssign, SystemReturn, SystemReturnExpr, and Context segments
+                    // are inline expressions handled by the splicer during code generation
                     if *kind == FrameSegmentKind::StateVar
+                        || *kind == FrameSegmentKind::StateVarAssign
                         || *kind == FrameSegmentKind::SystemReturn
                         || *kind == FrameSegmentKind::SystemReturnExpr
                         || *kind == FrameSegmentKind::ContextParamShorthand
@@ -1832,7 +1849,7 @@ impl FrameParser {
                     indent,
                 }))
             }
-            FrameSegmentKind::StateVar => {
+            FrameSegmentKind::StateVar | FrameSegmentKind::StateVarAssign => {
                 // State variables are expanded inline by the splicer
                 // No separate statement needed - return an error that will be handled
                 Err(ParseError::Expected("StateVar handled by splicer".to_string()))

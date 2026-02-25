@@ -6,7 +6,7 @@ use crate::frame_c::v4::body_closer::BodyCloser;
 pub struct NativeRegionScannerCpp;
 
 /// C++ syntax skipper - handles //, /* */, strings, and raw strings R"delim(...)delim"
-struct CppSkipper;
+pub struct CppSkipper;
 
 impl SyntaxSkipper for CppSkipper {
     fn body_closer(&self) -> Box<dyn BodyCloser> {

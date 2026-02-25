@@ -11,6 +11,7 @@ use crate::frame_c::v4::frame_ast::{
     SystemAst, StateAst, HandlerAst, HandlerBody, Statement, MachineAst,
     ActionAst, OperationAst, Type, LoopKind, EventParam,
     Expression, Literal, BinaryOp, UnaryOp, StateVarAst,
+    InterfaceMethod, MethodParam, Span,
 };
 use crate::frame_c::v4::arcanum::{Arcanum, HandlerEntry};
 use crate::frame_c::v4::splice::Splicer;
@@ -686,21 +687,353 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     code
 }
 
+/// Generate C runtime types (public wrapper)
+///
+/// Generates the standard Frame runtime infrastructure for C:
+/// - FrameDict hash map implementation
+/// - FrameVec dynamic array implementation
+/// - FrameEvent struct
+/// - FrameContext struct
+/// - Compartment struct
+/// All prefixed with the system name (e.g., Minimal_FrameDict)
+pub fn generate_c_compartment_types(system: &SystemAst) -> String {
+    generate_c_runtime_types(system)
+}
+
+/// Generate C runtime types (internal implementation)
+fn generate_c_runtime_types(system: &SystemAst) -> String {
+    let sys = &system.name;
+    let mut code = String::new();
+
+    // Standard includes
+    code.push_str("#include <stdlib.h>\n");
+    code.push_str("#include <string.h>\n");
+    code.push_str("#include <stdio.h>\n");
+    code.push_str("#include <stdbool.h>\n");
+    code.push_str("#include <stdint.h>\n\n");
+
+    // ============================================================================
+    // FrameDict - String-keyed hash map
+    // ============================================================================
+    code.push_str(&format!("// ============================================================================\n"));
+    code.push_str(&format!("// {}_FrameDict - String-keyed dictionary\n", sys));
+    code.push_str(&format!("// ============================================================================\n\n"));
+
+    code.push_str(&format!("typedef struct {}_FrameDictEntry {{\n", sys));
+    code.push_str("    char* key;\n");
+    code.push_str("    void* value;\n");
+    code.push_str(&format!("    struct {}_FrameDictEntry* next;\n", sys));
+    code.push_str(&format!("}} {}_FrameDictEntry;\n\n", sys));
+
+    code.push_str(&format!("typedef struct {{\n"));
+    code.push_str(&format!("    {}_FrameDictEntry** buckets;\n", sys));
+    code.push_str("    int bucket_count;\n");
+    code.push_str("    int size;\n");
+    code.push_str(&format!("}} {}_FrameDict;\n\n", sys));
+
+    // Hash function
+    code.push_str(&format!("static unsigned int {}_hash_string(const char* str) {{\n", sys));
+    code.push_str("    unsigned int hash = 5381;\n");
+    code.push_str("    int c;\n");
+    code.push_str("    while ((c = *str++)) {\n");
+    code.push_str("        hash = ((hash << 5) + hash) + c;\n");
+    code.push_str("    }\n");
+    code.push_str("    return hash;\n");
+    code.push_str("}\n\n");
+
+    // FrameDict_new
+    code.push_str(&format!("static {}_FrameDict* {}_FrameDict_new(void) {{\n", sys, sys));
+    code.push_str(&format!("    {}_FrameDict* d = malloc(sizeof({}_FrameDict));\n", sys, sys));
+    code.push_str("    d->bucket_count = 16;\n");
+    code.push_str(&format!("    d->buckets = calloc(d->bucket_count, sizeof({}_FrameDictEntry*));\n", sys));
+    code.push_str("    d->size = 0;\n");
+    code.push_str("    return d;\n");
+    code.push_str("}\n\n");
+
+    // FrameDict_set
+    code.push_str(&format!("static void {}_FrameDict_set({}_FrameDict* d, const char* key, void* value) {{\n", sys, sys));
+    code.push_str(&format!("    unsigned int idx = {}_hash_string(key) % d->bucket_count;\n", sys));
+    code.push_str(&format!("    {}_FrameDictEntry* entry = d->buckets[idx];\n", sys));
+    code.push_str("    while (entry) {\n");
+    code.push_str("        if (strcmp(entry->key, key) == 0) {\n");
+    code.push_str("            entry->value = value;\n");
+    code.push_str("            return;\n");
+    code.push_str("        }\n");
+    code.push_str("        entry = entry->next;\n");
+    code.push_str("    }\n");
+    code.push_str(&format!("    {}_FrameDictEntry* new_entry = malloc(sizeof({}_FrameDictEntry));\n", sys, sys));
+    code.push_str("    new_entry->key = strdup(key);\n");
+    code.push_str("    new_entry->value = value;\n");
+    code.push_str("    new_entry->next = d->buckets[idx];\n");
+    code.push_str("    d->buckets[idx] = new_entry;\n");
+    code.push_str("    d->size++;\n");
+    code.push_str("}\n\n");
+
+    // FrameDict_get
+    code.push_str(&format!("static void* {}_FrameDict_get({}_FrameDict* d, const char* key) {{\n", sys, sys));
+    code.push_str(&format!("    unsigned int idx = {}_hash_string(key) % d->bucket_count;\n", sys));
+    code.push_str(&format!("    {}_FrameDictEntry* entry = d->buckets[idx];\n", sys));
+    code.push_str("    while (entry) {\n");
+    code.push_str("        if (strcmp(entry->key, key) == 0) {\n");
+    code.push_str("            return entry->value;\n");
+    code.push_str("        }\n");
+    code.push_str("        entry = entry->next;\n");
+    code.push_str("    }\n");
+    code.push_str("    return NULL;\n");
+    code.push_str("}\n\n");
+
+    // FrameDict_has - check if key exists
+    code.push_str(&format!("static int {}_FrameDict_has({}_FrameDict* d, const char* key) {{\n", sys, sys));
+    code.push_str(&format!("    unsigned int idx = {}_hash_string(key) % d->bucket_count;\n", sys));
+    code.push_str(&format!("    {}_FrameDictEntry* entry = d->buckets[idx];\n", sys));
+    code.push_str("    while (entry) {\n");
+    code.push_str("        if (strcmp(entry->key, key) == 0) {\n");
+    code.push_str("            return 1;\n");
+    code.push_str("        }\n");
+    code.push_str("        entry = entry->next;\n");
+    code.push_str("    }\n");
+    code.push_str("    return 0;\n");
+    code.push_str("}\n\n");
+
+    // FrameDict_copy
+    code.push_str(&format!("static {}_FrameDict* {}_FrameDict_copy({}_FrameDict* src) {{\n", sys, sys, sys));
+    code.push_str(&format!("    {}_FrameDict* dst = {}_FrameDict_new();\n", sys, sys));
+    code.push_str("    for (int i = 0; i < src->bucket_count; i++) {\n");
+    code.push_str(&format!("        {}_FrameDictEntry* entry = src->buckets[i];\n", sys));
+    code.push_str("        while (entry) {\n");
+    code.push_str(&format!("            {}_FrameDict_set(dst, entry->key, entry->value);\n", sys));
+    code.push_str("            entry = entry->next;\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    code.push_str("    return dst;\n");
+    code.push_str("}\n\n");
+
+    // FrameDict_destroy
+    code.push_str(&format!("static void {}_FrameDict_destroy({}_FrameDict* d) {{\n", sys, sys));
+    code.push_str("    for (int i = 0; i < d->bucket_count; i++) {\n");
+    code.push_str(&format!("        {}_FrameDictEntry* entry = d->buckets[i];\n", sys));
+    code.push_str("        while (entry) {\n");
+    code.push_str(&format!("            {}_FrameDictEntry* next = entry->next;\n", sys));
+    code.push_str("            free(entry->key);\n");
+    code.push_str("            free(entry);\n");
+    code.push_str("            entry = next;\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
+    code.push_str("    free(d->buckets);\n");
+    code.push_str("    free(d);\n");
+    code.push_str("}\n\n");
+
+    // ============================================================================
+    // FrameVec - Dynamic array
+    // ============================================================================
+    code.push_str(&format!("// ============================================================================\n"));
+    code.push_str(&format!("// {}_FrameVec - Dynamic array\n", sys));
+    code.push_str(&format!("// ============================================================================\n\n"));
+
+    code.push_str(&format!("typedef struct {{\n"));
+    code.push_str("    void** items;\n");
+    code.push_str("    int size;\n");
+    code.push_str("    int capacity;\n");
+    code.push_str(&format!("}} {}_FrameVec;\n\n", sys));
+
+    // FrameVec_new
+    code.push_str(&format!("static {}_FrameVec* {}_FrameVec_new(void) {{\n", sys, sys));
+    code.push_str(&format!("    {}_FrameVec* v = malloc(sizeof({}_FrameVec));\n", sys, sys));
+    code.push_str("    v->capacity = 8;\n");
+    code.push_str("    v->size = 0;\n");
+    code.push_str("    v->items = malloc(sizeof(void*) * v->capacity);\n");
+    code.push_str("    return v;\n");
+    code.push_str("}\n\n");
+
+    // FrameVec_push
+    code.push_str(&format!("static void {}_FrameVec_push({}_FrameVec* v, void* item) {{\n", sys, sys));
+    code.push_str("    if (v->size >= v->capacity) {\n");
+    code.push_str("        v->capacity *= 2;\n");
+    code.push_str("        v->items = realloc(v->items, sizeof(void*) * v->capacity);\n");
+    code.push_str("    }\n");
+    code.push_str("    v->items[v->size++] = item;\n");
+    code.push_str("}\n\n");
+
+    // FrameVec_pop
+    code.push_str(&format!("static void* {}_FrameVec_pop({}_FrameVec* v) {{\n", sys, sys));
+    code.push_str("    if (v->size == 0) return NULL;\n");
+    code.push_str("    return v->items[--v->size];\n");
+    code.push_str("}\n\n");
+
+    // FrameVec_last
+    code.push_str(&format!("static void* {}_FrameVec_last({}_FrameVec* v) {{\n", sys, sys));
+    code.push_str("    if (v->size == 0) return NULL;\n");
+    code.push_str("    return v->items[v->size - 1];\n");
+    code.push_str("}\n\n");
+
+    // FrameVec_size
+    code.push_str(&format!("static int {}_FrameVec_size({}_FrameVec* v) {{\n", sys, sys));
+    code.push_str("    return v->size;\n");
+    code.push_str("}\n\n");
+
+    // FrameVec_destroy
+    code.push_str(&format!("static void {}_FrameVec_destroy({}_FrameVec* v) {{\n", sys, sys));
+    code.push_str("    free(v->items);\n");
+    code.push_str("    free(v);\n");
+    code.push_str("}\n\n");
+
+    // ============================================================================
+    // FrameEvent - Event routing object
+    // ============================================================================
+    code.push_str(&format!("// ============================================================================\n"));
+    code.push_str(&format!("// {}_FrameEvent - Event routing object\n", sys));
+    code.push_str(&format!("// ============================================================================\n\n"));
+
+    code.push_str(&format!("typedef struct {{\n"));
+    code.push_str("    const char* _message;\n");
+    code.push_str(&format!("    {}_FrameDict* _parameters;\n", sys));
+    code.push_str(&format!("}} {}_FrameEvent;\n\n", sys));
+
+    // FrameEvent_new
+    code.push_str(&format!("static {}_FrameEvent* {}_FrameEvent_new(const char* message, {}_FrameDict* parameters) {{\n", sys, sys, sys));
+    code.push_str(&format!("    {}_FrameEvent* e = malloc(sizeof({}_FrameEvent));\n", sys, sys));
+    code.push_str("    e->_message = message;\n");
+    code.push_str("    e->_parameters = parameters;\n");
+    code.push_str("    return e;\n");
+    code.push_str("}\n\n");
+
+    // FrameEvent_destroy
+    code.push_str(&format!("static void {}_FrameEvent_destroy({}_FrameEvent* e) {{\n", sys, sys));
+    code.push_str("    // Note: _parameters ownership depends on context\n");
+    code.push_str("    free(e);\n");
+    code.push_str("}\n\n");
+
+    // ============================================================================
+    // FrameContext - Interface call context
+    // ============================================================================
+    code.push_str(&format!("// ============================================================================\n"));
+    code.push_str(&format!("// {}_FrameContext - Interface call context\n", sys));
+    code.push_str(&format!("// ============================================================================\n\n"));
+
+    code.push_str(&format!("typedef struct {{\n"));
+    code.push_str(&format!("    {}_FrameEvent* event;\n", sys));
+    code.push_str("    void* _return;\n");
+    code.push_str(&format!("    {}_FrameDict* _data;\n", sys));
+    code.push_str(&format!("}} {}_FrameContext;\n\n", sys));
+
+    // FrameContext_new
+    code.push_str(&format!("static {}_FrameContext* {}_FrameContext_new({}_FrameEvent* event, void* default_return) {{\n", sys, sys, sys));
+    code.push_str(&format!("    {}_FrameContext* ctx = malloc(sizeof({}_FrameContext));\n", sys, sys));
+    code.push_str("    ctx->event = event;\n");
+    code.push_str("    ctx->_return = default_return;\n");
+    code.push_str(&format!("    ctx->_data = {}_FrameDict_new();\n", sys));
+    code.push_str("    return ctx;\n");
+    code.push_str("}\n\n");
+
+    // FrameContext_destroy
+    code.push_str(&format!("static void {}_FrameContext_destroy({}_FrameContext* ctx) {{\n", sys, sys));
+    code.push_str(&format!("    {}_FrameDict_destroy(ctx->_data);\n", sys));
+    code.push_str("    free(ctx);\n");
+    code.push_str("}\n\n");
+
+    // ============================================================================
+    // Compartment - State closure
+    // ============================================================================
+    code.push_str(&format!("// ============================================================================\n"));
+    code.push_str(&format!("// {}_Compartment - State closure\n", sys));
+    code.push_str(&format!("// ============================================================================\n\n"));
+
+    code.push_str(&format!("typedef struct {}_Compartment {{\n", sys));
+    code.push_str("    const char* state;\n");
+    code.push_str(&format!("    {}_FrameDict* state_args;\n", sys));
+    code.push_str(&format!("    {}_FrameDict* state_vars;\n", sys));
+    code.push_str(&format!("    {}_FrameDict* enter_args;\n", sys));
+    code.push_str(&format!("    {}_FrameDict* exit_args;\n", sys));
+    code.push_str(&format!("    {}_FrameEvent* forward_event;\n", sys));
+    code.push_str(&format!("    struct {}_Compartment* parent_compartment;\n", sys));
+    code.push_str(&format!("}} {}_Compartment;\n\n", sys));
+
+    // Compartment_new
+    code.push_str(&format!("static {}_Compartment* {}_Compartment_new(const char* state) {{\n", sys, sys));
+    code.push_str(&format!("    {}_Compartment* c = malloc(sizeof({}_Compartment));\n", sys, sys));
+    code.push_str("    c->state = state;\n");
+    code.push_str(&format!("    c->state_args = {}_FrameDict_new();\n", sys));
+    code.push_str(&format!("    c->state_vars = {}_FrameDict_new();\n", sys));
+    code.push_str(&format!("    c->enter_args = {}_FrameDict_new();\n", sys));
+    code.push_str(&format!("    c->exit_args = {}_FrameDict_new();\n", sys));
+    code.push_str("    c->forward_event = NULL;\n");
+    code.push_str("    c->parent_compartment = NULL;\n");
+    code.push_str("    return c;\n");
+    code.push_str("}\n\n");
+
+    // Compartment_copy
+    code.push_str(&format!("static {}_Compartment* {}_Compartment_copy({}_Compartment* src) {{\n", sys, sys, sys));
+    code.push_str(&format!("    {}_Compartment* c = malloc(sizeof({}_Compartment));\n", sys, sys));
+    code.push_str("    c->state = src->state;\n");
+    code.push_str(&format!("    c->state_args = {}_FrameDict_copy(src->state_args);\n", sys));
+    code.push_str(&format!("    c->state_vars = {}_FrameDict_copy(src->state_vars);\n", sys));
+    code.push_str(&format!("    c->enter_args = {}_FrameDict_copy(src->enter_args);\n", sys));
+    code.push_str(&format!("    c->exit_args = {}_FrameDict_copy(src->exit_args);\n", sys));
+    code.push_str("    c->forward_event = src->forward_event;  // Shallow copy OK\n");
+    code.push_str("    c->parent_compartment = src->parent_compartment;\n");
+    code.push_str("    return c;\n");
+    code.push_str("}\n\n");
+
+    // Compartment_destroy
+    code.push_str(&format!("static void {}_Compartment_destroy({}_Compartment* c) {{\n", sys, sys));
+    code.push_str(&format!("    {}_FrameDict_destroy(c->state_args);\n", sys));
+    code.push_str(&format!("    {}_FrameDict_destroy(c->state_vars);\n", sys));
+    code.push_str(&format!("    {}_FrameDict_destroy(c->enter_args);\n", sys));
+    code.push_str(&format!("    {}_FrameDict_destroy(c->exit_args);\n", sys));
+    code.push_str("    free(c);\n");
+    code.push_str("}\n\n");
+
+    // Helper macros for context access
+    code.push_str(&format!("// Helper macros for context access\n"));
+    code.push_str(&format!("#define {}_CTX(self) (({}_FrameContext*){}_FrameVec_last((self)->_context_stack))\n", sys, sys, sys));
+    code.push_str(&format!("#define {}_PARAM(self, key) {}_FrameDict_get({}_CTX(self)->event->_parameters, key)\n", sys, sys, sys));
+    code.push_str(&format!("#define {}_RETURN(self) {}_CTX(self)->_return\n", sys, sys));
+    code.push_str(&format!("#define {}_DATA(self, key) {}_FrameDict_get({}_CTX(self)->_data, key)\n", sys, sys, sys));
+    code.push_str(&format!("#define {}_DATA_SET(self, key, val) {}_FrameDict_set({}_CTX(self)->_data, key, val)\n\n", sys, sys, sys));
+
+    // System destroy function (declared as part of forward declarations, defined later)
+    // This will be declared as a forward declaration in the class emission
+
+    code
+}
+
 /// Generate the constructor
 fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> CodegenNode {
     let mut body = Vec::new();
 
-    // Initialize state stack
-    body.push(CodegenNode::assign(
-        CodegenNode::field(CodegenNode::self_ref(), "_state_stack"),
-        CodegenNode::Array(vec![]),
-    ));
+    // Initialize state stack - language specific
+    match syntax.language {
+        TargetLanguage::C => {
+            // C: Use FrameVec_new()
+            body.push(CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_state_stack"),
+                CodegenNode::Ident(format!("{}_FrameVec_new()", system.name)),
+            ));
+        }
+        _ => {
+            body.push(CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_state_stack"),
+                CodegenNode::Array(vec![]),
+            ));
+        }
+    }
 
-    // Initialize context stack (for reentrancy support)
-    body.push(CodegenNode::assign(
-        CodegenNode::field(CodegenNode::self_ref(), "_context_stack"),
-        CodegenNode::Array(vec![]),
-    ));
+    // Initialize context stack (for reentrancy support) - language specific
+    match syntax.language {
+        TargetLanguage::C => {
+            // C: Use FrameVec_new()
+            body.push(CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_context_stack"),
+                CodegenNode::Ident(format!("{}_FrameVec_new()", system.name)),
+            ));
+        }
+        _ => {
+            body.push(CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), "_context_stack"),
+                CodegenNode::Array(vec![]),
+            ));
+        }
+    }
 
     // Initialize domain variables
     for domain_var in &system.domain {
@@ -763,6 +1096,17 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
                         CodegenNode::Ident("None".to_string()),
                     ));
                 }
+                TargetLanguage::C => {
+                    // For C, use _Compartment_new function
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
+                        CodegenNode::Ident(format!("{}_Compartment_new(\"{}\")", system.name, first_state.name)),
+                    ));
+                    body.push(CodegenNode::assign(
+                        CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
+                        CodegenNode::null(),
+                    ));
+                }
                 _ => {
                     // Python/TypeScript: New expression
                     body.push(CodegenNode::assign(
@@ -795,6 +1139,12 @@ this.__kernel(__frame_event);"#,
                     r#"let __frame_event = {}::new("$>");
 self.__kernel(__frame_event)"#,
                     event_class
+                ),
+                TargetLanguage::C => format!(
+                    r#"{}_FrameEvent* __frame_event = {}_FrameEvent_new("$>", NULL);
+{}_kernel(self, __frame_event);
+{}_FrameEvent_destroy(__frame_event);"#,
+                    system.name, system.name, system.name, system.name
                 ),
                 _ => format!(
                     r#"const __frame_event = new {}("$>", null);
@@ -1012,7 +1362,7 @@ self.__router(&__e);
 while self.__next_compartment.is_some() {{
     let next_compartment = self.__next_compartment.take().unwrap();
     // Exit current state
-    let exit_event = {}::new("$<");
+    let exit_event = {}::new("<$");
     self.__router(&exit_event);
     // Switch to new compartment
     self.__compartment = next_compartment;
@@ -1072,6 +1422,115 @@ while self.__next_compartment.is_some() {{
                 is_async: false,
                 is_static: false,
                 visibility: Visibility::Private,
+                decorators: vec![],
+            });
+        }
+        TargetLanguage::C => {
+            // C: Full kernel/router/transition pattern with string comparison dispatch
+            let sys = &system.name;
+
+            // __kernel method - the main event processing loop
+            methods.push(CodegenNode::Method {
+                name: "__kernel".to_string(),
+                params: vec![Param::new("__e").with_type(&format!("{}_FrameEvent*", sys))],
+                return_type: None,
+                body: vec![CodegenNode::NativeBlock {
+                    code: format!(
+                        r#"// Route event to current state
+{sys}_router(self, __e);
+// Process any pending transition
+while (self->__next_compartment != NULL) {{
+    {sys}_Compartment* next_compartment = self->__next_compartment;
+    self->__next_compartment = NULL;
+    // Exit current state (with exit_args from current compartment)
+    {sys}_FrameEvent* exit_event = {sys}_FrameEvent_new("<$", self->__compartment->exit_args);
+    {sys}_router(self, exit_event);
+    {sys}_FrameEvent_destroy(exit_event);
+    // Switch to new compartment
+    {sys}_Compartment_destroy(self->__compartment);
+    self->__compartment = next_compartment;
+    // Enter new state (or forward event)
+    if (next_compartment->forward_event == NULL) {{
+        {sys}_FrameEvent* enter_event = {sys}_FrameEvent_new("$>", self->__compartment->enter_args);
+        {sys}_router(self, enter_event);
+        {sys}_FrameEvent_destroy(enter_event);
+    }} else {{
+        // Forward event to new state
+        // Note: forward_event is a borrowed pointer to the caller's __e, do NOT destroy it
+        {sys}_FrameEvent* forward_event = next_compartment->forward_event;
+        next_compartment->forward_event = NULL;
+        if (strcmp(forward_event->_message, "$>") == 0) {{
+            // Forwarding enter event - just send it
+            {sys}_router(self, forward_event);
+        }} else {{
+            // Forwarding other event - send $> first, then forward
+            {sys}_FrameEvent* enter_event = {sys}_FrameEvent_new("$>", self->__compartment->enter_args);
+            {sys}_router(self, enter_event);
+            {sys}_FrameEvent_destroy(enter_event);
+            {sys}_router(self, forward_event);
+        }}
+        // Do NOT destroy forward_event - it's owned by the interface method caller
+    }}
+}}"#,
+                        sys = sys
+                    ),
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Private,
+                decorators: vec![],
+            });
+
+            // __router method - dispatches events to state handler functions
+            let router_code = generate_c_router_dispatch(system);
+            methods.push(CodegenNode::Method {
+                name: "__router".to_string(),
+                params: vec![Param::new("__e").with_type(&format!("{}_FrameEvent*", sys))],
+                return_type: None,
+                body: vec![CodegenNode::NativeBlock {
+                    code: router_code,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Private,
+                decorators: vec![],
+            });
+
+            // __transition method - caches next compartment (deferred transition)
+            methods.push(CodegenNode::Method {
+                name: "__transition".to_string(),
+                params: vec![Param::new("next_compartment").with_type(&format!("{}_Compartment*", sys))],
+                return_type: None,
+                body: vec![CodegenNode::NativeBlock {
+                    code: "self->__next_compartment = next_compartment;".to_string(),
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Private,
+                decorators: vec![],
+            });
+
+            // destroy method - cleanup system resources
+            methods.push(CodegenNode::Method {
+                name: "destroy".to_string(),
+                params: vec![],
+                return_type: None,
+                body: vec![CodegenNode::NativeBlock {
+                    code: format!(
+                        r#"if (self->__compartment) {sys}_Compartment_destroy(self->__compartment);
+if (self->_state_stack) {sys}_FrameVec_destroy(self->_state_stack);
+if (self->_context_stack) {sys}_FrameVec_destroy(self->_context_stack);
+free(self);"#,
+                        sys = sys
+                    ),
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Public,
                 decorators: vec![],
             });
         }
@@ -1525,6 +1984,28 @@ fn generate_rust_router_dispatch(system: &SystemAst) -> String {
     code
 }
 
+/// Generate C router dispatch using if-else chain with strcmp
+fn generate_c_router_dispatch(system: &SystemAst) -> String {
+    let sys = &system.name;
+    let mut code = String::new();
+    code.push_str("const char* state_name = self->__compartment->state;\n");
+
+    if let Some(ref machine) = system.machine {
+        for (i, state) in machine.states.iter().enumerate() {
+            let cond = if i == 0 { "if" } else { "} else if" };
+            code.push_str(&format!(
+                "{} (strcmp(state_name, \"{}\") == 0) {{\n    {}_state_{}(self, __e);\n",
+                cond, state.name, sys, state.name
+            ));
+        }
+        if !machine.states.is_empty() {
+            code.push_str("}");
+        }
+    }
+
+    code
+}
+
 /// Generate Rust enter dispatch with state variable initialization
 /// Initializes _sv_ fields for the target state
 fn generate_rust_enter_dispatch_with_vars(system: &SystemAst) -> String {
@@ -1599,12 +2080,58 @@ fn generate_rust_enter_exit_dispatch(system: &SystemAst, handler_type: &str) -> 
 ///
 /// For Python/TypeScript: Create FrameEvent and call __kernel
 /// For Rust: Use match-based dispatch directly
+///
+/// If no explicit interface is defined, auto-generate interface methods from
+/// unique event handlers found in the machine states (excluding lifecycle events).
 fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> Vec<CodegenNode> {
     // Get the target language from the syntax
     let lang = syntax.language;
     let event_class = format!("{}FrameEvent", system.name);
 
-    system.interface.iter().map(|method| {
+    // If explicit interface is defined, use it
+    // Otherwise, collect unique events from state handlers
+    let interface_methods: Vec<InterfaceMethod> = if !system.interface.is_empty() {
+        system.interface.clone()
+    } else {
+        // Auto-generate interface from event handlers
+        let mut events: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut method_info: std::collections::HashMap<String, (Vec<MethodParam>, Option<Type>)> = std::collections::HashMap::new();
+
+        if let Some(ref machine) = system.machine {
+            for state in &machine.states {
+                for handler in &state.handlers {
+                    // Skip lifecycle events
+                    if handler.event == "$>" || handler.event == "<$" || handler.event == "$>|" || handler.event == "<$|" {
+                        continue;
+                    }
+                    if events.insert(handler.event.clone()) {
+                        // First time seeing this event - capture its params and return type
+                        let params: Vec<MethodParam> = handler.params.iter().map(|p| {
+                            MethodParam {
+                                name: p.name.clone(),
+                                param_type: p.param_type.clone(),
+                                default: None,
+                                span: Span::new(0, 0),
+                            }
+                        }).collect();
+                        method_info.insert(handler.event.clone(), (params, handler.return_type.clone()));
+                    }
+                }
+            }
+        }
+
+        events.into_iter().map(|event| {
+            let (params, return_type) = method_info.get(&event).cloned().unwrap_or_default();
+            InterfaceMethod {
+                name: event,
+                params,
+                return_type,
+                span: Span::new(0, 0),
+            }
+        }).collect()
+    };
+
+    interface_methods.iter().map(|method| {
         let params: Vec<Param> = method.params.iter().map(|p| {
             let type_str = type_to_string(&p.param_type);
             Param::new(&p.name).with_type(&type_str)
@@ -1713,6 +2240,66 @@ this._context_stack.pop();"#,
                     }
                 }
             }
+            TargetLanguage::C => {
+                // C: Create FrameEvent + FrameContext, push context, call kernel, pop and return
+                let sys = &system.name;
+
+                // Build parameters dict creation (with semicolon)
+                let params_code = if method.params.is_empty() {
+                    format!("{}_FrameEvent* __e = {}_FrameEvent_new(\"{}\", NULL);", sys, sys, method.name)
+                } else {
+                    let mut code = format!("{}_FrameDict* __params = {}_FrameDict_new();\n", sys, sys);
+                    for p in &method.params {
+                        code.push_str(&format!("{}_FrameDict_set(__params, \"{}\", (void*)(intptr_t){});\n", sys, p.name, p.name));
+                    }
+                    code.push_str(&format!("{}_FrameEvent* __e = {}_FrameEvent_new(\"{}\", __params);", sys, sys, method.name));
+                    code
+                };
+
+                // Check if method has a non-void return type
+                let return_type_str = method.return_type.as_ref().map(|t| type_to_string(t));
+                let has_return_value = return_type_str.as_ref()
+                    .map(|s| s != "void" && s != "None")
+                    .unwrap_or(false);
+
+                if has_return_value {
+                    let return_type_str = return_type_str.unwrap();
+                    let cast = match return_type_str.as_str() {
+                        "bool" | "int" => "(intptr_t)",
+                        _ => "",
+                    };
+                    CodegenNode::NativeBlock {
+                        code: format!(
+                            r#"{}
+{}_FrameContext* __ctx = {}_FrameContext_new(__e, NULL);
+{}_FrameVec_push(self->_context_stack, __ctx);
+{}_kernel(self, __e);
+{}_FrameContext* __result_ctx = ({}_FrameContext*){}_FrameVec_pop(self->_context_stack);
+{} __result = ({}){}__result_ctx->_return;
+{}_FrameContext_destroy(__result_ctx);
+{}_FrameEvent_destroy(__e);
+return __result;"#,
+                            params_code, sys, sys, sys, sys, sys, sys, sys,
+                            return_type_str, return_type_str, cast, sys, sys
+                        ),
+                        span: None,
+                    }
+                } else {
+                    CodegenNode::NativeBlock {
+                        code: format!(
+                            r#"{}
+{}_FrameContext* __ctx = {}_FrameContext_new(__e, NULL);
+{}_FrameVec_push(self->_context_stack, __ctx);
+{}_kernel(self, __e);
+{}_FrameContext* __result_ctx = ({}_FrameContext*){}_FrameVec_pop(self->_context_stack);
+{}_FrameContext_destroy(__result_ctx);
+{}_FrameEvent_destroy(__e);"#,
+                            params_code, sys, sys, sys, sys, sys, sys, sys, sys, sys
+                        ),
+                        span: None,
+                    }
+                }
+            }
             _ => {
                 // Default: Same as TypeScript with context stack
                 let context_class = format!("{}FrameContext", system.name);
@@ -1792,22 +2379,54 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
             let handles_event = states_with_handler.contains(state.name.as_str());
 
             if handles_event {
+                // Find the handler for this event in this state to check its parameters
+                let handler = state.handlers.iter().find(|h| h.event == event);
                 let handler_name = format!("_s_{}_{}", state.name, event);
-                if has_return {
-                    match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, handler_name, args_str));
+
+                // Build args string based on what this handler expects (not all interface params)
+                let handler_args_str = if let Some(h) = handler {
+                    if h.params.is_empty() {
+                        String::new()
+                    } else {
+                        // Pass the handler's expected parameters
+                        let param_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
+                        format!(", {}", param_names.join(", "))
+                    }
                 } else {
-                    match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, handler_name, args_str));
+                    String::new()
+                };
+
+                if has_return {
+                    match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, handler_name, handler_args_str));
+                } else {
+                    match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, handler_name, handler_args_str));
                 }
             } else if state.default_forward {
                 // State has default_forward but no handler for this event - forward to parent
                 if let Some(ref parent) = state.parent {
                     // Check if parent handles this event
                     if states_with_handler.contains(parent.as_str()) {
+                        // Find the parent handler to check its parameters
+                        let parent_state = machine.states.iter().find(|s| s.name == *parent);
+                        let parent_handler = parent_state.and_then(|ps| ps.handlers.iter().find(|h| h.event == event));
                         let parent_handler_name = format!("_s_{}_{}", parent, event);
-                        if has_return {
-                            match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, parent_handler_name, args_str));
+
+                        // Build args string based on what the parent handler expects
+                        let parent_args_str = if let Some(h) = parent_handler {
+                            if h.params.is_empty() {
+                                String::new()
+                            } else {
+                                let param_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
+                                format!(", {}", param_names.join(", "))
+                            }
                         } else {
-                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, parent_handler_name, args_str));
+                            String::new()
+                        };
+
+                        if has_return {
+                            match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, parent_handler_name, parent_args_str));
+                        } else {
+                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, parent_handler_name, parent_args_str));
                         }
                     }
                 }
@@ -1830,7 +2449,7 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
 // Process any pending transitions (bypassed kernel)
 while self.__next_compartment.is_some() {{
     let next_compartment = self.__next_compartment.take().unwrap();
-    let exit_event = {}::new("$<");
+    let exit_event = {}::new("<$");
     self.__router(&exit_event);
     self.__compartment = next_compartment;
     if self.__compartment.forward_event.is_none() {{
@@ -1867,7 +2486,10 @@ fn generate_state_handlers_via_arcanum(system_name: &str, machine: &MachineAst, 
         // Find state variables and default_forward for this state from the machine AST
         let state_ast = machine.states.iter().find(|s| s.name == state_entry.name);
         let state_vars = state_ast.map(|s| &s.state_vars[..]).unwrap_or(&[]);
-        let default_forward = state_ast.map(|s| s.default_forward).unwrap_or(false);
+        // Enable default_forward if explicitly set OR if state has a parent (HSM semantics)
+        let has_explicit_forward = state_ast.map(|s| s.default_forward).unwrap_or(false);
+        let has_parent = state_entry.parent.is_some();
+        let default_forward = has_explicit_forward || has_parent;
 
         let method = generate_state_method(
             system_name,
@@ -1938,6 +2560,7 @@ fn generate_state_method(
         TargetLanguage::Python3 => generate_python_state_dispatch(_system_name, state_name, handlers, state_vars, source, &ctx, default_forward),
         TargetLanguage::TypeScript => generate_typescript_state_dispatch(_system_name, state_name, handlers, state_vars, source, &ctx, default_forward),
         TargetLanguage::Rust => generate_rust_state_dispatch(_system_name, state_name, handlers, state_vars, parent_state, default_forward),
+        TargetLanguage::C => generate_c_state_dispatch(_system_name, state_name, handlers, state_vars, source, &ctx, default_forward),
         _ => String::new(),
     };
 
@@ -1948,6 +2571,10 @@ fn generate_state_method(
         }
         TargetLanguage::Rust => {
             let event_type = format!("&{}FrameEvent", _system_name);
+            vec![Param::new("__e").with_type(&event_type)]
+        }
+        TargetLanguage::C => {
+            let event_type = format!("{}_FrameEvent*", _system_name);
             vec![Param::new("__e").with_type(&event_type)]
         }
         _ => vec![Param::new("__e")],
@@ -1983,6 +2610,7 @@ fn generate_python_state_dispatch(
     let mut has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
 
     // If state has state variables but no explicit $> handler, generate one
+    // Use conditional initialization to preserve values on pop-restore
     if !state_vars.is_empty() && !has_enter_handler {
         code.push_str("if __e._message == \"$>\":\n");
         for var in state_vars {
@@ -1991,7 +2619,9 @@ fn generate_python_state_dispatch(
             } else {
                 state_var_init_value(&var.var_type, TargetLanguage::Python3)
             };
-            code.push_str(&format!("    self.__compartment.state_vars[\"{}\"] = {}\n", var.name, init_val));
+            // Only initialize if not already set (preserves pop-restored values)
+            code.push_str(&format!("    if \"{}\" not in self.__compartment.state_vars:\n", var.name));
+            code.push_str(&format!("        self.__compartment.state_vars[\"{}\"] = {}\n", var.name, init_val));
         }
         first = false;
     }
@@ -2018,7 +2648,8 @@ fn generate_python_state_dispatch(
         code.push_str(&condition);
         code.push('\n');
 
-        // For enter handlers with state vars, also initialize state vars first
+        // For enter handlers with state vars, initialize state vars first
+        // Use conditional initialization to preserve values on pop-restore
         if (event == "$>" || event == "enter") && !state_vars.is_empty() {
             for var in state_vars {
                 let init_val = if let Some(ref init) = var.init {
@@ -2026,14 +2657,24 @@ fn generate_python_state_dispatch(
                 } else {
                     state_var_init_value(&var.var_type, TargetLanguage::Python3)
                 };
-                code.push_str(&format!("    self.__compartment.state_vars[\"{}\"] = {}\n", var.name, init_val));
+                // Only initialize if not already set (preserves pop-restored values)
+                code.push_str(&format!("    if \"{}\" not in self.__compartment.state_vars:\n", var.name));
+                code.push_str(&format!("        self.__compartment.state_vars[\"{}\"] = {}\n", var.name, init_val));
             }
         }
 
         // Generate parameter unpacking if handler has params
-        // Use parameter names as keys (matching interface method generation)
-        for param in handler.params.iter() {
-            code.push_str(&format!("    {} = __e._parameters[\"{}\"]\n", param.name, param.name));
+        // For enter/exit handlers, use positional indices (transition args are positional)
+        // For other handlers, use parameter names as keys (matching interface method generation)
+        let is_lifecycle_handler = event == "$>" || event == "enter" || event == "$<" || event == "exit" || event == "<$";
+        for (i, param) in handler.params.iter().enumerate() {
+            if is_lifecycle_handler {
+                // Lifecycle handlers receive positional args from transition
+                code.push_str(&format!("    {} = __e._parameters[\"{}\"]\n", param.name, i));
+            } else {
+                // Interface handlers receive named args
+                code.push_str(&format!("    {} = __e._parameters[\"{}\"]\n", param.name, param.name));
+            }
         }
 
         // Generate the handler body
@@ -2091,6 +2732,7 @@ fn generate_typescript_state_dispatch(
     let has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
 
     // If state has state variables but no explicit $> handler, generate one
+    // Use conditional initialization to preserve values on pop-restore
     if !state_vars.is_empty() && !has_enter_handler {
         code.push_str("if (__e._message === \"$>\") {\n");
         for var in state_vars {
@@ -2099,7 +2741,10 @@ fn generate_typescript_state_dispatch(
             } else {
                 state_var_init_value(&var.var_type, TargetLanguage::TypeScript)
             };
-            code.push_str(&format!("    this.__compartment.state_vars[\"{}\"] = {};\n", var.name, init_val));
+            // Only initialize if not already set (preserves pop-restored values)
+            code.push_str(&format!("    if (!(\"{0}\" in this.__compartment.state_vars)) {{\n", var.name));
+            code.push_str(&format!("        this.__compartment.state_vars[\"{}\"] = {};\n", var.name, init_val));
+            code.push_str("    }\n");
         }
         first = false;
     }
@@ -2126,7 +2771,8 @@ fn generate_typescript_state_dispatch(
         code.push_str(&condition);
         code.push('\n');
 
-        // For enter handlers with state vars, also initialize state vars first
+        // For enter handlers with state vars, initialize state vars first
+        // Use conditional initialization to preserve values on pop-restore
         if (event == "$>" || event == "enter") && !state_vars.is_empty() {
             for var in state_vars {
                 let init_val = if let Some(ref init) = var.init {
@@ -2134,14 +2780,25 @@ fn generate_typescript_state_dispatch(
                 } else {
                     state_var_init_value(&var.var_type, TargetLanguage::TypeScript)
                 };
-                code.push_str(&format!("    this.__compartment.state_vars[\"{}\"] = {};\n", var.name, init_val));
+                // Only initialize if not already set (preserves pop-restored values)
+                code.push_str(&format!("    if (!(\"{0}\" in this.__compartment.state_vars)) {{\n", var.name));
+                code.push_str(&format!("        this.__compartment.state_vars[\"{}\"] = {};\n", var.name, init_val));
+                code.push_str("    }\n");
             }
         }
 
         // Generate parameter unpacking if handler has params
-        // Use parameter names as keys (matching interface method generation)
-        for param in handler.params.iter() {
-            code.push_str(&format!("    const {} = __e._parameters?.[\"{}\"];\n", param.name, param.name));
+        // For enter/exit handlers, use positional indices (transition args are positional)
+        // For other handlers, use parameter names as keys (matching interface method generation)
+        let is_lifecycle_handler = event == "$>" || event == "enter" || event == "$<" || event == "exit" || event == "<$";
+        for (i, param) in handler.params.iter().enumerate() {
+            if is_lifecycle_handler {
+                // Lifecycle handlers receive positional args from transition
+                code.push_str(&format!("    const {} = __e._parameters?.[\"{}\"];\n", param.name, i));
+            } else {
+                // Interface handlers receive named args
+                code.push_str(&format!("    const {} = __e._parameters?.[\"{}\"];\n", param.name, param.name));
+            }
         }
 
         // Generate the handler body
@@ -2170,6 +2827,142 @@ fn generate_typescript_state_dispatch(
             } else {
                 // No handlers at all - just forward everything
                 code.push_str(&format!("this._state_{}(__e);", parent));
+            }
+        } else if !first {
+            code.push_str("}");
+        }
+    } else if !first {
+        code.push_str("}");
+    }
+
+    code
+}
+
+/// Generate C state dispatch code (if-else chain with strcmp)
+fn generate_c_state_dispatch(
+    system_name: &str,
+    state_name: &str,
+    handlers: &std::collections::HashMap<String, HandlerEntry>,
+    state_vars: &[StateVarAst],
+    source: &[u8],
+    ctx: &HandlerContext,
+    default_forward: bool,
+) -> String {
+    let mut code = String::new();
+    let mut first = true;
+    let has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
+
+    // If state has state variables but no explicit $> handler, generate one
+    // Use conditional initialization to preserve values on pop-restore
+    if !state_vars.is_empty() && !has_enter_handler {
+        code.push_str("if (strcmp(__e->_message, \"$>\") == 0) {\n");
+        for var in state_vars {
+            let init_val = if let Some(ref init) = var.init {
+                expression_to_string(init, TargetLanguage::C)
+            } else {
+                state_var_init_value(&var.var_type, TargetLanguage::C)
+            };
+            // Only initialize if not already set (preserves pop-restored values)
+            code.push_str(&format!("    if (!{}_FrameDict_has(self->__compartment->state_vars, \"{}\")) {{\n",
+                system_name, var.name));
+            code.push_str(&format!("        {}_FrameDict_set(self->__compartment->state_vars, \"{}\", (void*)(intptr_t){});\n",
+                system_name, var.name, init_val));
+            code.push_str("    }\n");
+        }
+        first = false;
+    }
+
+    // Sort handlers for deterministic output
+    let mut sorted_handlers: Vec<_> = handlers.iter().collect();
+    sorted_handlers.sort_by_key(|(event, _)| *event);
+
+    for (event, handler) in sorted_handlers {
+        // Map Frame events to their message names
+        let message = match event.as_str() {
+            "$>" | "enter" => "$>",
+            "$<" | "exit" => "<$",
+            _ => event.as_str(),
+        };
+
+        let condition = if first {
+            format!("if (strcmp(__e->_message, \"{}\") == 0) {{", message)
+        } else {
+            format!("}} else if (strcmp(__e->_message, \"{}\") == 0) {{", message)
+        };
+        first = false;
+
+        code.push_str(&condition);
+        code.push('\n');
+
+        // For enter handlers with state vars, initialize state vars first
+        // Use conditional initialization to preserve values on pop-restore
+        if (event == "$>" || event == "enter") && !state_vars.is_empty() {
+            for var in state_vars {
+                let init_val = if let Some(ref init) = var.init {
+                    expression_to_string(init, TargetLanguage::C)
+                } else {
+                    state_var_init_value(&var.var_type, TargetLanguage::C)
+                };
+                // Only initialize if not already set (preserves pop-restored values)
+                code.push_str(&format!("    if (!{}_FrameDict_has(self->__compartment->state_vars, \"{}\")) {{\n",
+                    system_name, var.name));
+                code.push_str(&format!("        {}_FrameDict_set(self->__compartment->state_vars, \"{}\", (void*)(intptr_t){});\n",
+                    system_name, var.name, init_val));
+                code.push_str("    }\n");
+            }
+        }
+
+        // Generate parameter unpacking if handler has params
+        // For enter/exit handlers, use positional indices (transition args are positional)
+        // For other handlers, use parameter names as keys (matching interface method generation)
+        let is_lifecycle_handler = event == "$>" || event == "enter" || event == "$<" || event == "exit" || event == "<$";
+        for (i, param) in handler.params.iter().enumerate() {
+            let param_type = param.symbol_type.as_ref().map(|s| s.as_str()).unwrap_or("int");
+            let c_type = match param_type {
+                "int" | "i32" | "i64" => "int",
+                "bool" | "boolean" => "bool",
+                "float" | "double" | "f32" | "f64" => "double",
+                "str" | "string" | "String" => "char*",
+                _ => "void*",
+            };
+            let cast = if c_type == "int" || c_type == "bool" { "(intptr_t)" } else { "" };
+            if is_lifecycle_handler {
+                // Lifecycle handlers receive positional args from transition
+                code.push_str(&format!("    {} {} = ({}){}{}_FrameDict_get(__e->_parameters, \"{}\");\n",
+                    c_type, param.name, c_type, cast, system_name, i));
+            } else {
+                // Interface handlers receive named args
+                code.push_str(&format!("    {} {} = ({}){}{}_FrameDict_get(__e->_parameters, \"{}\");\n",
+                    c_type, param.name, c_type, cast, system_name, param.name));
+            }
+        }
+
+        // Generate the handler body
+        let mut handler_ctx = ctx.clone();
+        handler_ctx.event_name = event.clone();
+        let body = splice_handler_body_from_span(&handler.body_span, source, TargetLanguage::C, &handler_ctx);
+
+        // Indent the body
+        for line in body.lines() {
+            if !line.trim().is_empty() {
+                code.push_str("    ");
+                code.push_str(line);
+            }
+            code.push('\n');
+        }
+    }
+
+    // Add default forward clause or close the last if block
+    if default_forward {
+        if let Some(ref parent) = ctx.parent_state {
+            if !first {
+                // Close previous block and add else clause
+                code.push_str("} else {\n");
+                code.push_str(&format!("    {}_state_{}(self, __e);\n", system_name, parent));
+                code.push_str("}");
+            } else {
+                // No handlers at all - just forward everything
+                code.push_str(&format!("{}_state_{}(self, __e);", system_name, parent));
             }
         } else if !first {
             code.push_str("}");
@@ -2213,7 +3006,7 @@ fn generate_rust_state_dispatch(
         // Map Frame events to their message names
         let message = match event.as_str() {
             "$>" | "enter" => "$>",
-            "$<" | "exit" => "$<",
+            "$<" | "exit" => "<$",
             _ => event.as_str(),
         };
 
@@ -2637,6 +3430,10 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         "{}self._state_stack_pop()",
                         indent_str
                     ),
+                    TargetLanguage::C => format!(
+                        "{}{}_Compartment* __saved = ({}_Compartment*){}_FrameVec_pop(self->_state_stack);\n{}{}_transition(self, __saved);",
+                        indent_str, ctx.system_name, ctx.system_name, ctx.system_name, indent_str, ctx.system_name
+                    ),
                     _ => format!(
                         "{}const __saved = this._state_stack.pop()!;\n{}this.__transition(__saved);",
                         indent_str, indent_str
@@ -2648,9 +3445,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 let state_args = extract_state_args(&segment_text);
 
                 // Expand state variable references in arguments
-                let exit_str = exit_args.map(|a| expand_state_vars_in_expr(&a, lang));
-                let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang));
-                let state_str = state_args.map(|a| expand_state_vars_in_expr(&a, lang));
+                let exit_str = exit_args.map(|a| expand_state_vars_in_expr(&a, lang, &ctx.system_name));
+                let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang, &ctx.system_name));
+                let state_str = state_args.map(|a| expand_state_vars_in_expr(&a, lang, &ctx.system_name));
 
                 // Get compartment class name from ctx.state_name (extract system name)
                 // For now, use a generic name - it will be replaced when we have system context
@@ -2748,6 +3545,42 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         // Rust uses compartment-based transition
                         format!("{}self.__transition({}Compartment::new(\"{}\"))", indent_str, ctx.system_name, target)
                     }
+                    TargetLanguage::C => {
+                        // C: Create compartment and call transition
+                        let mut code = String::new();
+
+                        // Store exit_args in current compartment if present (split by comma for positional args)
+                        if let Some(ref exit) = exit_str {
+                            let args: Vec<&str> = exit.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
+                            for (i, arg) in args.iter().enumerate() {
+                                code.push_str(&format!("{}{}_FrameDict_set(self->__compartment->exit_args, \"{}\", (void*)(intptr_t)({}));\n", indent_str, ctx.system_name, i, arg));
+                            }
+                        }
+
+                        // Create new compartment
+                        code.push_str(&format!("{}{}_Compartment* __compartment = {}_Compartment_new(\"{}\");\n", indent_str, ctx.system_name, ctx.system_name, target));
+                        code.push_str(&format!("{}__compartment->parent_compartment = {}_Compartment_copy(self->__compartment);\n", indent_str, ctx.system_name));
+
+                        // Set state_args if present (split by comma for positional args)
+                        if let Some(ref state) = state_str {
+                            let args: Vec<&str> = state.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
+                            for (i, arg) in args.iter().enumerate() {
+                                code.push_str(&format!("{}{}_FrameDict_set(__compartment->state_args, \"{}\", (void*)(intptr_t)({}));\n", indent_str, ctx.system_name, i, arg));
+                            }
+                        }
+
+                        // Set enter_args if present (split by comma for positional args)
+                        if let Some(ref enter) = enter_str {
+                            let args: Vec<&str> = enter.split(',').map(|x| x.trim()).filter(|x| !x.is_empty()).collect();
+                            for (i, arg) in args.iter().enumerate() {
+                                code.push_str(&format!("{}{}_FrameDict_set(__compartment->enter_args, \"{}\", (void*)(intptr_t)({}));\n", indent_str, ctx.system_name, i, arg));
+                            }
+                        }
+
+                        // Call transition
+                        code.push_str(&format!("{}{}_transition(self, __compartment);", indent_str, ctx.system_name));
+                        code
+                    }
                     _ => {
                         // Default: same as TypeScript
                         let mut code = String::new();
@@ -2792,6 +3625,16 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     code.push_str(&format!("{}return;", indent_str));
                     code
                 }
+                TargetLanguage::C => {
+                    // C: Create compartment with forward event and call transition
+                    let mut code = String::new();
+                    code.push_str(&format!("{}{}_Compartment* __compartment = {}_Compartment_new(\"{}\");\n", indent_str, ctx.system_name, ctx.system_name, target));
+                    code.push_str(&format!("{}__compartment->parent_compartment = {}_Compartment_copy(self->__compartment);\n", indent_str, ctx.system_name));
+                    code.push_str(&format!("{}__compartment->forward_event = __e;\n", indent_str));
+                    code.push_str(&format!("{}{}_transition(self, __compartment);\n", indent_str, ctx.system_name));
+                    code.push_str(&format!("{}return;", indent_str));
+                    code
+                }
                 _ => {
                     // Default: same as TypeScript
                     let mut code = String::new();
@@ -2812,6 +3655,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     TargetLanguage::TypeScript => format!("{}this._state_{}(__e);", indent_str, parent),
                     // Rust: call parent state router (not specific handler) to dispatch via match
                     TargetLanguage::Rust => format!("{}self._state_{}(__e);", indent_str, parent),
+                    // C: call System_state_Parent(self, __e) since C has no methods
+                    TargetLanguage::C => format!("{}{}_state_{}(self, __e);", indent_str, ctx.system_name, parent),
                     _ => format!("{}this._state_{}(__e);", indent_str, parent),
                 }
             } else {
@@ -2833,6 +3678,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         TargetLanguage::Python3 => format!("\n{}self._transition(\"{}\", None, None)", indent_str, target),
                         TargetLanguage::TypeScript => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
                         TargetLanguage::Rust => format!("\n{}self.__transition({}Compartment::new(\"{}\"))", indent_str, ctx.system_name, target),
+                        TargetLanguage::C => format!("\n{}{}_transition(self, {}_Compartment_new(\"{}\"));", indent_str, ctx.system_name, ctx.system_name, target),
                         _ => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
                     }
                 } else {
@@ -2850,27 +3696,33 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Rust => {
                     format!("{}self._state_stack_push();", indent_str)
                 }
+                TargetLanguage::C => {
+                    format!("{}{}_FrameVec_push(self->_state_stack, {}_Compartment_copy(self->__compartment));", indent_str, ctx.system_name, ctx.system_name)
+                }
                 _ => format!("{}this._state_stack.push(this.__compartment.copy());", indent_str),
             };
 
             format!("{}{}", push_code, transition_code)
         }
         FrameSegmentKind::StackPop => {
-            // Restore compartment from stack - preserves state vars
-            // Call _exit() on current state, then restore compartment (no _enter since we're restoring)
-            // Phase 14.6: No _state field for Python/TypeScript - state lives in compartment.state
+            // Restore compartment from stack - use transition to call enter handler
             match lang {
                 TargetLanguage::Python3 => format!(
-                    "{}self.__compartment = self._state_stack.pop()\n{}return",
+                    "{}self.__transition(self._state_stack.pop())\n{}return",
                     indent_str, indent_str
                 ),
                 TargetLanguage::TypeScript => format!(
-                    "{}this.__compartment = this._state_stack.pop()!;\n{}return;",
+                    "{}this.__transition(this._state_stack.pop()!);\n{}return;",
                     indent_str, indent_str
                 ),
                 // Rust: Use compartment-based state stack pop
                 TargetLanguage::Rust => {
                     format!("{}self._state_stack_pop();\n{}return;", indent_str, indent_str)
+                }
+                TargetLanguage::C => {
+                    // Use transition to the popped compartment - this will call enter handler
+                    format!("{}{}_transition(self, ({}_Compartment*){}_FrameVec_pop(self->_state_stack));\n{}return;",
+                        indent_str, ctx.system_name, ctx.system_name, ctx.system_name, indent_str)
                 }
                 _ => format!(
                     "{}this.__compartment = this._state_stack.pop()!;\n{}return;",
@@ -2889,7 +3741,45 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     // For Rust, access via _sv_ fields on struct
                     format!("self._sv_{}", var_name)
                 },
+                TargetLanguage::C => {
+                    // For C, access via FrameDict_get with cast
+                    // Note: This is for reads; writes are handled by detecting assignment context
+                    format!("(int)(intptr_t){}_FrameDict_get(self->__compartment->state_vars, \"{}\")", ctx.system_name, var_name)
+                },
                 _ => format!("this.__compartment.state_vars[\"{}\"]", var_name),
+            }
+        }
+        FrameSegmentKind::StateVarAssign => {
+            // State variable assignment: $.varName = expr
+            // For C, this needs to become FrameDict_set(...)
+            // Parse: $.varName = expr;
+            let text = segment_text.trim();
+            // Extract variable name: skip "$." and collect identifier
+            let var_name = if text.starts_with("$.") {
+                let rest = &text[2..];
+                let end = rest.find(|c: char| !c.is_alphanumeric() && c != '_').unwrap_or(rest.len());
+                &rest[..end]
+            } else {
+                ""
+            };
+            // Extract expression: everything after '='
+            let expr = if let Some(eq_pos) = text.find('=') {
+                let after_eq = &text[eq_pos + 1..];
+                // Trim trailing semicolon if present
+                after_eq.trim().trim_end_matches(';').trim()
+            } else {
+                ""
+            };
+            // Expand state vars in the expression
+            let expanded_expr = expand_state_vars_in_expr(expr, lang, &ctx.system_name);
+
+            match lang {
+                TargetLanguage::Python3 => format!("{}self.__compartment.state_vars[\"{}\"] = {}", indent_str, var_name, expanded_expr),
+                TargetLanguage::TypeScript => format!("{}this.__compartment.state_vars[\"{}\"] = {};", indent_str, var_name, expanded_expr),
+                TargetLanguage::Rust => format!("{}self._sv_{} = {};", indent_str, var_name, expanded_expr),
+                TargetLanguage::C => format!("{}{}_FrameDict_set(self->__compartment->state_vars, \"{}\", (void*)(intptr_t)({}));",
+                    indent_str, ctx.system_name, var_name, expanded_expr),
+                _ => format!("{}this.__compartment.state_vars[\"{}\"] = {};", indent_str, var_name, expanded_expr),
             }
         }
         FrameSegmentKind::SystemReturn => {
@@ -2903,7 +3793,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             let is_return_sugar = trimmed.starts_with("return ");
             let expr = extract_system_return_expr(&segment_text);
             // Expand any state variable references in the expression
-            let expanded_expr = expand_state_vars_in_expr(&expr, lang);
+            let expanded_expr = expand_state_vars_in_expr(&expr, lang, &ctx.system_name);
 
             match lang {
                 TargetLanguage::Python3 => {
@@ -2937,6 +3827,22 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
                     }
                 }
+                TargetLanguage::C => {
+                    // C: Use CTX macro or direct context stack access
+                    if expanded_expr.is_empty() {
+                        if is_return_sugar {
+                            format!("{}return;", indent_str)
+                        } else {
+                            "".to_string()
+                        }
+                    } else if is_return_sugar {
+                        // Set context return via macro, then return
+                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});\n{}return;", indent_str, ctx.system_name, expanded_expr, indent_str)
+                    } else {
+                        // system.return = expr: just set context return (chain semantics)
+                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});", indent_str, ctx.system_name, expanded_expr)
+                    }
+                }
                 TargetLanguage::Rust => {
                     // Rust still uses native return for now (no context stack pattern yet)
                     if expanded_expr.is_empty() {
@@ -2965,6 +3871,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             match lang {
                 TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
                 TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                TargetLanguage::C => format!("{}_CTX(self)->_return", ctx.system_name),
                 TargetLanguage::Rust => "self._return_value".to_string(), // Rust still uses native return
                 _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
             }
@@ -2976,6 +3883,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             match lang {
                 TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
+                TargetLanguage::C => format!("(int)(intptr_t){}_PARAM(self, \"{}\")", ctx.system_name, param_name),
                 TargetLanguage::Rust => format!("/* @@.{} - context params not implemented for Rust */", param_name),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
             }
@@ -2989,10 +3897,11 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 if eq_pos + 1 < trimmed.len() && trimmed.as_bytes().get(eq_pos + 1) != Some(&b'=') {
                     // Assignment: @@:return = expr
                     let expr = trimmed[eq_pos + 1..].trim();
-                    let expanded_expr = expand_state_vars_in_expr(expr, lang);
+                    let expanded_expr = expand_state_vars_in_expr(expr, lang, &ctx.system_name);
                     match lang {
                         TargetLanguage::Python3 => format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr),
                         TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
+                        TargetLanguage::C => format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});", indent_str, ctx.system_name, expanded_expr),
                         TargetLanguage::Rust => format!("{}return {};", indent_str, expanded_expr),
                         _ => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
                     }
@@ -3001,6 +3910,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     match lang {
                         TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
                         TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
+                        TargetLanguage::C => format!("{}_RETURN(self)", ctx.system_name),
                         TargetLanguage::Rust => "self._return_value".to_string(),
                         _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
                     }
@@ -3020,6 +3930,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             match lang {
                 TargetLanguage::Python3 => "self._context_stack[-1].event._message".to_string(),
                 TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1].event._message".to_string(),
+                TargetLanguage::C => format!("{}_CTX(self)->event->_message", ctx.system_name),
                 TargetLanguage::Rust => "__e.message.clone()".to_string(),
                 _ => "this._context_stack[this._context_stack.length - 1].event._message".to_string(),
             }
@@ -3031,6 +3942,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             match lang {
                 TargetLanguage::Python3 => format!("self._context_stack[-1]._data[\"{}\"]", key),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
+                TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, key),
                 TargetLanguage::Rust => format!("/* @@:data[\"{}\"] - context data not implemented for Rust */", key),
                 _ => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
             }
@@ -3042,6 +3954,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             match lang {
                 TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", key),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
+                TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, key),
                 TargetLanguage::Rust => format!("/* @@:params[\"{}\"] - context params not implemented for Rust */", key),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
             }
@@ -3217,7 +4130,7 @@ fn extract_system_return_expr(text: &str) -> String {
 
 /// Expand state variable references ($.varName) and context syntax (@@) in an expression string
 /// Uses compartment.state_vars for Python/TypeScript
-fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
+fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str) -> String {
     let mut result = String::new();
     let bytes = expr.as_bytes();
     let mut i = 0;
@@ -3235,6 +4148,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                 TargetLanguage::Python3 => result.push_str(&format!("self.__compartment.state_vars[\"{}\"]", var_name)),
                 TargetLanguage::TypeScript => result.push_str(&format!("this.__compartment.state_vars[\"{}\"]", var_name)),
                 TargetLanguage::Rust => result.push_str(&format!("self._sv_{}", var_name)),
+                TargetLanguage::C => result.push_str(&format!("(int)(intptr_t){}_FrameDict_get(self->__compartment->state_vars, \"{}\")", system_name, var_name)),
                 _ => result.push_str(&format!("this.__compartment.state_vars[\"{}\"]", var_name)),
             }
         } else if i + 1 < bytes.len() && bytes[i] == b'@' && bytes[i + 1] == b'@' {
@@ -3251,6 +4165,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                 match lang {
                     TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
+                    TargetLanguage::C => result.push_str(&format!("(int)(intptr_t){}_PARAM(self, \"{}\")", system_name, param_name)),
                     TargetLanguage::Rust => result.push_str(&format!("/* @@.{} */", param_name)),
                     _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                 }
@@ -3263,6 +4178,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                     match lang {
                         TargetLanguage::Python3 => result.push_str("self._context_stack[-1]._return"),
                         TargetLanguage::TypeScript => result.push_str("this._context_stack[this._context_stack.length - 1]._return"),
+                        TargetLanguage::C => result.push_str(&format!("{}_RETURN(self)", system_name)),
                         TargetLanguage::Rust => result.push_str("/* @@:return */"),
                         _ => result.push_str("this._context_stack[this._context_stack.length - 1]._return"),
                     }
@@ -3272,6 +4188,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                     match lang {
                         TargetLanguage::Python3 => result.push_str("self._context_stack[-1].event._message"),
                         TargetLanguage::TypeScript => result.push_str("this._context_stack[this._context_stack.length - 1].event._message"),
+                        TargetLanguage::C => result.push_str(&format!("{}_CTX(self)->event->_message", system_name)),
                         TargetLanguage::Rust => result.push_str("/* @@:event */"),
                         _ => result.push_str("this._context_stack[this._context_stack.length - 1].event._message"),
                     }
@@ -3291,6 +4208,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                         match lang {
                             TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1]._data[\"{}\"]", key)),
                             TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
+                            TargetLanguage::C => result.push_str(&format!("{}_DATA(self, \"{}\")", system_name, key)),
                             TargetLanguage::Rust => result.push_str(&format!("/* @@:data[{}] */", key)),
                             _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
                         }
@@ -3311,6 +4229,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage) -> String {
                         match lang {
                             TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", key)),
                             TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key)),
+                            TargetLanguage::C => result.push_str(&format!("{}_PARAM(self, \"{}\")", system_name, key)),
                             TargetLanguage::Rust => result.push_str(&format!("/* @@:params[{}] */", key)),
                             _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key)),
                         }
