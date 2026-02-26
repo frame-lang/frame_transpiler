@@ -578,7 +578,9 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     let mut code = String::new();
 
     // Generate FrameEvent struct (lean routing object - message + parameters only)
-    code.push_str(&format!("#[derive(Clone, Debug)]\nstruct {}FrameEvent {{\n", system_name));
+    // Note: Clone not derived since Box<dyn Any> doesn't implement Clone
+    // For forward_event in Compartment, we store a simple FrameEvent without parameters
+    code.push_str(&format!("#[derive(Clone)]\nstruct {}FrameEvent {{\n", system_name));
     code.push_str("    message: String,\n");
     code.push_str("    parameters: std::collections::HashMap<String, String>,\n");
     code.push_str("}\n\n");
@@ -590,9 +592,6 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     code.push_str("            message: message.to_string(),\n");
     code.push_str("            parameters: std::collections::HashMap::new(),\n");
     code.push_str("        }\n");
-    code.push_str("    }\n");
-    code.push_str("    fn with_parameters(message: &str, parameters: std::collections::HashMap<String, String>) -> Self {\n");
-    code.push_str("        Self { message: message.to_string(), parameters }\n");
     code.push_str("    }\n");
     code.push_str("}\n\n");
 
@@ -2144,22 +2143,90 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
         // Language-specific dispatch - all languages now use kernel pattern
         let body_stmt = match lang {
             TargetLanguage::Rust => {
-                // Rust: Create FrameEvent, call __kernel
-                // For return values or methods with parameters, use direct dispatch
-                // (kernel pattern doesn't support passing parameters)
-                if method.return_type.is_some() || !method.params.is_empty() {
-                    // Handlers with return types or parameters need direct dispatch
-                    let has_return = method.return_type.is_some();
-                    generate_rust_interface_dispatch(system, &method.name, &args, has_return)
+                // Rust: Dispatch directly to handler with params and return its value
+                // Context stack used for reentrancy (@@.param access) but return via direct handler return
+                // This maintains Rust's idiomatic implicit return for simple handlers
+                // NOTE: Must process transitions after handler call (bypassed kernel)
+
+                // Build args string for direct handler call
+                let args_str = if method.params.is_empty() {
+                    String::new()
                 } else {
-                    CodegenNode::NativeBlock {
-                        code: format!(
-                            r#"let __e = {}::new("{}");
-self.__kernel(__e)"#,
-                            event_class, method.name
-                        ),
-                        span: None,
+                    let arg_names: Vec<String> = method.params.iter()
+                        .map(|p| p.name.clone())
+                        .collect();
+                    format!(", {}", arg_names.join(", "))
+                };
+
+                // Build match arms for states that handle this event
+                let mut match_code = format!("let __e = {}::new(\"{}\");\n", event_class, method.name);
+
+                if method.return_type.is_some() {
+                    // For methods with return values, save result then process transitions
+                    match_code.push_str("let __result = match self.__compartment.state.as_str() {");
+
+                    if let Some(ref machine) = system.machine {
+                        for state in &machine.states {
+                            if state.handlers.iter().any(|h| h.event == method.name) {
+                                let handler_name = format!("_s_{}_{}", state.name, method.name);
+                                match_code.push_str(&format!(
+                                    "\n            \"{}\" => self.{}(&__e{}),",
+                                    state.name, handler_name, args_str
+                                ));
+                            }
+                        }
                     }
+                    match_code.push_str("\n            _ => Default::default(),");
+                    match_code.push_str("\n        };\n");
+                } else {
+                    // For void methods, dispatch directly
+                    match_code.push_str("match self.__compartment.state.as_str() {");
+
+                    if let Some(ref machine) = system.machine {
+                        for state in &machine.states {
+                            if state.handlers.iter().any(|h| h.event == method.name) {
+                                let handler_name = format!("_s_{}_{}", state.name, method.name);
+                                match_code.push_str(&format!(
+                                    "\n            \"{}\" => {{ self.{}(&__e{}); }}",
+                                    state.name, handler_name, args_str
+                                ));
+                            }
+                        }
+                    }
+                    match_code.push_str("\n            _ => {}");
+                    match_code.push_str("\n        }\n");
+                }
+
+                // Process any pending transitions (bypassed kernel)
+                match_code.push_str(&format!(
+                    r#"// Process any pending transitions (bypassed kernel)
+while self.__next_compartment.is_some() {{
+    let next_compartment = self.__next_compartment.take().unwrap();
+    let exit_event = {}::new("<$");
+    self.__router(&exit_event);
+    self.__compartment = next_compartment;
+    if self.__compartment.forward_event.is_none() {{
+        let enter_event = {}::new("$>");
+        self.__router(&enter_event);
+    }} else {{
+        let forward_event = self.__compartment.forward_event.take().unwrap();
+        if forward_event.message == "$>" {{
+            self.__router(&forward_event);
+        }} else {{
+            let enter_event = {}::new("$>");
+            self.__router(&enter_event);
+            self.__router(&forward_event);
+        }}
+    }}
+}}"#, event_class, event_class, event_class));
+
+                if method.return_type.is_some() {
+                    match_code.push_str("\n__result");
+                }
+
+                CodegenNode::NativeBlock {
+                    code: match_code,
+                    span: None,
                 }
             }
             TargetLanguage::Python3 => {
@@ -3130,9 +3197,11 @@ fn generate_handler_from_arcanum(
         body_code
     };
 
-    // For TypeScript/typed languages, don't put return types on handler methods
-    // The interface wrappers handle returns via _return_value pattern
+    // For TypeScript, don't put return types on handler methods
+    // The interface wrappers handle returns via context stack pattern
     // This avoids TypeScript errors for handlers that don't explicitly return
+    // For Rust: Keep return types since implicit returns (last expression) are idiomatic
+    // If handlers use @@:return explicitly, they still work via the context stack
     let method_return_type = match lang {
         TargetLanguage::TypeScript => None,
         _ => handler.return_type.clone(),
@@ -3844,8 +3913,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Rust: handlers have return types, use direct return
-                    // Note: Context stack architecture not yet implemented for Rust
+                    // Rust: use direct return for idiomatic Rust (handlers have return types)
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
                     } else {
@@ -3873,7 +3941,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
                 TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
                 TargetLanguage::C => format!("{}_CTX(self)->_return", ctx.system_name),
-                TargetLanguage::Rust => "self._return_value".to_string(), // Rust still uses native return
+                TargetLanguage::Rust => "self._context_stack.last().and_then(|ctx| ctx._return.as_ref()).cloned()".to_string(),
                 _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
             }
         }
@@ -3885,7 +3953,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::C => format!("(int)(intptr_t){}_PARAM(self, \"{}\")", ctx.system_name, param_name),
-                TargetLanguage::Rust => format!("/* @@.{} - context params not implemented for Rust */", param_name),
+                // Rust: handlers receive parameters directly, so @@.param just refers to the local param
+                TargetLanguage::Rust => param_name.to_string(),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
             }
         }
@@ -3903,7 +3972,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         TargetLanguage::Python3 => format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr),
                         TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
                         TargetLanguage::C => format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});", indent_str, ctx.system_name, expanded_expr),
-                        TargetLanguage::Rust => format!("{}return {};", indent_str, expanded_expr),
+                        TargetLanguage::Rust => format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(Box::new({})); }}", indent_str, expanded_expr),
                         _ => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
                     }
                 } else {
@@ -3912,7 +3981,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
                         TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
                         TargetLanguage::C => format!("{}_RETURN(self)", ctx.system_name),
-                        TargetLanguage::Rust => "self._return_value".to_string(),
+                        TargetLanguage::Rust => "self._context_stack.last().and_then(|ctx| ctx._return.as_ref()).cloned()".to_string(),
                         _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
                     }
                 }
@@ -3932,6 +4001,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => "self._context_stack[-1].event._message".to_string(),
                 TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1].event._message".to_string(),
                 TargetLanguage::C => format!("{}_CTX(self)->event->_message", ctx.system_name),
+                // Rust: handlers receive __e as parameter, use it directly to avoid borrow conflicts
                 TargetLanguage::Rust => "__e.message.clone()".to_string(),
                 _ => "this._context_stack[this._context_stack.length - 1].event._message".to_string(),
             }
@@ -3944,7 +4014,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => format!("self._context_stack[-1]._data[\"{}\"]", key),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
                 TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, key),
-                TargetLanguage::Rust => format!("/* @@:data[\"{}\"] - context data not implemented for Rust */", key),
+                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).cloned()", key),
                 _ => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
             }
         }
@@ -3956,7 +4026,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", key),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
                 TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, key),
-                TargetLanguage::Rust => format!("/* @@:params[\"{}\"] - context params not implemented for Rust */", key),
+                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx.event.parameters.get(\"{}\")).cloned()", key),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
             }
         }
@@ -4167,7 +4237,8 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                     TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::C => result.push_str(&format!("(int)(intptr_t){}_PARAM(self, \"{}\")", system_name, param_name)),
-                    TargetLanguage::Rust => result.push_str(&format!("/* @@.{} */", param_name)),
+                    // Rust: handlers receive parameters directly, so @@.param just refers to the local param
+                    TargetLanguage::Rust => result.push_str(&param_name),
                     _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                 }
             } else if i < bytes.len() && bytes[i] == b':' {
@@ -4180,7 +4251,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                         TargetLanguage::Python3 => result.push_str("self._context_stack[-1]._return"),
                         TargetLanguage::TypeScript => result.push_str("this._context_stack[this._context_stack.length - 1]._return"),
                         TargetLanguage::C => result.push_str(&format!("{}_RETURN(self)", system_name)),
-                        TargetLanguage::Rust => result.push_str("/* @@:return */"),
+                        TargetLanguage::Rust => result.push_str("self._context_stack.last().and_then(|ctx| ctx._return.as_ref()).cloned()"),
                         _ => result.push_str("this._context_stack[this._context_stack.length - 1]._return"),
                     }
                 } else if i + 4 < bytes.len() && &bytes[i..i + 5] == b"event" {
@@ -4190,7 +4261,8 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                         TargetLanguage::Python3 => result.push_str("self._context_stack[-1].event._message"),
                         TargetLanguage::TypeScript => result.push_str("this._context_stack[this._context_stack.length - 1].event._message"),
                         TargetLanguage::C => result.push_str(&format!("{}_CTX(self)->event->_message", system_name)),
-                        TargetLanguage::Rust => result.push_str("/* @@:event */"),
+                        // Rust: handlers receive __e as parameter, use it directly to avoid borrow conflicts
+                        TargetLanguage::Rust => result.push_str("__e.message.clone()"),
                         _ => result.push_str("this._context_stack[this._context_stack.length - 1].event._message"),
                     }
                 } else if i + 3 < bytes.len() && &bytes[i..i + 4] == b"data" {
@@ -4210,7 +4282,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                             TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1]._data[\"{}\"]", key)),
                             TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
                             TargetLanguage::C => result.push_str(&format!("{}_DATA(self, \"{}\")", system_name, key)),
-                            TargetLanguage::Rust => result.push_str(&format!("/* @@:data[{}] */", key)),
+                            TargetLanguage::Rust => result.push_str(&format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).cloned()", key)),
                             _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
                         }
                     }
@@ -4231,7 +4303,8 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                             TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", key)),
                             TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key)),
                             TargetLanguage::C => result.push_str(&format!("{}_PARAM(self, \"{}\")", system_name, key)),
-                            TargetLanguage::Rust => result.push_str(&format!("/* @@:params[{}] */", key)),
+                            // Rust: for params access, just use the handler's direct parameter
+                            TargetLanguage::Rust => result.push_str(&key),
                             _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key)),
                         }
                     }
