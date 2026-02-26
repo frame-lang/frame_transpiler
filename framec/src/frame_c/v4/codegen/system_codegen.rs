@@ -2166,13 +2166,52 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                     match_code.push_str("let __result = match self.__compartment.state.as_str() {");
 
                     if let Some(ref machine) = system.machine {
+                        // First pass: collect states that handle this event directly
+                        let states_with_handler: std::collections::HashSet<&str> = machine.states.iter()
+                            .filter(|s| s.handlers.iter().any(|h| h.event == method.name))
+                            .map(|s| s.name.as_str())
+                            .collect();
+
                         for state in &machine.states {
-                            if state.handlers.iter().any(|h| h.event == method.name) {
+                            // Find the handler for this event in this state
+                            if let Some(handler) = state.handlers.iter().find(|h| h.event == method.name) {
                                 let handler_name = format!("_s_{}_{}", state.name, method.name);
+                                // Build args string based on what THIS handler expects (not interface params)
+                                let handler_args_str = if handler.params.is_empty() {
+                                    String::new()
+                                } else {
+                                    let arg_names: Vec<String> = handler.params.iter()
+                                        .map(|p| p.name.clone())
+                                        .collect();
+                                    format!(", {}", arg_names.join(", "))
+                                };
                                 match_code.push_str(&format!(
                                     "\n            \"{}\" => self.{}(&__e{}),",
-                                    state.name, handler_name, args_str
+                                    state.name, handler_name, handler_args_str
                                 ));
+                            } else if state.default_forward {
+                                // State has default_forward but no handler - forward to parent
+                                if let Some(ref parent) = state.parent {
+                                    if states_with_handler.contains(parent.as_str()) {
+                                        let parent_state = machine.states.iter().find(|s| s.name == *parent);
+                                        let parent_handler = parent_state.and_then(|ps| ps.handlers.iter().find(|h| h.event == method.name));
+                                        let parent_handler_name = format!("_s_{}_{}", parent, method.name);
+                                        let parent_args_str = if let Some(h) = parent_handler {
+                                            if h.params.is_empty() {
+                                                String::new()
+                                            } else {
+                                                let arg_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
+                                                format!(", {}", arg_names.join(", "))
+                                            }
+                                        } else {
+                                            String::new()
+                                        };
+                                        match_code.push_str(&format!(
+                                            "\n            \"{}\" => self.{}(&__e{}),",
+                                            state.name, parent_handler_name, parent_args_str
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
@@ -2183,13 +2222,52 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                     match_code.push_str("match self.__compartment.state.as_str() {");
 
                     if let Some(ref machine) = system.machine {
+                        // First pass: collect states that handle this event directly
+                        let states_with_handler: std::collections::HashSet<&str> = machine.states.iter()
+                            .filter(|s| s.handlers.iter().any(|h| h.event == method.name))
+                            .map(|s| s.name.as_str())
+                            .collect();
+
                         for state in &machine.states {
-                            if state.handlers.iter().any(|h| h.event == method.name) {
+                            // Find the handler for this event in this state
+                            if let Some(handler) = state.handlers.iter().find(|h| h.event == method.name) {
                                 let handler_name = format!("_s_{}_{}", state.name, method.name);
+                                // Build args string based on what THIS handler expects (not interface params)
+                                let handler_args_str = if handler.params.is_empty() {
+                                    String::new()
+                                } else {
+                                    let arg_names: Vec<String> = handler.params.iter()
+                                        .map(|p| p.name.clone())
+                                        .collect();
+                                    format!(", {}", arg_names.join(", "))
+                                };
                                 match_code.push_str(&format!(
                                     "\n            \"{}\" => {{ self.{}(&__e{}); }}",
-                                    state.name, handler_name, args_str
+                                    state.name, handler_name, handler_args_str
                                 ));
+                            } else if state.default_forward {
+                                // State has default_forward but no handler - forward to parent
+                                if let Some(ref parent) = state.parent {
+                                    if states_with_handler.contains(parent.as_str()) {
+                                        let parent_state = machine.states.iter().find(|s| s.name == *parent);
+                                        let parent_handler = parent_state.and_then(|ps| ps.handlers.iter().find(|h| h.event == method.name));
+                                        let parent_handler_name = format!("_s_{}_{}", parent, method.name);
+                                        let parent_args_str = if let Some(h) = parent_handler {
+                                            if h.params.is_empty() {
+                                                String::new()
+                                            } else {
+                                                let arg_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
+                                                format!(", {}", arg_names.join(", "))
+                                            }
+                                        } else {
+                                            String::new()
+                                        };
+                                        match_code.push_str(&format!(
+                                            "\n            \"{}\" => {{ self.{}(&__e{}); }}",
+                                            state.name, parent_handler_name, parent_args_str
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
