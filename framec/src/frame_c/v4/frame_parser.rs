@@ -1595,21 +1595,15 @@ impl FrameParser {
                 break;
             }
 
-            // Check for var keyword or direct identifier
-            let is_frame_var = if self.peek_keyword("var") {
-                self.cursor += 3;
-                self.skip_whitespace();
-                true
-            } else if self.peek_identifier() {
-                // Could be a native declaration or Frame var without 'var' keyword
-                true
-            } else {
+            // V4: Domain is native code - capture entire line verbatim
+            // Don't skip 'var' keyword - let it fail in the target language if used
+            if !self.peek_identifier() && !self.peek_keyword("var") {
                 // Skip unknown content to next line
                 self.skip_to_next_line();
                 continue;
-            };
+            }
 
-            if let Ok(var) = self.parse_domain_var(is_frame_var) {
+            if let Ok(var) = self.parse_domain_var(false) {
                 vars.push(var);
             } else {
                 // Skip to next line if parsing fails
