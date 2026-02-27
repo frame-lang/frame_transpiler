@@ -578,11 +578,21 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     let mut code = String::new();
 
     // Generate FrameEvent struct (lean routing object - message + parameters only)
-    // Note: Clone not derived since Box<dyn Any> doesn't implement Clone
-    // For forward_event in Compartment, we store a simple FrameEvent without parameters
-    code.push_str(&format!("#[derive(Clone)]\nstruct {}FrameEvent {{\n", system_name));
+    // Parameters use Box<dyn Any> for typed storage with downcasting
+    code.push_str(&format!("struct {}FrameEvent {{\n", system_name));
     code.push_str("    message: String,\n");
-    code.push_str("    parameters: std::collections::HashMap<String, String>,\n");
+    code.push_str("    parameters: std::collections::HashMap<String, Box<dyn std::any::Any>>,\n");
+    code.push_str("}\n\n");
+
+    // Generate Clone impl manually since Box<dyn Any> doesn't implement Clone
+    // For forward_event we only need message, parameters are empty for lifecycle events
+    code.push_str(&format!("impl Clone for {}FrameEvent {{\n", system_name));
+    code.push_str("    fn clone(&self) -> Self {\n");
+    code.push_str("        Self {\n");
+    code.push_str("            message: self.message.clone(),\n");
+    code.push_str("            parameters: std::collections::HashMap::new(),\n");
+    code.push_str("        }\n");
+    code.push_str("    }\n");
     code.push_str("}\n\n");
 
     // Generate FrameEvent impl with new()
@@ -2143,163 +2153,124 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
         // Language-specific dispatch - all languages now use kernel pattern
         let body_stmt = match lang {
             TargetLanguage::Rust => {
-                // Rust: Dispatch directly to handler with params and return its value
-                // Context stack used for reentrancy (@@.param access) but return via direct handler return
-                // This maintains Rust's idiomatic implicit return for simple handlers
-                // NOTE: Must process transitions after handler call (bypassed kernel)
+                // Rust: Use context stack pattern per V4 spec
+                // 1. Create FrameEvent with parameters
+                // 2. Create FrameContext with event and default return
+                // 3. Push context to _context_stack
+                // 4. Call __kernel
+                // 5. Pop context and return _return (with downcast)
+                let context_class = format!("{}FrameContext", system.name);
 
-                // Build args string for direct handler call
-                let args_str = if method.params.is_empty() {
+                // Build parameters HashMap insertion code
+                let params_code = if method.params.is_empty() {
                     String::new()
                 } else {
-                    let arg_names: Vec<String> = method.params.iter()
-                        .map(|p| p.name.clone())
-                        .collect();
-                    format!(", {}", arg_names.join(", "))
+                    method.params.iter()
+                        .map(|p| format!("__e.parameters.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>);", p.name, p.name))
+                        .collect::<Vec<_>>()
+                        .join("\n")
                 };
 
-                // Build match arms for states that handle this event
-                let mut match_code = format!("let __e = {}::new(\"{}\");\n", event_class, method.name);
-
-                if method.return_type.is_some() {
-                    // For methods with return values, save result then process transitions
-                    match_code.push_str("let __result = match self.__compartment.state.as_str() {");
-
-                    if let Some(ref machine) = system.machine {
-                        // First pass: collect states that handle this event directly
-                        let states_with_handler: std::collections::HashSet<&str> = machine.states.iter()
-                            .filter(|s| s.handlers.iter().any(|h| h.event == method.name))
-                            .map(|s| s.name.as_str())
-                            .collect();
-
-                        for state in &machine.states {
-                            // Find the handler for this event in this state
-                            if let Some(handler) = state.handlers.iter().find(|h| h.event == method.name) {
-                                let handler_name = format!("_s_{}_{}", state.name, method.name);
-                                // Build args string based on what THIS handler expects (not interface params)
-                                let handler_args_str = if handler.params.is_empty() {
-                                    String::new()
-                                } else {
-                                    let arg_names: Vec<String> = handler.params.iter()
-                                        .map(|p| p.name.clone())
-                                        .collect();
-                                    format!(", {}", arg_names.join(", "))
-                                };
-                                match_code.push_str(&format!(
-                                    "\n            \"{}\" => self.{}(&__e{}),",
-                                    state.name, handler_name, handler_args_str
-                                ));
-                            } else if state.default_forward {
-                                // State has default_forward but no handler - forward to parent
-                                if let Some(ref parent) = state.parent {
-                                    if states_with_handler.contains(parent.as_str()) {
-                                        let parent_state = machine.states.iter().find(|s| s.name == *parent);
-                                        let parent_handler = parent_state.and_then(|ps| ps.handlers.iter().find(|h| h.event == method.name));
-                                        let parent_handler_name = format!("_s_{}_{}", parent, method.name);
-                                        let parent_args_str = if let Some(h) = parent_handler {
-                                            if h.params.is_empty() {
-                                                String::new()
-                                            } else {
-                                                let arg_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
-                                                format!(", {}", arg_names.join(", "))
-                                            }
-                                        } else {
-                                            String::new()
-                                        };
-                                        match_code.push_str(&format!(
-                                            "\n            \"{}\" => self.{}(&__e{}),",
-                                            state.name, parent_handler_name, parent_args_str
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    match_code.push_str("\n            _ => Default::default(),");
-                    match_code.push_str("\n        };\n");
-                } else {
-                    // For void methods, dispatch directly
-                    match_code.push_str("match self.__compartment.state.as_str() {");
-
-                    if let Some(ref machine) = system.machine {
-                        // First pass: collect states that handle this event directly
-                        let states_with_handler: std::collections::HashSet<&str> = machine.states.iter()
-                            .filter(|s| s.handlers.iter().any(|h| h.event == method.name))
-                            .map(|s| s.name.as_str())
-                            .collect();
-
-                        for state in &machine.states {
-                            // Find the handler for this event in this state
-                            if let Some(handler) = state.handlers.iter().find(|h| h.event == method.name) {
-                                let handler_name = format!("_s_{}_{}", state.name, method.name);
-                                // Build args string based on what THIS handler expects (not interface params)
-                                let handler_args_str = if handler.params.is_empty() {
-                                    String::new()
-                                } else {
-                                    let arg_names: Vec<String> = handler.params.iter()
-                                        .map(|p| p.name.clone())
-                                        .collect();
-                                    format!(", {}", arg_names.join(", "))
-                                };
-                                match_code.push_str(&format!(
-                                    "\n            \"{}\" => {{ self.{}(&__e{}); }}",
-                                    state.name, handler_name, handler_args_str
-                                ));
-                            } else if state.default_forward {
-                                // State has default_forward but no handler - forward to parent
-                                if let Some(ref parent) = state.parent {
-                                    if states_with_handler.contains(parent.as_str()) {
-                                        let parent_state = machine.states.iter().find(|s| s.name == *parent);
-                                        let parent_handler = parent_state.and_then(|ps| ps.handlers.iter().find(|h| h.event == method.name));
-                                        let parent_handler_name = format!("_s_{}_{}", parent, method.name);
-                                        let parent_args_str = if let Some(h) = parent_handler {
-                                            if h.params.is_empty() {
-                                                String::new()
-                                            } else {
-                                                let arg_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
-                                                format!(", {}", arg_names.join(", "))
-                                            }
-                                        } else {
-                                            String::new()
-                                        };
-                                        match_code.push_str(&format!(
-                                            "\n            \"{}\" => {{ self.{}(&__e{}); }}",
-                                            state.name, parent_handler_name, parent_args_str
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    match_code.push_str("\n            _ => {}");
-                    match_code.push_str("\n        }\n");
+                let mut match_code = format!("let mut __e = {}::new(\"{}\");\n", event_class, method.name);
+                if !params_code.is_empty() {
+                    match_code.push_str(&params_code);
+                    match_code.push('\n');
                 }
 
-                // Process any pending transitions (bypassed kernel)
-                match_code.push_str(&format!(
-                    r#"// Process any pending transitions (bypassed kernel)
-while self.__next_compartment.is_some() {{
-    let next_compartment = self.__next_compartment.take().unwrap();
-    let exit_event = {}::new("<$");
-    self.__router(&exit_event);
-    self.__compartment = next_compartment;
-    if self.__compartment.forward_event.is_none() {{
-        let enter_event = {}::new("$>");
-        self.__router(&enter_event);
-    }} else {{
-        let forward_event = self.__compartment.forward_event.take().unwrap();
-        if forward_event.message == "$>" {{
-            self.__router(&forward_event);
-        }} else {{
-            let enter_event = {}::new("$>");
-            self.__router(&enter_event);
-            self.__router(&forward_event);
-        }}
-    }}
-}}"#, event_class, event_class, event_class));
+                // Create context and push to stack
+                match_code.push_str(&format!("let __ctx = {}::new(__e.clone(), None);\n", context_class));
+                match_code.push_str("self._context_stack.push(__ctx);\n");
 
+                // Direct dispatch to handler based on current state (bypasses kernel)
+                // This is necessary because handlers with parameters can't be called through state dispatch
+                match_code.push_str("match self.__compartment.state.as_str() {\n");
+
+                if let Some(ref machine) = system.machine {
+                    // Collect states that handle this event
+                    let mut states_with_handler: std::collections::HashSet<&str> = std::collections::HashSet::new();
+                    for state in &machine.states {
+                        if state.handlers.iter().any(|h| h.event == method.name) {
+                            states_with_handler.insert(&state.name);
+                        }
+                    }
+
+                    for state in &machine.states {
+                        if let Some(handler) = state.handlers.iter().find(|h| h.event == method.name) {
+                            // This state handles the event directly
+                            let handler_name = format!("_s_{}_{}", state.name, method.name);
+                            let handler_args = if handler.params.is_empty() {
+                                String::new()
+                            } else {
+                                let param_names: Vec<String> = handler.params.iter()
+                                    .map(|p| p.name.clone())
+                                    .collect();
+                                format!(", {}", param_names.join(", "))
+                            };
+                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, handler_name, handler_args));
+                        } else if state.default_forward {
+                            // State has default_forward - call parent's handler if it has one
+                            if let Some(ref parent) = state.parent {
+                                if states_with_handler.contains(parent.as_str()) {
+                                    // Find parent's handler to get its parameter list
+                                    let parent_state = machine.states.iter().find(|s| s.name == *parent);
+                                    if let Some(ps) = parent_state {
+                                        if let Some(parent_handler) = ps.handlers.iter().find(|h| h.event == method.name) {
+                                            let parent_handler_name = format!("_s_{}_{}", parent, method.name);
+                                            let parent_args = if parent_handler.params.is_empty() {
+                                                String::new()
+                                            } else {
+                                                let param_names: Vec<String> = parent_handler.params.iter()
+                                                    .map(|p| p.name.clone())
+                                                    .collect();
+                                                format!(", {}", param_names.join(", "))
+                                            };
+                                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, parent_handler_name, parent_args));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                match_code.push_str("            _ => {}\n        }\n");
+
+                // Process any pending transitions (bypassed kernel, so we handle transitions here)
+                match_code.push_str(r#"while self.__next_compartment.is_some() {
+    let next_compartment = self.__next_compartment.take().unwrap();
+    let exit_event = "#);
+                match_code.push_str(&format!("{}::new(\"<$\");\n", event_class));
+                match_code.push_str(r#"    self.__router(&exit_event);
+    self.__compartment = next_compartment;
+    if self.__compartment.forward_event.is_none() {
+        let enter_event = "#);
+                match_code.push_str(&format!("{}::new(\"$>\");\n", event_class));
+                match_code.push_str(r#"        self.__router(&enter_event);
+    } else {
+        let forward_event = self.__compartment.forward_event.take().unwrap();
+        if forward_event.message == "$>" {
+            self.__router(&forward_event);
+        } else {
+            let enter_event = "#);
+                match_code.push_str(&format!("{}::new(\"$>\");\n", event_class));
+                match_code.push_str(r#"            self.__router(&enter_event);
+            self.__router(&forward_event);
+        }
+    }
+}
+"#);
+
+                // Pop context and return
                 if method.return_type.is_some() {
-                    match_code.push_str("\n__result");
+                    let return_type = type_to_string(method.return_type.as_ref().unwrap());
+                    match_code.push_str(&format!(
+                        r#"let __ctx = self._context_stack.pop().unwrap();
+if let Some(ret) = __ctx._return {{
+    *ret.downcast::<{}>().unwrap()
+}} else {{
+    Default::default()
+}}"#, return_type));
+                } else {
+                    match_code.push_str("self._context_stack.pop();");
                 }
 
                 CodegenNode::NativeBlock {
@@ -3267,21 +3238,13 @@ fn generate_handler_from_arcanum(
     // Splice the handler body: preserve native code, expand Frame segments
     let body_code = splice_handler_body_from_span(&handler.body_span, source, lang, &ctx);
 
-    // For handlers with return types, remove trailing semicolon from the last expression
-    // This is needed for Rust where the last expression is the return value
-    let body_code = if handler.return_type.is_some() && matches!(lang, TargetLanguage::Rust) {
-        strip_trailing_semicolon(&body_code)
-    } else {
-        body_code
-    };
+    // Note: Rust handlers are now void (context stack pattern), no need to strip trailing semicolons
 
-    // For TypeScript, don't put return types on handler methods
+    // For TypeScript and Rust, don't put return types on handler methods
     // The interface wrappers handle returns via context stack pattern
-    // This avoids TypeScript errors for handlers that don't explicitly return
-    // For Rust: Keep return types since implicit returns (last expression) are idiomatic
-    // If handlers use @@:return explicitly, they still work via the context stack
+    // Handlers set @@:return (context._return) and the interface method returns it
     let method_return_type = match lang {
-        TargetLanguage::TypeScript => None,
+        TargetLanguage::TypeScript | TargetLanguage::Rust => None,
         _ => handler.return_type.clone(),
     };
 
@@ -3991,11 +3954,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Rust: use direct return for idiomatic Rust (handlers have return types)
+                    // Rust: use context stack pattern (handlers are void, set context._return)
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
+                    } else if is_return_sugar {
+                        // return expr: set context return, then return
+                        format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(Box::new({})); }}\n{}return;", indent_str, expanded_expr, indent_str)
                     } else {
-                        format!("{}return {};", indent_str, expanded_expr)
+                        // system.return = expr: just set context return (chain semantics)
+                        format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(Box::new({})); }}", indent_str, expanded_expr)
                     }
                 }
                 _ => {
@@ -4024,15 +3991,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKind::ContextParamShorthand => {
-            // @@.param - shorthand for parameter access
+            // @@.param - shorthand for parameter access from context stack
             // Extract param name from "@@.paramName"
             let param_name = segment_text.strip_prefix("@@.").unwrap_or(&segment_text);
             match lang {
                 TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::C => format!("(int)(intptr_t){}_PARAM(self, \"{}\")", ctx.system_name, param_name),
-                // Rust: handlers receive parameters directly, so @@.param just refers to the local param
-                TargetLanguage::Rust => param_name.to_string(),
+                // Rust: access from context stack with downcast (requires type annotation at usage)
+                TargetLanguage::Rust => format!("self._context_stack.last().unwrap().event.parameters.get(\"{}\").unwrap()", param_name),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
             }
         }
@@ -4304,7 +4271,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
             // Found @@ - context syntax
             i += 2; // Skip "@@"
             if i < bytes.len() && bytes[i] == b'.' {
-                // @@.param - shorthand parameter access
+                // @@.param - shorthand parameter access from context stack
                 i += 1; // Skip "."
                 let start = i;
                 while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
@@ -4315,8 +4282,8 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                     TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::C => result.push_str(&format!("(int)(intptr_t){}_PARAM(self, \"{}\")", system_name, param_name)),
-                    // Rust: handlers receive parameters directly, so @@.param just refers to the local param
-                    TargetLanguage::Rust => result.push_str(&param_name),
+                    // Rust: access from context stack with downcast (requires type annotation at usage)
+                    TargetLanguage::Rust => result.push_str(&format!("self._context_stack.last().unwrap().event.parameters.get(\"{}\").unwrap()", param_name)),
                     _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                 }
             } else if i < bytes.len() && bytes[i] == b':' {
