@@ -480,6 +480,7 @@ pub struct DomainVar {
     pub var_type: Type,
     pub initializer: Option<Expression>,
     pub is_frame: bool,  // true if Frame-managed, false if native
+    pub raw_code: Option<String>,  // Native code pass-through (V4: domain is native)
     pub span: Span,
 }
 

@@ -149,21 +149,28 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         .with_visibility(Visibility::Private)
         .with_type(&context_stack_type));
 
-    // Domain variables
+    // Domain variables (V4: native code pass-through)
     for domain_var in &system.domain {
-        let mut field = Field::new(&domain_var.name)
-            .with_visibility(Visibility::Private);
+        if let Some(ref raw_code) = domain_var.raw_code {
+            // V4: Pass through native code verbatim
+            let field = Field::new(&domain_var.name)
+                .with_visibility(Visibility::Private)
+                .with_raw_code(raw_code);
+            fields.push(field);
+        } else {
+            // Legacy: Construct from parsed components
+            let mut field = Field::new(&domain_var.name)
+                .with_visibility(Visibility::Private);
 
-        // Convert Type enum to string representation
-        let type_str = type_to_string(&domain_var.var_type);
-        field = field.with_type(&type_str);
+            let type_str = type_to_string(&domain_var.var_type);
+            field = field.with_type(&type_str);
 
-        if let Some(ref init) = &domain_var.initializer {
-            // Convert initializer expression to CodegenNode
-            field = field.with_initializer(convert_expression(init));
+            if let Some(ref init) = &domain_var.initializer {
+                field = field.with_initializer(convert_expression(init));
+            }
+
+            fields.push(field);
         }
-
-        fields.push(field);
     }
 
     // For Rust: Generate _sv_ fields for state variables (for direct access in handlers)
@@ -1046,7 +1053,26 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
 
     // Initialize domain variables
     for domain_var in &system.domain {
-        if let Some(ref init) = &domain_var.initializer {
+        if let Some(ref raw_code) = domain_var.raw_code {
+            // V4: Native code pass-through
+            // Python: emit as self.<raw_code> in __init__
+            // TypeScript: already in class fields, skip constructor init
+            // C: struct is zeroed by calloc
+            // Rust: need explicit init in struct literal
+            if matches!(syntax.language, TargetLanguage::Python3) {
+                body.push(CodegenNode::NativeBlock {
+                    code: format!("self.{}", raw_code),
+                    span: None,
+                });
+            } else if matches!(syntax.language, TargetLanguage::Rust) {
+                // For Rust, initialize with Default::default()
+                body.push(CodegenNode::assign(
+                    CodegenNode::field(CodegenNode::self_ref(), &domain_var.name),
+                    CodegenNode::Ident("Default::default()".to_string()),
+                ));
+            }
+        } else if let Some(ref init) = &domain_var.initializer {
+            // Legacy: Construct from parsed components
             body.push(CodegenNode::assign(
                 CodegenNode::field(CodegenNode::self_ref(), &domain_var.name),
                 convert_expression(init),

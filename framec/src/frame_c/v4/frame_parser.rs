@@ -1620,52 +1620,84 @@ impl FrameParser {
         Ok(vars)
     }
     
-    /// Parse a single domain variable
-    fn parse_domain_var(&mut self, is_frame: bool) -> Result<DomainVar, ParseError> {
+    /// Parse a single domain variable (V4: captures native code verbatim)
+    fn parse_domain_var(&mut self, _is_frame: bool) -> Result<DomainVar, ParseError> {
         let start = self.cursor;
 
-        let name = self.parse_identifier()?;
-        self.skip_whitespace();
-
-        // Parse type annotation if present
-        let var_type = if self.peek_char(':') {
-            self.cursor += 1;
-            self.skip_whitespace();
-            self.parse_type()?
-        } else {
-            Type::Unknown
-        };
-
-        self.skip_whitespace();
-
-        // Parse initializer if present
-        let initializer = if self.peek_char('=') {
-            self.cursor += 1;
-            self.skip_whitespace();
-            Some(self.parse_expression()?)
-        } else {
-            None
-        };
-        
-        // Skip to end of line or semicolon
+        // Capture the entire line as raw native code
+        let line_start = self.cursor;
         while self.cursor < self.source.len() {
             let ch = self.source[self.cursor];
-            if ch == b'\n' || ch == b';' {
-                if ch == b';' {
-                    self.cursor += 1;
-                }
+            if ch == b'\n' {
                 break;
             }
             self.cursor += 1;
         }
-        
+        let line_end = self.cursor;
+
+        // Extract the raw line (trimmed)
+        let raw_line = String::from_utf8_lossy(&self.source[line_start..line_end])
+            .trim()
+            .to_string();
+
+        // Extract variable name for identification (first identifier in the line)
+        // This handles both "int x = 0" and "x: int = 0" styles
+        let name = self.extract_var_name_from_native(&raw_line);
+
         Ok(DomainVar {
             name,
-            var_type,
-            initializer,
-            is_frame,
+            var_type: Type::Unknown,  // Not parsed for native
+            initializer: None,         // Not parsed for native
+            is_frame: false,           // V4: domain is always native
+            raw_code: Some(raw_line),  // Store native code for pass-through
             span: Span::new(start, self.cursor),
         })
+    }
+
+    /// Extract variable name from native declaration line
+    /// Handles: "int x = 0", "x: int = 0", "let x = 0", "var x = 0", etc.
+    fn extract_var_name_from_native(&self, line: &str) -> String {
+        let line = line.trim();
+
+        // Skip common keywords at start
+        let keywords = ["var", "let", "const", "mut", "static", "int", "float", "double",
+                        "char", "bool", "i32", "i64", "f32", "f64", "String", "str",
+                        "number", "string", "boolean", "void", "auto"];
+
+        let mut rest = line;
+
+        // Skip leading type/keyword tokens until we find the identifier
+        loop {
+            rest = rest.trim_start();
+            let mut found_keyword = false;
+            for kw in &keywords {
+                if rest.starts_with(kw) {
+                    let after = &rest[kw.len()..];
+                    if after.is_empty() || !after.chars().next().unwrap().is_alphanumeric() {
+                        rest = after;
+                        found_keyword = true;
+                        break;
+                    }
+                }
+            }
+            // Handle pointer/reference markers
+            rest = rest.trim_start_matches('*').trim_start_matches('&').trim_start();
+            if !found_keyword {
+                break;
+            }
+        }
+
+        // Now extract the identifier
+        let name: String = rest.chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+
+        if name.is_empty() {
+            // Fallback: just take the whole line as name (will likely cause issues)
+            line.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect()
+        } else {
+            name
+        }
     }
     
     /// Check if current position is a section keyword

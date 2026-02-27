@@ -62,21 +62,26 @@ impl LanguageBackend for TypeScriptBackend {
 
                 // Fields
                 for field in fields {
-                    let vis = match field.visibility {
-                        Visibility::Public => "public ",
-                        Visibility::Private => "private ",
-                        Visibility::Protected => "protected ",
-                    };
-                    let static_kw = if field.is_static { "static " } else { "" };
-                    let type_ann = field.type_annotation.as_ref()
-                        .map(|t| format!(": {}", self.convert_type(t)))
-                        .unwrap_or_default();
-                    let init = field.initializer.as_ref()
-                        .map(|i| format!(" = {}", self.emit(i, ctx)))
-                        .unwrap_or_default();
+                    if let Some(ref raw_code) = field.raw_code {
+                        // V4: Native code pass-through
+                        result.push_str(&format!("{}private {};\n", ctx.get_indent(), raw_code));
+                    } else {
+                        let vis = match field.visibility {
+                            Visibility::Public => "public ",
+                            Visibility::Private => "private ",
+                            Visibility::Protected => "protected ",
+                        };
+                        let static_kw = if field.is_static { "static " } else { "" };
+                        let type_ann = field.type_annotation.as_ref()
+                            .map(|t| format!(": {}", self.convert_type(t)))
+                            .unwrap_or_default();
+                        let init = field.initializer.as_ref()
+                            .map(|i| format!(" = {}", self.emit(i, ctx)))
+                            .unwrap_or_default();
 
-                    result.push_str(&format!("{}{}{}{}{}{};\n",
-                        ctx.get_indent(), vis, static_kw, field.name, type_ann, init));
+                        result.push_str(&format!("{}{}{}{}{}{};\n",
+                            ctx.get_indent(), vis, static_kw, field.name, type_ann, init));
+                    }
                 }
 
                 if !fields.is_empty() && !methods.is_empty() {

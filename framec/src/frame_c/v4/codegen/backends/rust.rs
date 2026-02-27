@@ -48,11 +48,16 @@ impl LanguageBackend for RustBackend {
                 result.push_str(&format!("{}pub struct {} {{\n", ctx.get_indent(), name));
                 ctx.push_indent();
                 for field in fields {
-                    let vis = if matches!(field.visibility, Visibility::Public) { "pub " } else { "" };
-                    let type_ann = field.type_annotation.as_ref()
-                        .map(|t| self.convert_type(t))
-                        .unwrap_or_else(|| "()".to_string());
-                    result.push_str(&format!("{}{}{}: {},\n", ctx.get_indent(), vis, field.name, type_ann));
+                    if let Some(ref raw_code) = field.raw_code {
+                        // V4: Native code pass-through
+                        result.push_str(&format!("{}{},\n", ctx.get_indent(), raw_code));
+                    } else {
+                        let vis = if matches!(field.visibility, Visibility::Public) { "pub " } else { "" };
+                        let type_ann = field.type_annotation.as_ref()
+                            .map(|t| self.convert_type(t))
+                            .unwrap_or_else(|| "()".to_string());
+                        result.push_str(&format!("{}{}{}: {},\n", ctx.get_indent(), vis, field.name, type_ann));
+                    }
                 }
                 ctx.pop_indent();
                 result.push_str(&format!("{}}}\n\n", ctx.get_indent()));

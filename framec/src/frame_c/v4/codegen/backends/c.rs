@@ -78,8 +78,13 @@ impl LanguageBackend for CBackend {
                 result.push_str(&format!("{}struct {} {{\n", ctx.get_indent(), name));
                 ctx.push_indent();
                 for field in fields {
-                    let c_type = self.convert_type_to_c(&field.type_annotation, &system_name);
-                    result.push_str(&format!("{}{} {};\n", ctx.get_indent(), c_type, field.name));
+                    if let Some(ref raw_code) = field.raw_code {
+                        // V4: Native code pass-through
+                        result.push_str(&format!("{}{};\n", ctx.get_indent(), raw_code));
+                    } else {
+                        let c_type = self.convert_type_to_c(&field.type_annotation, &system_name);
+                        result.push_str(&format!("{}{} {};\n", ctx.get_indent(), c_type, field.name));
+                    }
                 }
                 ctx.pop_indent();
                 result.push_str(&format!("{}}};\n\n", ctx.get_indent()));

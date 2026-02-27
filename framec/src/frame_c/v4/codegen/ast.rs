@@ -42,6 +42,7 @@ pub struct Field {
     pub visibility: Visibility,
     pub is_static: bool,
     pub initializer: Option<Box<CodegenNode>>,
+    pub raw_code: Option<String>,  // V4: Native code pass-through
 }
 
 impl Field {
@@ -52,6 +53,7 @@ impl Field {
             visibility: Visibility::Private,
             is_static: false,
             initializer: None,
+            raw_code: None,
         }
     }
 
@@ -67,6 +69,11 @@ impl Field {
 
     pub fn with_initializer(mut self, init: CodegenNode) -> Self {
         self.initializer = Some(Box::new(init));
+        self
+    }
+
+    pub fn with_raw_code(mut self, code: &str) -> Self {
+        self.raw_code = Some(code.to_string());
         self
     }
 }
