@@ -440,13 +440,13 @@ impl FrameParser {
             None
         };
 
-        // Skip optional default return value (= expr)
-        // This is parsed but ignored for now - the default is stored in interface semantics
+        // Parse optional default return value (= expr)
         self.skip_whitespace();
-        if self.peek_char('=') {
+        let return_init = if self.peek_char('=') {
             self.cursor += 1;
             self.skip_whitespace();
-            // Skip until newline or next method/section
+            let expr_start = self.cursor;
+            // Read until newline
             while self.cursor < self.source.len() {
                 let ch = self.source[self.cursor];
                 if ch == b'\n' || ch == b'\r' {
@@ -454,12 +454,17 @@ impl FrameParser {
                 }
                 self.cursor += 1;
             }
-        }
+            let expr = String::from_utf8_lossy(&self.source[expr_start..self.cursor]).trim().to_string();
+            if expr.is_empty() { None } else { Some(expr) }
+        } else {
+            None
+        };
 
         Ok(InterfaceMethod {
             name,
             params,
             return_type,
+            return_init,
             span: Span::new(start, self.cursor),
         })
     }

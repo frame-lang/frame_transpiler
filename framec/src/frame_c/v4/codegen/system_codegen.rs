@@ -2161,6 +2161,7 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                 name: event,
                 params,
                 return_type,
+                return_init: None,
                 span: Span::new(0, 0),
             }
         }).collect()
@@ -2405,6 +2406,14 @@ this._context_stack.pop();"#,
                     .map(|s| s != "void" && s != "None")
                     .unwrap_or(false);
 
+                // Generate default return value for FrameContext_new
+                let default_return = if let Some(ref init_expr) = method.return_init {
+                    // Cast the expression to void* for storage
+                    format!("(void*)(intptr_t)({})", init_expr)
+                } else {
+                    "NULL".to_string()
+                };
+
                 if has_return_value {
                     let return_type_str = return_type_str.unwrap();
                     let cast = match return_type_str.as_str() {
@@ -2414,7 +2423,7 @@ this._context_stack.pop();"#,
                     CodegenNode::NativeBlock {
                         code: format!(
                             r#"{}
-{}_FrameContext* __ctx = {}_FrameContext_new(__e, NULL);
+{}_FrameContext* __ctx = {}_FrameContext_new(__e, {});
 {}_FrameVec_push(self->_context_stack, __ctx);
 {}_kernel(self, __e);
 {}_FrameContext* __result_ctx = ({}_FrameContext*){}_FrameVec_pop(self->_context_stack);
@@ -2422,7 +2431,7 @@ this._context_stack.pop();"#,
 {}_FrameContext_destroy(__result_ctx);
 {}_FrameEvent_destroy(__e);
 return __result;"#,
-                            params_code, sys, sys, sys, sys, sys, sys, sys,
+                            params_code, sys, sys, default_return, sys, sys, sys, sys, sys,
                             return_type_str, return_type_str, cast, sys, sys
                         ),
                         span: None,
@@ -2431,13 +2440,13 @@ return __result;"#,
                     CodegenNode::NativeBlock {
                         code: format!(
                             r#"{}
-{}_FrameContext* __ctx = {}_FrameContext_new(__e, NULL);
+{}_FrameContext* __ctx = {}_FrameContext_new(__e, {});
 {}_FrameVec_push(self->_context_stack, __ctx);
 {}_kernel(self, __e);
 {}_FrameContext* __result_ctx = ({}_FrameContext*){}_FrameVec_pop(self->_context_stack);
 {}_FrameContext_destroy(__result_ctx);
 {}_FrameEvent_destroy(__e);"#,
-                            params_code, sys, sys, sys, sys, sys, sys, sys, sys, sys
+                            params_code, sys, sys, default_return, sys, sys, sys, sys, sys, sys, sys
                         ),
                         span: None,
                     }

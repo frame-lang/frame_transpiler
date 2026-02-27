@@ -137,6 +137,8 @@ pub struct InterfaceMethod {
     pub name: String,
     pub params: Vec<MethodParam>,
     pub return_type: Option<Type>,
+    /// Default return value expression (e.g., `a1(): int = 10` has return_init = "10")
+    pub return_init: Option<String>,
     pub span: Span,
 }
 

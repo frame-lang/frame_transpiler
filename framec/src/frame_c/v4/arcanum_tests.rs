@@ -194,12 +194,14 @@ mod tests {
             name: "start".to_string(),
             params: vec![],
             return_type: None,
+            return_init: None,
             span: FrameSpan::new(10, 20),
         });
         system.interface.push(InterfaceMethod {
             name: "stop".to_string(),
             params: vec![],
             return_type: None,
+            return_init: None,
             span: FrameSpan::new(20, 30),
         });
 
