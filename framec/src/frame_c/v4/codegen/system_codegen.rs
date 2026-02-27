@@ -4025,8 +4025,9 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
                 TargetLanguage::C => format!("(int)(intptr_t){}_PARAM(self, \"{}\")", ctx.system_name, param_name),
-                // Rust: access from context stack with downcast (requires type annotation at usage)
-                TargetLanguage::Rust => format!("self._context_stack.last().unwrap().event.parameters.get(\"{}\").unwrap()", param_name),
+                // Rust: handlers receive parameters directly, so just use the param name
+                // This avoids Box<dyn Any> downcast complexity
+                TargetLanguage::Rust => param_name.to_string(),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name),
             }
         }
@@ -4309,8 +4310,8 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                     TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                     TargetLanguage::C => result.push_str(&format!("(int)(intptr_t){}_PARAM(self, \"{}\")", system_name, param_name)),
-                    // Rust: access from context stack with downcast (requires type annotation at usage)
-                    TargetLanguage::Rust => result.push_str(&format!("self._context_stack.last().unwrap().event.parameters.get(\"{}\").unwrap()", param_name)),
+                    // Rust: handlers receive parameters directly, so just use the param name
+                    TargetLanguage::Rust => result.push_str(&param_name),
                     _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", param_name)),
                 }
             } else if i < bytes.len() && bytes[i] == b':' {
