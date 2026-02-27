@@ -2165,8 +2165,9 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                 let params_code = if method.params.is_empty() {
                     String::new()
                 } else {
+                    // Clone parameters before boxing since we also pass them directly to handlers
                     method.params.iter()
-                        .map(|p| format!("__e.parameters.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>);", p.name, p.name))
+                        .map(|p| format!("__e.parameters.insert(\"{}\".to_string(), Box::new({}.clone()) as Box<dyn std::any::Any>);", p.name, p.name))
                         .collect::<Vec<_>>()
                         .join("\n")
                 };
