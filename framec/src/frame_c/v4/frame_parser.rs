@@ -1804,6 +1804,7 @@ impl FrameParser {
                         || *kind == FrameSegmentKind::ContextReturn
                         || *kind == FrameSegmentKind::ContextEvent
                         || *kind == FrameSegmentKind::ContextData
+                        || *kind == FrameSegmentKind::ContextDataAssign
                         || *kind == FrameSegmentKind::ContextParams
                     {
                         continue;
@@ -1895,6 +1896,7 @@ impl FrameParser {
             FrameSegmentKind::ContextReturn |
             FrameSegmentKind::ContextEvent |
             FrameSegmentKind::ContextData |
+            FrameSegmentKind::ContextDataAssign |
             FrameSegmentKind::ContextParams => {
                 Err(ParseError::Expected("Context syntax handled by splicer".to_string()))
             }

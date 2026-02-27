@@ -3982,14 +3982,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 }
                 TargetLanguage::Rust => {
                     // Rust: use context stack pattern (handlers are void, set context._return)
+                    // Evaluate expression first to avoid borrow conflicts
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
                     } else if is_return_sugar {
                         // return expr: set context return, then return
-                        format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(Box::new({})); }}\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}\n{}return;", indent_str, expanded_expr, indent_str, indent_str)
                     } else {
                         // system.return = expr: just set context return (chain semantics)
-                        format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(Box::new({})); }}", indent_str, expanded_expr)
+                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}", indent_str, expanded_expr, indent_str)
                     }
                 }
                 _ => {
@@ -4039,13 +4040,17 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 // Check it's not ==
                 if eq_pos + 1 < trimmed.len() && trimmed.as_bytes().get(eq_pos + 1) != Some(&b'=') {
                     // Assignment: @@:return = expr
-                    let expr = trimmed[eq_pos + 1..].trim();
+                    let expr = trimmed[eq_pos + 1..].trim().trim_end_matches(';').trim();
                     let expanded_expr = expand_state_vars_in_expr(expr, lang, &ctx.system_name);
                     match lang {
                         TargetLanguage::Python3 => format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr),
                         TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
                         TargetLanguage::C => format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});", indent_str, ctx.system_name, expanded_expr),
-                        TargetLanguage::Rust => format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(Box::new({})); }}", indent_str, expanded_expr),
+                        TargetLanguage::Rust => {
+                            // For Rust, evaluate expression first to avoid borrow conflicts
+                            // (expression may read from context_stack while we need mutable access to set _return)
+                            format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}", indent_str, expanded_expr, indent_str)
+                        }
                         _ => format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr),
                     }
                 } else {
@@ -4080,15 +4085,39 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
             }
         }
         FrameSegmentKind::ContextData => {
-            // @@:data[key] - call-scoped data
+            // @@:data[key] - call-scoped data (read)
             // Extract key from "@@:data[key]"
             let key = extract_bracket_key(&segment_text, "@@:data");
             match lang {
                 TargetLanguage::Python3 => format!("self._context_stack[-1]._data[\"{}\"]", key),
                 TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
                 TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, key),
-                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).cloned()", key),
+                TargetLanguage::Rust => {
+                    // For Rust read, we need to handle the dynamic type
+                    // The _data HashMap stores Box<dyn Any>, so we need downcast
+                    format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).and_then(|v| v.downcast_ref::<String>()).cloned().unwrap_or_default()", key)
+                }
                 _ => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
+            }
+        }
+        FrameSegmentKind::ContextDataAssign => {
+            // @@:data[key] = expr - call-scoped data (assignment)
+            // Extract key and value from "@@:data[key] = expr;"
+            let key = extract_bracket_key(&segment_text, "@@:data");
+            // Find the = and extract the expression
+            let trimmed = segment_text.trim();
+            let eq_pos = trimmed.find('=').unwrap_or(trimmed.len());
+            let expr = trimmed[eq_pos + 1..].trim().trim_end_matches(';').trim();
+            let expanded_expr = expand_state_vars_in_expr(expr, lang, &ctx.system_name);
+            match lang {
+                TargetLanguage::Python3 => format!("{}self._context_stack[-1]._data[\"{}\"] = {}", indent_str, key, expanded_expr),
+                TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._data[\"{}\"] = {};", indent_str, key, expanded_expr),
+                TargetLanguage::C => format!("{}{}_DATA_SET(self, \"{}\", {});", indent_str, ctx.system_name, key, expanded_expr),
+                TargetLanguage::Rust => {
+                    // For Rust, insert into the HashMap with Box<dyn Any>
+                    format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._data.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>); }}", indent_str, key, expanded_expr)
+                }
+                _ => format!("{}this._context_stack[this._context_stack.length - 1]._data[\"{}\"] = {};", indent_str, key, expanded_expr),
             }
         }
         FrameSegmentKind::ContextParams => {
@@ -4355,7 +4384,7 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, system_name: &str
                             TargetLanguage::Python3 => result.push_str(&format!("self._context_stack[-1]._data[\"{}\"]", key)),
                             TargetLanguage::TypeScript => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
                             TargetLanguage::C => result.push_str(&format!("{}_DATA(self, \"{}\")", system_name, key)),
-                            TargetLanguage::Rust => result.push_str(&format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).cloned()", key)),
+                            TargetLanguage::Rust => result.push_str(&format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).and_then(|v| v.downcast_ref::<String>()).cloned().unwrap_or_default()", key)),
                             _ => result.push_str(&format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key)),
                         }
                     }

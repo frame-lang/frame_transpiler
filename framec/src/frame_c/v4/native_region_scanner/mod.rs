@@ -13,7 +13,8 @@ pub enum FrameSegmentKind {
     ContextParamShorthand, // @@.param - shorthand for parameter access
     ContextReturn,         // @@:return - return value slot (assignment or read)
     ContextEvent,          // @@:event - interface event name
-    ContextData,           // @@:data[key] - call-scoped data
+    ContextData,           // @@:data[key] - call-scoped data (read)
+    ContextDataAssign,     // @@:data[key] = expr - call-scoped data (assignment)
     ContextParams,         // @@:params[key] - explicit parameter access
 }
 

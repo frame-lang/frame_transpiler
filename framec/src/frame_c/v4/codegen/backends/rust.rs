@@ -423,7 +423,9 @@ impl LanguageBackend for RustBackend {
     }
 
     fn runtime_imports(&self) -> Vec<String> {
-        vec!["use std::collections::HashMap;".to_string()]
+        // Don't emit HashMap import - we use full paths (std::collections::HashMap)
+        // and native prolog may already have the import
+        vec![]
     }
 
     fn class_syntax(&self) -> ClassSyntax {

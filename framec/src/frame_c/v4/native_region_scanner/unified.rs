@@ -208,7 +208,40 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                         if i < end && bytes[i] == b'=' && (i + 1 >= end || bytes[i + 1] != b'=') {
                             // @@:return = <expr>
                             i += 1; // Skip '='
-                            i = skipper.find_line_end(bytes, i, end);
+                            // Scan to ';' or newline at depth 0, handling nested parens/brackets
+                            let mut depth: i32 = 0;
+                            let mut in_string: Option<u8> = None;
+                            while i < end {
+                                let b = bytes[i];
+                                // Handle strings
+                                if let Some(q) = in_string {
+                                    if b == b'\\' && i + 1 < end {
+                                        i += 2;
+                                        continue;
+                                    }
+                                    if b == q {
+                                        in_string = None;
+                                    }
+                                    i += 1;
+                                    continue;
+                                }
+                                if b == b'"' || b == b'\'' {
+                                    in_string = Some(b);
+                                    i += 1;
+                                    continue;
+                                }
+                                match b {
+                                    b'(' | b'[' | b'{' => depth += 1,
+                                    b')' | b']' | b'}' => depth = (depth - 1).max(0),
+                                    b';' if depth == 0 => {
+                                        i += 1; // Include the semicolon
+                                        break;
+                                    }
+                                    b'\n' if depth == 0 => break,
+                                    _ => {}
+                                }
+                                i += 1;
+                            }
                         }
                         regions.push(Region::FrameSegment {
                             span: RegionSpan { start: ctx_start, end: i },
@@ -224,7 +257,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                             indent: 0,
                         });
                     } else if i + 3 < end && &bytes[i..i + 4] == b"data" {
-                        // @@:data[key]
+                        // @@:data[key] or @@:data[key] = expr
                         i += 4;
                         // Must have [key]
                         if i < end && bytes[i] == b'[' {
@@ -235,11 +268,64 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                                 i += 1; // Skip ']'
                             }
                         }
-                        regions.push(Region::FrameSegment {
-                            span: RegionSpan { start: ctx_start, end: i },
-                            kind: FrameSegmentKind::ContextData,
-                            indent: 0,
-                        });
+                        // Check if this is an assignment: @@:data[key] = expr
+                        let mut j = i;
+                        // Skip whitespace
+                        while j < end && (bytes[j] == b' ' || bytes[j] == b'\t') {
+                            j += 1;
+                        }
+                        // Check for = but not ==
+                        if j < end && bytes[j] == b'=' && (j + 1 >= end || bytes[j + 1] != b'=') {
+                            // This is an assignment - scan to end of statement (;)
+                            j += 1; // Skip '='
+                            // Scan to ';' or newline at depth 0, handling nested parens/brackets and strings
+                            let mut depth: i32 = 0;
+                            let mut in_string: Option<u8> = None;
+                            while j < end {
+                                let b = bytes[j];
+                                // Handle strings
+                                if let Some(q) = in_string {
+                                    if b == b'\\' && j + 1 < end {
+                                        j += 2;
+                                        continue;
+                                    }
+                                    if b == q {
+                                        in_string = None;
+                                    }
+                                    j += 1;
+                                    continue;
+                                }
+                                if b == b'"' || b == b'\'' {
+                                    in_string = Some(b);
+                                    j += 1;
+                                    continue;
+                                }
+                                match b {
+                                    b'(' | b'[' | b'{' => depth += 1,
+                                    b')' | b']' | b'}' => depth = (depth - 1).max(0),
+                                    b';' if depth == 0 => {
+                                        j += 1; // Include the semicolon
+                                        break;
+                                    }
+                                    b'\n' if depth == 0 => break,
+                                    _ => {}
+                                }
+                                j += 1;
+                            }
+                            regions.push(Region::FrameSegment {
+                                span: RegionSpan { start: ctx_start, end: j },
+                                kind: FrameSegmentKind::ContextDataAssign,
+                                indent: 0,
+                            });
+                            i = j;
+                        } else {
+                            // Read-only access
+                            regions.push(Region::FrameSegment {
+                                span: RegionSpan { start: ctx_start, end: i },
+                                kind: FrameSegmentKind::ContextData,
+                                indent: 0,
+                            });
+                        }
                     } else if i + 5 < end && &bytes[i..i + 6] == b"params" {
                         // @@:params[key]
                         i += 6;
