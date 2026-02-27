@@ -4587,7 +4587,7 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             restore_body.push_str("    comp.forward_event = c.forward_event;\n");
             restore_body.push_str("    return comp;\n");
             restore_body.push_str("});\n");
-            restore_body.push_str("instance._return_value = null;\n");
+            restore_body.push_str("instance._context_stack = [];\n");
 
             // Restore domain variables
             for var in &system.domain {
@@ -4657,6 +4657,7 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
 
                 restore_body.push_str(&format!("let mut instance = {} {{\n", system.name));
                 restore_body.push_str("    _state_stack: stack,\n");
+                restore_body.push_str("    _context_stack: vec![],\n");
                 restore_body.push_str(&format!("    __compartment: {}Compartment::new(data[\"_state\"].as_str().unwrap()),\n", system.name));
                 restore_body.push_str("    __next_compartment: None,\n");
 

@@ -702,7 +702,85 @@ Accessing `@@` in these contexts is an error.
 
 ---
 
-## 10. Token Summary
+## 10. Persistence (`@@persist`)
+
+The `@@persist` annotation generates serialization/deserialization methods for saving and restoring system state.
+
+### 10.1 Usage
+
+```frame
+@@persist
+@@system MySystem {
+    // ...
+}
+```
+
+### 10.2 Generated Methods by Language
+
+| Language | Save Method | Returns | Restore Method | Takes |
+|----------|-------------|---------|----------------|-------|
+| Python | `save_state()` | `bytes` | `restore_state(data)` [static] | `bytes` |
+| TypeScript | `saveState()` | `any` (object) | `restoreState(data)` [static] | `any` |
+| Rust | `save_state(&mut self)` | `String` (JSON) | `restore_state(json)` [static] | `&str` |
+| C | Not yet supported | - | - | - |
+
+### 10.3 What Gets Persisted
+
+- **Current state** (compartment state name)
+- **State stack** (for push$/pop$ history)
+- **State arguments** (`state_args`)
+- **State variables** (`state_vars`)
+- **Enter/exit arguments** (`enter_args`, `exit_args`)
+- **Forward event reference** (`forward_event`)
+- **Domain variables** (all fields in `domain:` section)
+
+### 10.4 What Gets Reinitialized on Restore
+
+Runtime fields are reinitialized, not persisted:
+
+- `_context_stack` — initialized to empty
+- `__next_compartment` — initialized to null/None
+
+### 10.5 Dependencies
+
+| Language | Required Dependencies |
+|----------|----------------------|
+| Python | `pickle` (stdlib, included) |
+| TypeScript | None (uses native objects) |
+| Rust | `serde`, `serde_json` in Cargo.toml |
+
+### 10.6 Example Usage
+
+**Python:**
+```python
+# Save
+data = system.save_state()  # Returns bytes
+
+# Restore
+system2 = MySystem.restore_state(data)
+```
+
+**TypeScript:**
+```typescript
+// Save
+const data = system.saveState();  // Returns object
+
+// Restore
+const system2 = MySystem.restoreState(data);
+```
+
+**Rust:**
+```rust
+// Save
+let json = system.save_state();  // Returns String
+
+// Restore
+let system2 = MySystem::restore_state(&json);
+```
+
+---
+
+## 11. Token Summary
 
 ### 10.1 Module-Level Tokens
 
@@ -746,7 +824,7 @@ Accessing `@@` in these contexts is an error.
 
 ---
 
-## 11. Native Code
+## 12. Native Code
 
 Everything not recognized as a Frame construct is native code in the target language. Native code passes through the transpiler unchanged, with only indentation adjusted to match the generated code's structure.
 
@@ -756,7 +834,7 @@ The Framepiler does **not** parse, validate, or transform native code. The targe
 
 ---
 
-## 12. Scanning Architecture
+## 13. Scanning Architecture
 
 Frame V4 uses a layered scanning architecture with specialized state-machine scanners. Each scanner operates on raw bytes and respects language-specific string/comment syntax via the `SyntaxSkipper` trait.
 
@@ -864,7 +942,7 @@ The compilation pipeline uses scanners in sequence:
 
 ---
 
-## 13. Validation Errors
+## 14. Validation Errors
 
 | Code | Condition |
 |------|-----------|
@@ -881,7 +959,7 @@ The compilation pipeline uses scanners in sequence:
 
 ---
 
-## 14. Complete Example
+## 15. Complete Example
 
 ```frame
 # Native Python preamble
