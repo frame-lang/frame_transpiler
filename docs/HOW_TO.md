@@ -138,59 +138,11 @@ ls /tmp/v4_prt_tests/  # Generated .py, .ts, .rs files
 python3 out.py
 ```
 
-## V3 Architecture (LEGACY - Reference Only)
+## V3 Architecture (DEPRECATED)
 
-> **NOTE**: V3 is no longer under active development. This section is kept for reference only.
-> All new development uses the V4 pipeline with `@@system` syntax.
-
-V3 was the full module compilation pipeline used for `@target` (single @) syntax.
-
-```
-Frame module file (.frm with @target <lang>)
-    ↓
-01 ModulePartitionerV3 (DPDA body closers; prolog/imports/bodies)
-    ↓
-02 NativeRegionScannerV3 (streaming, SOL‑only Frame head detection)
-    ↓
-03 FrameStatementParserV3 (tiny, balanced‑paren args)
-    ↓
-04 MIR Assembly (MixedBody; terminal‑last enforcement via ValidatorV3)
-    ↓
-05 Expanders (per‑language minimal native glue)
-    ↓
-06 Splice & Mapping (SplicedBody + splice_map)
-    ↓
-07 Native Parse Facade (runtime‑optional; mapped diagnostics)
-    ↓
-08 Source Maps & Codegen (deterministic)
-```
-
-### Core V3 Components (module root `framec/src/frame_c/v3/`)
-- `body_closer/{python,typescript,csharp,c,cpp,java,rust}.rs`
-- `native_region_scanner/{python,typescript,csharp,c,cpp,java,rust}.rs`
-- `frame_statement_parser.rs`, `mir.rs`, `mir_assembler.rs`
-- `expander/`, `splice.rs`, `validator.rs`
-- `module_partitioner.rs`, `prolog_scanner.rs`, `import_scanner/`, `outline_scanner.rs`
-
-### V3 Frame Syntax & Grammar (Where to Read It)
-
-- **Authoritative V3 architecture & grammar docs** live under:
-  - `docs/framepiler_design/architecture_v3/architecture_v3_overview.md`
-  - `docs/framepiler_design/architecture_v3/03_frame_segment_parser.md` (Frame statement syntax: `Transition`, `Forward`, `Stack`)
-  - `docs/framepiler_design/architecture_v3/04_mir_assembly.md` (MixedBody/MIR + terminal‑statement rules)
-  - `docs/framelang_design/architecture_v3/grammar.md` (minimal non‑native grammar)
-  - `docs/framelang_design/architecture_v3/frame_language_guide.md` (human‑oriented language guide)
-  - `docs/framelang_design/architecture_v3/frame_ai_guide.md` (AI‑oriented generation guide — **must read before emitting Frame code**)
-  - Per‑language scanner/expander docs:
-    - Python:
-      - `docs/framepiler_design/architecture_v3/01_body_closers_python.md`
-      - `docs/framepiler_design/architecture_v3/02_native_region_scanner_python.md`
-      - `docs/framepiler_design/architecture_v3/05_frame_statement_expansion_python.md`
-    - TypeScript:
-      - `docs/framepiler_design/architecture_v3/01_body_closers_typescript.md`
-      - `docs/framepiler_design/architecture_v3/02_native_region_scanner_typescript.md`
-      - `docs/framepiler_design/architecture_v3/05_frame_statement_expansion_typescript.md`
-- **Legacy/old syntax docs** (v0.x pre‑V3) live elsewhere under `docs/framepiler_design/architecture_v0.*.md` and are no longer authoritative for new work; when in doubt, prefer the V3 files above.
+> **⚠️ V3 is deprecated.** All new development uses the V4 pipeline with `@@system` syntax.
+> V3 documentation has been archived under `docs/framepiler_design/_architecture_v3/` (note the `_` prefix).
+> Do not read these files unless explicitly instructed.
 
 ## Development Environment
 

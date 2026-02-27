@@ -77,7 +77,7 @@ system SystemName {
 ## Current State
 - **Version**: v0.87.2 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
-- **V4 Test Status**: Python 29/36 (81%), TypeScript 25/36 (69%), Rust 25/36 (69%) — 79/108 total (73%)
+- **V4 Test Status**: Python 152/152 (100%), TypeScript 133/133 (100%), Rust 128/133 (96%), C 130/136 (96%) — 543/554 total (98%)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 

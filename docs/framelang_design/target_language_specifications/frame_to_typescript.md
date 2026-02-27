@@ -659,6 +659,130 @@ this.state = State.Next;
 this.transition(new FrameCompartment(State.Next));
 ```
 
+## Persistence (`@@persist`)
+
+TypeScript supports the `@@persist` annotation for serializing and restoring system state.
+
+### Generated Methods
+
+When `@@persist` is present, the generated TypeScript class includes:
+
+```typescript
+// Instance method - save current state
+public saveState(): any {
+    return {
+        _compartment: this.__compartment.copy(),
+        _state_stack: this._state_stack.map(c => c.copy()),
+        // ... domain variables
+    };
+}
+
+// Static method - restore from saved state
+public static restoreState(data: any): MySystem {
+    const instance = Object.create(MySystem.prototype);
+    instance.__compartment = new MySystemCompartment(data._compartment.state);
+    instance.__compartment.state_args = {...(data._compartment.state_args || {})};
+    instance.__compartment.state_vars = {...(data._compartment.state_vars || {})};
+    instance.__compartment.enter_args = {...(data._compartment.enter_args || {})};
+    instance.__compartment.exit_args = {...(data._compartment.exit_args || {})};
+    instance.__compartment.forward_event = data._compartment.forward_event;
+    instance.__next_compartment = null;
+    instance._state_stack = (data._state_stack || []).map((c: any) => {
+        const comp = new MySystemCompartment(c.state);
+        // ... restore compartment fields
+        return comp;
+    });
+    instance._context_stack = [];
+    // ... restore domain variables
+    return instance;
+}
+```
+
+### What Gets Persisted
+
+| Field | Description |
+|-------|-------------|
+| `_compartment.state` | Current state name |
+| `_compartment.state_args` | State arguments |
+| `_compartment.state_vars` | State variables |
+| `_compartment.enter_args` | Enter handler arguments |
+| `_compartment.exit_args` | Exit handler arguments |
+| `_compartment.forward_event` | Forwarded event (if any) |
+| `_state_stack` | Stack of compartments for push$/pop$ |
+| Domain variables | All fields from the `domain:` section |
+
+### What Gets Reinitialized
+
+| Field | Initialized To |
+|-------|---------------|
+| `_context_stack` | Empty array `[]` |
+| `__next_compartment` | `null` |
+
+### Usage Example
+
+```typescript
+@@target typescript
+
+@@persist
+@@system SessionManager {
+    interface:
+        login(user: string)
+        logout()
+        getUser(): string
+
+    domain:
+        currentUser: string = ""
+        loginCount: number = 0
+
+    machine:
+        $LoggedOut {
+            login(user: string) {
+                this.currentUser = user;
+                this.loginCount = this.loginCount + 1;
+                -> $LoggedIn
+            }
+            getUser(): string { return ""; }
+        }
+
+        $LoggedIn {
+            logout() { -> $LoggedOut }
+            getUser(): string { return this.currentUser; }
+        }
+}
+
+// Usage
+const session = new SessionManager();
+session.login("alice");
+
+// Save state
+const savedData = session.saveState();
+console.log(JSON.stringify(savedData));
+// {"_compartment":{"state":"LoggedIn",...},"currentUser":"alice","loginCount":1}
+
+// Restore to new instance
+const restored = SessionManager.restoreState(savedData);
+console.log(restored.getUser()); // "alice"
+```
+
+### Dependencies
+
+TypeScript persistence requires no external dependencies. It uses:
+- Native JavaScript objects for the save format
+- `Object.create()` for prototype-based restoration
+- Standard spread operators for shallow copying
+
+### JSON Serialization
+
+The saved state is a plain JavaScript object that can be serialized to JSON:
+
+```typescript
+// Save to JSON string
+const jsonString = JSON.stringify(session.saveState());
+
+// Restore from JSON string
+const restored = SessionManager.restoreState(JSON.parse(jsonString));
+```
+
 ## Testing Your Implementation
 
 Verify these Frame runtime behaviors:
