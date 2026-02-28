@@ -349,8 +349,38 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                             span: RegionSpan { start: ctx_start, end: i }
                         });
                     }
+                } else if i < end && bytes[i].is_ascii_uppercase() {
+                    // @@SystemName() - tagged system instantiation
+                    // Must start with uppercase letter (convention for system names)
+                    let name_start = i;
+                    while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                        i += 1;
+                    }
+                    // Must be followed by ( for constructor call
+                    if i < end && bytes[i] == b'(' {
+                        // Find the matching close paren
+                        if let Some(paren_end) = skipper.balanced_paren_end(bytes, i, end) {
+                            i = paren_end;
+                            regions.push(Region::FrameSegment {
+                                span: RegionSpan { start: ctx_start, end: i },
+                                kind: FrameSegmentKind::TaggedInstantiation,
+                                indent: 0,
+                            });
+                        } else {
+                            // Unbalanced parens, treat as native
+                            regions.push(Region::NativeText {
+                                span: RegionSpan { start: ctx_start, end: i }
+                            });
+                        }
+                    } else {
+                        // No parens after name, this is just @@SomeName without ()
+                        // This could be a typo or intentional - treat as native for now
+                        regions.push(Region::NativeText {
+                            span: RegionSpan { start: ctx_start, end: i }
+                        });
+                    }
                 } else {
-                    // Just @@ without . or :, treat as native
+                    // Just @@ without . or : or uppercase, treat as native
                     regions.push(Region::NativeText {
                         span: RegionSpan { start: ctx_start, end: i }
                     });

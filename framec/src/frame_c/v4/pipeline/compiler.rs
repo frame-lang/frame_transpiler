@@ -141,6 +141,228 @@ fn skip_pragmas_keep_native(text: &str) -> String {
     skip_pragmas_simple(text)
 }
 
+/// Expand tagged instantiation patterns (@@SystemName()) in native code
+///
+/// Scans native code for `@@SystemName(args)` patterns where SystemName is a defined system,
+/// and replaces with the appropriate constructor call for the target language.
+///
+/// # Arguments
+/// * `text` - Native code to process
+/// * `defined_systems` - Set of system names defined in this module
+/// * `lang` - Target language (determines constructor syntax)
+///
+/// # Returns
+/// Native code with @@System() patterns expanded to native constructors
+fn expand_tagged_instantiations(
+    text: &str,
+    defined_systems: &std::collections::HashSet<String>,
+    lang: TargetLanguage,
+) -> Result<String, CompileError> {
+    let bytes = text.as_bytes();
+    let mut result = String::new();
+    let mut i = 0;
+
+    // Determine comment style based on language
+    let uses_hash_comments = matches!(lang, TargetLanguage::Python3);
+    let uses_c_style_comments = matches!(lang,
+        TargetLanguage::TypeScript | TargetLanguage::Rust |
+        TargetLanguage::C | TargetLanguage::Cpp |
+        TargetLanguage::Java | TargetLanguage::CSharp
+    );
+
+    while i < bytes.len() {
+        // Skip # comments (Python)
+        if uses_hash_comments && bytes[i] == b'#' {
+            // Copy the entire comment line
+            while i < bytes.len() && bytes[i] != b'\n' {
+                result.push(bytes[i] as char);
+                i += 1;
+            }
+            continue;
+        }
+
+        // Skip // and /* */ comments (C-style languages)
+        if uses_c_style_comments && bytes[i] == b'/' {
+            if i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+                // Line comment - copy to end of line
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    result.push(bytes[i] as char);
+                    i += 1;
+                }
+                continue;
+            }
+            if i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+                // Block comment - copy until */
+                result.push(bytes[i] as char);
+                result.push(bytes[i + 1] as char);
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    result.push(bytes[i] as char);
+                    i += 1;
+                }
+                if i + 1 < bytes.len() {
+                    result.push(bytes[i] as char);
+                    result.push(bytes[i + 1] as char);
+                    i += 2;
+                }
+                continue;
+            }
+        }
+
+        // Skip string literals
+        if bytes[i] == b'"' {
+            result.push(bytes[i] as char);
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'"' {
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    result.push(bytes[i] as char);
+                    i += 1;
+                }
+                result.push(bytes[i] as char);
+                i += 1;
+            }
+            if i < bytes.len() {
+                result.push(bytes[i] as char);
+                i += 1;
+            }
+            continue;
+        }
+
+        // Skip single-quoted strings/chars
+        if bytes[i] == b'\'' {
+            result.push(bytes[i] as char);
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'\'' {
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    result.push(bytes[i] as char);
+                    i += 1;
+                }
+                result.push(bytes[i] as char);
+                i += 1;
+            }
+            if i < bytes.len() {
+                result.push(bytes[i] as char);
+                i += 1;
+            }
+            continue;
+        }
+
+        // Look for @@ pattern
+        if i + 2 < bytes.len() && bytes[i] == b'@' && bytes[i + 1] == b'@' {
+            let start = i;
+            i += 2;
+
+            // Check for uppercase letter (system name start)
+            if i < bytes.len() && bytes[i].is_ascii_uppercase() {
+                // Extract system name
+                let name_start = i;
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+                let name = std::str::from_utf8(&bytes[name_start..i]).unwrap_or("");
+
+                // Check for opening paren
+                if i < bytes.len() && bytes[i] == b'(' {
+                    // Find matching close paren
+                    let mut paren_depth = 1;
+                    let args_start = i + 1;
+                    i += 1;
+                    while i < bytes.len() && paren_depth > 0 {
+                        match bytes[i] {
+                            b'(' => paren_depth += 1,
+                            b')' => paren_depth -= 1,
+                            b'"' => {
+                                // Skip string
+                                i += 1;
+                                while i < bytes.len() && bytes[i] != b'"' {
+                                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                                        i += 1;
+                                    }
+                                    i += 1;
+                                }
+                            }
+                            b'\'' => {
+                                // Skip char/string
+                                i += 1;
+                                while i < bytes.len() && bytes[i] != b'\'' {
+                                    if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                                        i += 1;
+                                    }
+                                    i += 1;
+                                }
+                            }
+                            _ => {}
+                        }
+                        i += 1;
+                    }
+
+                    if paren_depth == 0 {
+                        // Check if this is a defined system
+                        if defined_systems.contains(name) {
+                            // Get args (between parens, not including parens)
+                            let args = std::str::from_utf8(&bytes[args_start..i - 1]).unwrap_or("");
+
+                            // Generate constructor call based on language
+                            let constructor = match lang {
+                                TargetLanguage::Python3 => {
+                                    format!("{}({})", name, args)
+                                }
+                                TargetLanguage::TypeScript => {
+                                    format!("new {}({})", name, args)
+                                }
+                                TargetLanguage::Rust => {
+                                    if args.trim().is_empty() {
+                                        format!("{}::new()", name)
+                                    } else {
+                                        format!("{}::new({})", name, args)
+                                    }
+                                }
+                                TargetLanguage::C => {
+                                    if args.trim().is_empty() {
+                                        format!("{}_new()", name)
+                                    } else {
+                                        format!("{}_new({})", name, args)
+                                    }
+                                }
+                                TargetLanguage::Cpp => {
+                                    format!("new {}({})", name, args)
+                                }
+                                TargetLanguage::Java => {
+                                    format!("new {}({})", name, args)
+                                }
+                                TargetLanguage::CSharp => {
+                                    format!("new {}({})", name, args)
+                                }
+                                _ => {
+                                    format!("{}({})", name, args)
+                                }
+                            };
+
+                            result.push_str(&constructor);
+                            continue;
+                        } else {
+                            // Unknown system - return error
+                            return Err(CompileError::new(
+                                "E100",
+                                &format!("Undefined system '{}' in tagged instantiation. Available systems: {:?}",
+                                    name, defined_systems)
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // Not a valid tagged instantiation, copy original
+            result.push_str(&text[start..i]);
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    Ok(result)
+}
+
 /// Compile a Frame module from source bytes
 ///
 /// This is the main entry point for V4 compilation.
@@ -299,6 +521,18 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
     let mut ctx = EmitContext::new();
     let source_str = String::from_utf8_lossy(source);
 
+    // Build set of defined system names for tagged instantiation validation
+    let defined_systems: std::collections::HashSet<String> = match &ast {
+        FrameAst::System(system) => {
+            let mut set = std::collections::HashSet::new();
+            set.insert(system.name.clone());
+            set
+        }
+        FrameAst::Module(module) => {
+            module.systems.iter().map(|s| s.name.clone()).collect()
+        }
+    };
+
     let code = match &ast {
         FrameAst::System(system) => {
             let mut result = String::new();
@@ -310,6 +544,16 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                 let prolog = &source_str[..system_start];
                 // Skip @@target and other @@ pragmas, keep native code
                 let native_prolog = skip_pragmas_keep_native(prolog);
+                // Expand tagged instantiations in prolog
+                let native_prolog = match expand_tagged_instantiations(&native_prolog, &defined_systems, config.target) {
+                    Ok(expanded) => expanded,
+                    Err(e) => return Ok(CompileResult {
+                        code: String::new(),
+                        errors: vec![e],
+                        warnings: vec![],
+                        source_map: None,
+                    }),
+                };
                 if !native_prolog.trim().is_empty() {
                     result.push_str(&native_prolog);
                     if !native_prolog.ends_with('\n') {
@@ -370,6 +614,16 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
             if system_end < source.len() {
                 let epilog = &source_str[system_end..];
                 let native_epilog = epilog.trim_start_matches(|c: char| c == '}' || c.is_whitespace());
+                // Expand tagged instantiations in epilog
+                let native_epilog = match expand_tagged_instantiations(native_epilog, &defined_systems, config.target) {
+                    Ok(expanded) => expanded,
+                    Err(e) => return Ok(CompileResult {
+                        code: String::new(),
+                        errors: vec![e],
+                        warnings: vec![],
+                        source_map: None,
+                    }),
+                };
                 if !native_epilog.trim().is_empty() {
                     result.push_str("\n\n");
                     result.push_str(native_epilog.trim_start());
@@ -401,6 +655,16 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                         skip_pragmas_keep_native(native)
                     } else {
                         native.to_string()
+                    };
+                    // Expand tagged instantiations in inter-system native code
+                    let native_clean = match expand_tagged_instantiations(&native_clean, &defined_systems, config.target) {
+                        Ok(expanded) => expanded,
+                        Err(e) => return Ok(CompileResult {
+                            code: String::new(),
+                            errors: vec![e],
+                            warnings: vec![],
+                            source_map: None,
+                        }),
                     };
                     if !native_clean.trim().is_empty() {
                         result.push_str(&native_clean);
@@ -455,6 +719,16 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
             if cursor < source.len() {
                 let epilog = &source_str[cursor..];
                 let native_epilog = epilog.trim_start_matches(|c: char| c == '}' || c.is_whitespace());
+                // Expand tagged instantiations in final epilog
+                let native_epilog = match expand_tagged_instantiations(native_epilog, &defined_systems, config.target) {
+                    Ok(expanded) => expanded,
+                    Err(e) => return Ok(CompileResult {
+                        code: String::new(),
+                        errors: vec![e],
+                        warnings: vec![],
+                        source_map: None,
+                    }),
+                };
                 if !native_epilog.trim().is_empty() {
                     result.push_str("\n");
                     result.push_str(native_epilog.trim_start());

@@ -39,6 +39,8 @@ struct HandlerContext {
     pub has_state_vars: bool,
     /// Map of state names to their parent state (for HSM child state transitions)
     pub state_parents: std::collections::HashMap<String, String>,
+    /// Set of defined system names in the module (for @@System() validation)
+    pub defined_systems: std::collections::HashSet<String>,
 }
 
 /// Generate a complete CodegenNode for a Frame system
@@ -151,7 +153,13 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
 
     // Domain variables (V4: native code pass-through for most languages, C needs parsed types)
     for domain_var in &system.domain {
-        let type_str = type_to_string(&domain_var.var_type);
+        // For V4, var_type is Unknown - extract actual type from raw_code for C compatibility
+        let type_str = if domain_var.var_type == Type::Unknown && domain_var.raw_code.is_some() {
+            // Extract type from native declaration (e.g., "char* last" -> "char*")
+            extract_type_from_raw_domain(&domain_var.raw_code, &domain_var.name)
+        } else {
+            type_to_string(&domain_var.var_type)
+        };
 
         if let Some(ref raw_code) = domain_var.raw_code {
             // V4: Pass through native code verbatim for Python/TypeScript/Rust
@@ -2641,6 +2649,9 @@ while self.__next_compartment.is_some() {{
 fn generate_state_handlers_via_arcanum(system_name: &str, machine: &MachineAst, arcanum: &Arcanum, source: &[u8], lang: TargetLanguage, has_state_vars: bool) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
 
+    // Collect all defined system names for @@System() validation
+    let defined_systems: std::collections::HashSet<String> = arcanum.systems.keys().cloned().collect();
+
     // Generate one _state_{StateName} dispatch method per state for ALL languages
     for state_entry in arcanum.get_enhanced_states(system_name) {
         // Find state variables and default_forward for this state from the machine AST
@@ -2661,6 +2672,7 @@ fn generate_state_handlers_via_arcanum(system_name: &str, machine: &MachineAst, 
             lang,
             has_state_vars,
             default_forward,
+            &defined_systems,
         );
         methods.push(method);
     }
@@ -2678,6 +2690,7 @@ fn generate_state_handlers_via_arcanum(system_name: &str, machine: &MachineAst, 
                     source,
                     lang,
                     has_state_vars,
+                    &defined_systems,
                 );
                 methods.push(method);
             }
@@ -2700,6 +2713,7 @@ fn generate_state_method(
     lang: TargetLanguage,
     has_state_vars: bool,
     default_forward: bool,
+    defined_systems: &std::collections::HashSet<String>,
 ) -> CodegenNode {
     // Use single underscore prefix to avoid Python name mangling
     // Python mangles __name to _ClassName__name, which breaks dynamic lookup
@@ -2713,6 +2727,7 @@ fn generate_state_method(
         parent_state: parent_state.map(|s| s.to_string()),
         has_state_vars,
         state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
+        defined_systems: defined_systems.clone(),
     };
 
     // Generate the dispatch body based on __e._message / __e.message
@@ -3236,6 +3251,7 @@ fn generate_handler_from_arcanum(
     source: &[u8],
     lang: TargetLanguage,
     has_state_vars: bool,
+    defined_systems: &std::collections::HashSet<String>,
 ) -> CodegenNode {
     // Build params from handler's parameter symbols
     // V4 uses native types, so we just pass them through as-is
@@ -3277,6 +3293,7 @@ fn generate_handler_from_arcanum(
         parent_state: parent_state.map(|s| s.to_string()),
         has_state_vars,
         state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
+        defined_systems: defined_systems.clone(),
     };
 
     // Splice the handler body: preserve native code, expand Frame segments
@@ -4147,6 +4164,62 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, key),
                 TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx.event.parameters.get(\"{}\")).cloned()", key),
                 _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
+            }
+        }
+        FrameSegmentKind::TaggedInstantiation => {
+            // @@SystemName(args) - validated system instantiation
+            // Strip @@ prefix and validate system name exists
+            let native_call = segment_text.strip_prefix("@@").unwrap_or(&segment_text);
+
+            // Extract system name (before the parenthesis)
+            let tagged_system_name = if let Some(paren_pos) = native_call.find('(') {
+                &native_call[..paren_pos]
+            } else {
+                native_call
+            };
+
+            // Validate that the system name exists in defined_systems
+            if !ctx.defined_systems.contains(tagged_system_name) {
+                // System not found - generate an error that will fail compilation
+                match lang {
+                    TargetLanguage::Python3 => {
+                        format!("raise NameError(\"Frame Error E421: Undefined system '{}' in tagged instantiation @@{}. Did you mean one of: {:?}?\")",
+                            tagged_system_name, tagged_system_name, ctx.defined_systems)
+                    }
+                    TargetLanguage::TypeScript => {
+                        format!("throw new Error(\"Frame Error E421: Undefined system '{}' in tagged instantiation @@{}. Did you mean one of: {:?}?\");",
+                            tagged_system_name, tagged_system_name, ctx.defined_systems)
+                    }
+                    TargetLanguage::Rust => {
+                        format!("compile_error!(\"Frame Error E421: Undefined system '{}' in tagged instantiation @@{}\");",
+                            tagged_system_name, tagged_system_name)
+                    }
+                    TargetLanguage::C => {
+                        format!("#error \"Frame Error E421: Undefined system '{}' in tagged instantiation @@{}\"",
+                            tagged_system_name, tagged_system_name)
+                    }
+                    _ => {
+                        format!("/* Frame Error E421: Undefined system '{}' in tagged instantiation @@{} */",
+                            tagged_system_name, tagged_system_name)
+                    }
+                }
+            } else {
+                // System found - generate valid constructor call
+                match lang {
+                    TargetLanguage::C => {
+                        // C: @@System() becomes System_new()
+                        if let Some(paren_pos) = native_call.find('(') {
+                            let args = &native_call[paren_pos..];
+                            format!("{}_new{}", tagged_system_name, args)
+                        } else {
+                            native_call.to_string()
+                        }
+                    }
+                    _ => {
+                        // Python/TypeScript/Rust: @@System() becomes System()
+                        native_call.to_string()
+                    }
+                }
             }
         }
     }

@@ -1896,14 +1896,15 @@ impl FrameParser {
                 // Handled by splicer expansion
                 Err(ParseError::Expected("SystemReturnExpr handled by splicer".to_string()))
             }
-            // Context syntax - handled by splicer expansion
+            // Context syntax and tagged instantiation - handled by splicer expansion
             FrameSegmentKind::ContextParamShorthand |
             FrameSegmentKind::ContextReturn |
             FrameSegmentKind::ContextEvent |
             FrameSegmentKind::ContextData |
             FrameSegmentKind::ContextDataAssign |
-            FrameSegmentKind::ContextParams => {
-                Err(ParseError::Expected("Context syntax handled by splicer".to_string()))
+            FrameSegmentKind::ContextParams |
+            FrameSegmentKind::TaggedInstantiation => {
+                Err(ParseError::Expected("Context/tagged syntax handled by splicer".to_string()))
             }
         }
     }

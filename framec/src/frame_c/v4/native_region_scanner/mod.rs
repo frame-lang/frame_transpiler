@@ -16,6 +16,7 @@ pub enum FrameSegmentKind {
     ContextData,           // @@:data[key] - call-scoped data (read)
     ContextDataAssign,     // @@:data[key] = expr - call-scoped data (assignment)
     ContextParams,         // @@:params[key] - explicit parameter access
+    TaggedInstantiation,   // @@SystemName() - validated system instantiation
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
