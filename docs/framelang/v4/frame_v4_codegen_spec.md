@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** February 2026
 **Audience:** Implementation team
-**Status:** Normative — Python 29/36, TypeScript 25/36, Rust 25/36 (79/108 total)
+**Status:** Normative — Python 152/152, TypeScript 133/133, Rust 133/133, C 135/136 (553/554 total)
 
 ---
 

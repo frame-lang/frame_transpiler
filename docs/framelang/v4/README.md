@@ -1,9 +1,9 @@
 # Frame V4 Specification
 
-**Status:** Normative — Three target languages implemented, C in development
-**Version:** 1.3
-**Date:** February 2026
-**Test Status:** 79/108 passing — Python 29/36 (81%), TypeScript 25/36 (69%), Rust 25/36 (69%)
+**Status:** Normative — All four target languages implemented
+**Version:** 1.4
+**Date:** 2026-02-27
+**Test Status:** 553/554 passing (99.8%) — Python 152/152, TypeScript 133/133, Rust 133/133, C 135/136
 
 ---
 

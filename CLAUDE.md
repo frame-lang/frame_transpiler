@@ -75,9 +75,9 @@ system SystemName {
 - For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
-- **Version**: v0.87.2 (branch `v4_pure`)
+- **Version**: v0.94.2 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
-- **V4 Test Status**: Python 152/152 (100%), TypeScript 133/133 (100%), Rust 133/133 (100%), C 133/136 (98%) — 551/554 total (99%)
+- **V4 Test Status**: Python 152/152 (100%), TypeScript 133/133 (100%), Rust 133/133 (100%), C 135/136 (99%) — 553/554 total (99.8%)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 
