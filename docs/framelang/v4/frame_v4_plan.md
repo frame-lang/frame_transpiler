@@ -1,6 +1,6 @@
 # Frame V4 Implementation Plan
 
-**Version:** 2.1
+**Version:** 2.2
 **Date:** February 2026
 **Status:** Active Development
 **Approach:** Test-Driven (PRTC: Python, Rust, TypeScript, C)
@@ -331,6 +331,107 @@ calc.compute(1, 2)         # Future: could extend to method validation
 | Cross-system validation | Verify System A correctly references System B |
 | Refactoring support | Find all usages when renaming a system |
 | Tooling foundation | IDE support, documentation generation |
+
+---
+
+### Phase 14: Parent State Parameters (Planned) 📋
+
+**Feature:** Allow passing parameters to parent states in HSM declarations.
+
+**Motivation:**
+- Enable parameterized parent states for reusable state hierarchies
+- Pass configuration or context data from child to parent
+- Support "template" parent states with customizable behavior
+
+**Current Syntax:**
+```frame
+$Child => $Parent {
+    // Child inherits from Parent, but cannot pass data
+}
+```
+
+**Proposed Syntax:**
+```frame
+$Child => $Parent(config_value, "mode") {
+    // Parent receives parameters in its state_args
+}
+```
+
+**Use Cases:**
+
+1. **Configurable Error Handling:**
+```frame
+$NetworkError => $ErrorState("network", 3) {
+    // ErrorState receives error_type="network", max_retries=3
+}
+
+$FileError => $ErrorState("file", 1) {
+    // ErrorState receives error_type="file", max_retries=1
+}
+```
+
+2. **Shared Behavior with Variations:**
+```frame
+$BlueButton => $Button("blue", "Click me") {
+    // Button parent receives color and label
+}
+
+$RedButton => $Button("red", "Cancel") {
+    // Same Button parent, different config
+}
+```
+
+3. **Hierarchical Context Passing:**
+```frame
+$ProcessingA => $Processing(handler_a) {
+    // Processing parent uses handler_a for callbacks
+}
+```
+
+**Implementation Path:**
+1. Extend parser to recognize `=> $Parent(args)` syntax
+2. Store parent_args in StateAst alongside parent name
+3. Codegen creates parent compartment with state_args populated
+4. Parent state's `$>` handler receives args via `__e._parameters` or `compartment.state_args`
+
+**Design Questions:**
+- Should parent args be passed once at system init, or on every transition to child?
+- How do parent args interact with child's own state_args?
+- Should parent args be accessible via special syntax (e.g., `$^.config`)?
+
+**Benefits:**
+| Benefit | Description |
+|---------|-------------|
+| Reusable hierarchies | One parent state, many parameterized children |
+| Cleaner architecture | Avoid duplicating parent states for variations |
+| Configuration injection | Pass context without global state |
+| Template patterns | Generic parent behaviors specialized by children |
+
+---
+
+### Phase 15: GraphViz/Diagram Generation (Planned) 📋
+
+**Feature:** Port GraphViz DOT generation from V3 to V4 pipeline.
+
+**Motivation:**
+- State machine visualization for documentation
+- VSCode extension integration for live preview
+- Debug and architecture review support
+
+**Current Status:**
+- V3 has full GraphViz implementation (main branch)
+- V4 has no diagram generation target
+
+**Implementation Path:**
+1. Add `Graphviz` variant to V4 `TargetLanguage` enum
+2. Create GraphViz backend implementing `LanguageBackend` trait
+3. Generate DOT format from `CodegenNode` tree
+4. Support multi-system files with system separation
+
+**Future Extensions:**
+- Direct SVG generation (no external GraphViz dependency)
+- PlantUML output format
+- Interactive diagrams with clickable states
 
 ---
 

@@ -402,9 +402,8 @@ def _state_Child(self, __e):
 ### 6.4 Key HSM Principles
 
 1. **No auto-forward:** Unhandled events are ignored unless `=> $^` is explicitly used
-2. **`:>` is deprecated:** The old "continue" operator no longer exists
-3. **`=> $^` anywhere:** Can be used at any point in a handler, not just at the end
-4. **Direct method call:** Forwarding generates a direct call to parent's state method
+2. **`=> $^` anywhere:** Can be used at any point in a handler, not just at the end
+3. **Direct method call:** Forwarding generates a direct call to parent's state method
 
 ---
 

@@ -301,7 +301,6 @@ $Child => $Parent {
 ```
 
 **Key V4 semantics:**
-- `:>` (continue operator) is **deprecated** — no longer exists in V4
 - `=> $^` is the **only** way to forward to parent
 - `=> $^` can appear **anywhere** in a handler, not just at the end
 - Without `=> $^`, unhandled events are **ignored**, not forwarded
@@ -722,7 +721,7 @@ The `@@persist` annotation generates serialization/deserialization methods for s
 | Python | `save_state()` | `bytes` | `restore_state(data)` [static] | `bytes` |
 | TypeScript | `saveState()` | `any` (object) | `restoreState(data)` [static] | `any` |
 | Rust | `save_state(&mut self)` | `String` (JSON) | `restore_state(json)` [static] | `&str` |
-| C | Not yet supported | - | - | - |
+| C | `save_state(self)` | `char*` (JSON) | `restore_state(json)` [static] | `const char*` |
 
 ### 10.3 What Gets Persisted
 
@@ -748,6 +747,7 @@ Runtime fields are reinitialized, not persisted:
 | Python | `pickle` (stdlib, included) |
 | TypeScript | None (uses native objects) |
 | Rust | `serde`, `serde_json` in Cargo.toml |
+| C | `cjson` library (libcjson) |
 
 ### 10.6 Example Usage
 
@@ -777,6 +777,22 @@ let json = system.save_state();  // Returns String
 // Restore
 let system2 = MySystem::restore_state(&json);
 ```
+
+**C:**
+```c
+#include <cjson/cJSON.h>
+
+// Save
+char* json = MySystem_save_state(system);  // Returns malloc'd string
+
+// Restore
+MySystem* system2 = MySystem_restore_state(json);
+
+// Remember to free the JSON string when done
+free(json);
+```
+
+**Note for C:** The C implementation uses the cJSON library for JSON serialization. The `save_state()` function returns a dynamically allocated string that the caller must free. String fields are copied using `strdup()` during restore to ensure memory safety after the JSON is freed.
 
 ---
 
