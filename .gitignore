@@ -1,6 +1,9 @@
 # General
 .DS_Store
 
+# Underscore-prefixed files (scratch/deprecated)
+_*
+
 # IDE
 *.idea
 *.iml
