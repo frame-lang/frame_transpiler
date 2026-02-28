@@ -149,21 +149,23 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         .with_visibility(Visibility::Private)
         .with_type(&context_stack_type));
 
-    // Domain variables (V4: native code pass-through)
+    // Domain variables (V4: native code pass-through for most languages, C needs parsed types)
     for domain_var in &system.domain {
+        let type_str = type_to_string(&domain_var.var_type);
+
         if let Some(ref raw_code) = domain_var.raw_code {
-            // V4: Pass through native code verbatim
+            // V4: Pass through native code verbatim for Python/TypeScript/Rust
+            // But also include type annotation for C backend which needs it
             let field = Field::new(&domain_var.name)
                 .with_visibility(Visibility::Private)
+                .with_type(&type_str)
                 .with_raw_code(raw_code);
             fields.push(field);
         } else {
             // Legacy: Construct from parsed components
             let mut field = Field::new(&domain_var.name)
-                .with_visibility(Visibility::Private);
-
-            let type_str = type_to_string(&domain_var.var_type);
-            field = field.with_type(&type_str);
+                .with_visibility(Visibility::Private)
+                .with_type(&type_str);
 
             if let Some(ref init) = &domain_var.initializer {
                 field = field.with_initializer(convert_expression(init));
@@ -880,6 +882,12 @@ fn generate_c_runtime_types(system: &SystemAst) -> String {
     code.push_str(&format!("static void* {}_FrameVec_last({}_FrameVec* v) {{\n", sys, sys));
     code.push_str("    if (v->size == 0) return NULL;\n");
     code.push_str("    return v->items[v->size - 1];\n");
+    code.push_str("}\n\n");
+
+    // FrameVec_get (indexed access)
+    code.push_str(&format!("static void* {}_FrameVec_get({}_FrameVec* v, int index) {{\n", sys, sys));
+    code.push_str("    if (index < 0 || index >= v->size) return NULL;\n");
+    code.push_str("    return v->items[index];\n");
     code.push_str("}\n\n");
 
     // FrameVec_size
@@ -4734,6 +4742,125 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 });
             }
         }
+        TargetLanguage::C => {
+            // C uses cJSON library (requires cJSON.h/cJSON.c or -lcjson)
+            // Project owner is responsible for including cJSON
+
+            // Generate save_state function - returns char* (JSON string, caller must free)
+            let mut save_body = String::new();
+            save_body.push_str("cJSON* root = cJSON_CreateObject();\n");
+            save_body.push_str("cJSON_AddStringToObject(root, \"_state\", self->__compartment->state);\n");
+
+            // Serialize state stack
+            save_body.push_str("cJSON* stack_arr = cJSON_CreateArray();\n");
+            save_body.push_str(&format!("for (int i = 0; i < {}_FrameVec_size(self->_state_stack); i++) {{\n", system.name));
+            save_body.push_str(&format!("    {}_Compartment* comp = ({}_Compartment*){}_FrameVec_get(self->_state_stack, i);\n",
+                system.name, system.name, system.name));
+            save_body.push_str("    cJSON_AddItemToArray(stack_arr, cJSON_CreateString(comp->state));\n");
+            save_body.push_str("}\n");
+            save_body.push_str("cJSON_AddItemToObject(root, \"_state_stack\", stack_arr);\n");
+
+            // Serialize domain variables
+            for var in &system.domain {
+                // For V4, type is Unknown but we can extract it from raw_code
+                // raw_code format: "name: type = init" or "type name = init"
+                let type_str = extract_type_from_raw_domain(&var.raw_code, &var.name);
+
+                let json_add = if is_int_type(&type_str) {
+                    format!("cJSON_AddNumberToObject(root, \"{}\", (double)self->{});\n", var.name, var.name)
+                } else if is_float_type(&type_str) {
+                    format!("cJSON_AddNumberToObject(root, \"{}\", self->{});\n", var.name, var.name)
+                } else if is_bool_type(&type_str) {
+                    format!("cJSON_AddBoolToObject(root, \"{}\", self->{});\n", var.name, var.name)
+                } else if is_string_type(&type_str) {
+                    format!("cJSON_AddStringToObject(root, \"{}\", self->{});\n", var.name, var.name)
+                } else {
+                    // Default to number for unknown types
+                    format!("cJSON_AddNumberToObject(root, \"{}\", (double)(intptr_t)self->{});\n", var.name, var.name)
+                };
+                save_body.push_str(&json_add);
+            }
+
+            save_body.push_str("char* json = cJSON_PrintUnformatted(root);\n");
+            save_body.push_str("cJSON_Delete(root);\n");
+            save_body.push_str("return json;");
+
+            methods.push(CodegenNode::Method {
+                name: "save_state".to_string(),
+                params: vec![],
+                return_type: Some("char*".to_string()),
+                body: vec![CodegenNode::NativeBlock {
+                    code: save_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: false,
+                visibility: Visibility::Public,
+                decorators: vec![],
+            });
+
+            // Generate restore_state function - takes const char*, returns instance pointer
+            let mut restore_body = String::new();
+            restore_body.push_str("cJSON* root = cJSON_Parse(json);\n");
+            restore_body.push_str("if (!root) return NULL;\n\n");
+
+            restore_body.push_str(&format!("{}* instance = malloc(sizeof({}));\n", system.name, system.name));
+            restore_body.push_str(&format!("instance->_state_stack = {}_FrameVec_new();\n", system.name));
+            restore_body.push_str(&format!("instance->_context_stack = {}_FrameVec_new();\n", system.name));
+            restore_body.push_str("instance->__next_compartment = NULL;\n\n");
+
+            // Restore compartment from _state
+            restore_body.push_str("cJSON* state_item = cJSON_GetObjectItem(root, \"_state\");\n");
+            restore_body.push_str(&format!("instance->__compartment = {}_Compartment_new(strdup(state_item->valuestring));\n\n", system.name));
+
+            // Restore state stack
+            restore_body.push_str("cJSON* stack_arr = cJSON_GetObjectItem(root, \"_state_stack\");\n");
+            restore_body.push_str("if (stack_arr) {\n");
+            restore_body.push_str("    cJSON* stack_item;\n");
+            restore_body.push_str("    cJSON_ArrayForEach(stack_item, stack_arr) {\n");
+            restore_body.push_str(&format!("        {}_Compartment* comp = {}_Compartment_new(strdup(stack_item->valuestring));\n",
+                system.name, system.name));
+            restore_body.push_str(&format!("        {}_FrameVec_push(instance->_state_stack, comp);\n", system.name));
+            restore_body.push_str("    }\n");
+            restore_body.push_str("}\n\n");
+
+            // Restore domain variables
+            for var in &system.domain {
+                // For V4, type is Unknown but we can extract it from raw_code
+                let type_str = extract_type_from_raw_domain(&var.raw_code, &var.name);
+
+                let json_get = if is_int_type(&type_str) {
+                    format!("instance->{} = (int)cJSON_GetObjectItem(root, \"{}\")->valuedouble;\n", var.name, var.name)
+                } else if is_float_type(&type_str) {
+                    format!("instance->{} = cJSON_GetObjectItem(root, \"{}\")->valuedouble;\n", var.name, var.name)
+                } else if is_bool_type(&type_str) {
+                    format!("instance->{} = cJSON_IsTrue(cJSON_GetObjectItem(root, \"{}\"));\n", var.name, var.name)
+                } else if is_string_type(&type_str) {
+                    format!("instance->{} = strdup(cJSON_GetObjectItem(root, \"{}\")->valuestring);\n", var.name, var.name)
+                } else {
+                    // Default to int for unknown types
+                    format!("instance->{} = (int)cJSON_GetObjectItem(root, \"{}\")->valuedouble;\n", var.name, var.name)
+                };
+                restore_body.push_str(&json_get);
+            }
+
+            restore_body.push_str("\ncJSON_Delete(root);\n");
+            restore_body.push_str("return instance;");
+
+            methods.push(CodegenNode::Method {
+                name: "restore_state".to_string(),
+                params: vec![Param::new("json").with_type("const char*")],
+                return_type: Some(format!("{}*", system.name)),
+                body: vec![CodegenNode::NativeBlock {
+                    code: restore_body,
+                    span: None,
+                }],
+                is_async: false,
+                is_static: true,
+                visibility: Visibility::Public,
+                decorators: vec![],
+            });
+        }
         _ => {
             // Other languages not yet supported
         }
@@ -4922,6 +5049,55 @@ fn convert_literal(lit: &Literal) -> CodegenNode {
         Literal::Bool(b) => CodegenNode::bool(*b),
         Literal::Null => CodegenNode::null(),
     }
+}
+
+/// Extract type from raw domain declaration
+/// Handles formats: "name: type = init" (Frame) or "type name = init" (C-style)
+fn extract_type_from_raw_domain(raw_code: &Option<String>, name: &str) -> String {
+    match raw_code {
+        Some(code) => {
+            let code = code.trim();
+
+            // Try Frame-style: "name: type = init" or "name: type"
+            if let Some(colon_pos) = code.find(':') {
+                let before_colon = &code[..colon_pos].trim();
+                // Verify it's the variable name before the colon
+                if before_colon.ends_with(name) || *before_colon == name {
+                    let after_colon = &code[colon_pos + 1..];
+                    // Extract type until '=' or end of line
+                    let type_end = after_colon.find('=').unwrap_or(after_colon.len());
+                    return after_colon[..type_end].trim().to_string();
+                }
+            }
+
+            // Try C-style: "type name = init" - first word is type
+            let first_word = code.split_whitespace().next().unwrap_or("");
+            first_word.to_string()
+        }
+        None => String::new(),
+    }
+}
+
+/// Check if type string represents an integer type
+fn is_int_type(type_str: &str) -> bool {
+    matches!(type_str, "int" | "i32" | "i64" | "i8" | "i16" | "u8" | "u16" | "u32" | "u64"
+             | "int8_t" | "int16_t" | "int32_t" | "int64_t"
+             | "uint8_t" | "uint16_t" | "uint32_t" | "uint64_t")
+}
+
+/// Check if type string represents a float type
+fn is_float_type(type_str: &str) -> bool {
+    matches!(type_str, "float" | "double" | "f32" | "f64")
+}
+
+/// Check if type string represents a boolean type
+fn is_bool_type(type_str: &str) -> bool {
+    matches!(type_str, "bool" | "boolean" | "_Bool")
+}
+
+/// Check if type string represents a string type
+fn is_string_type(type_str: &str) -> bool {
+    matches!(type_str, "str" | "string" | "String" | "char*" | "&str")
 }
 
 #[cfg(test)]

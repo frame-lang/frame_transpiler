@@ -75,16 +75,14 @@ impl LanguageBackend for CBackend {
                 result.push('\n');
 
                 // Struct definition
+                // Note: C doesn't support raw_code pass-through for fields because
+                // Frame syntax (e.g., "var: type = init") is not valid C struct syntax.
+                // Always use parsed field info to construct proper C declarations.
                 result.push_str(&format!("{}struct {} {{\n", ctx.get_indent(), name));
                 ctx.push_indent();
                 for field in fields {
-                    if let Some(ref raw_code) = field.raw_code {
-                        // V4: Native code pass-through
-                        result.push_str(&format!("{}{};\n", ctx.get_indent(), raw_code));
-                    } else {
-                        let c_type = self.convert_type_to_c(&field.type_annotation, &system_name);
-                        result.push_str(&format!("{}{} {};\n", ctx.get_indent(), c_type, field.name));
-                    }
+                    let c_type = self.convert_type_to_c(&field.type_annotation, &system_name);
+                    result.push_str(&format!("{}{} {};\n", ctx.get_indent(), c_type, field.name));
                 }
                 ctx.pop_indent();
                 result.push_str(&format!("{}}};\n\n", ctx.get_indent()));
