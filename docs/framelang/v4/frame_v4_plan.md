@@ -203,73 +203,22 @@ HSM parent state access is achieved via `=> $^` forwarding to parent handlers.
 
 ---
 
-## Test Summary
+## Test Status
 
-| # | Test File | Py | TS | Rs | Validates |
-|---|-----------|:--:|:--:|:--:|-----------|
-| 01 | `01_minimal` | ✅ | ✅ | ✅ | Basic system instantiation |
-| 02 | `02_interface` | ✅ | ✅ | ✅ | Interface method definitions |
-| 03 | `03_transition` | ✅ | ✅ | ✅ | State transitions |
-| 04 | `04_native_code` | ✅ | ✅ | ✅ | Native language integration |
-| 05 | `05_enter_exit` | ❌ | ❌ | ❌ | State entry/exit handlers (COMPILE FAIL) |
-| 06 | `06_domain_vars` | ✅ | ✅ | ✅ | Domain variables |
-| 07 | `07_params` | ✅ | ✅ | ✅ | Event parameters |
-| 08 | `08_hsm` | ✅ | ✅ | ✅ | HSM explicit forward |
-| 09 | `09_stack` | ✅ | ✅ | ✅ | State stack operations |
-| 10 | `10_state_var_basic` | ✅ | ✅ | ✅ | State variables basics |
-| 11 | `11_state_var_reentry` | ✅ | ✅ | ✅ | State variable reentry |
-| 12 | `12_state_var_push_pop` | ✅ | ✅ | ✅ | State var push/pop |
-| 13 | `13_system_return` | ✅ | ✅ | ✅ | System return values |
-| 14 | `14_system_return_default` | ✅ | ✅ | ✅ | Default return values |
-| 15 | `15_system_return_chain` | ❌ | ❌ | ✅ | Chained return values |
-| 16 | `16_system_return_reentrant` | ✅ | ✅ | ✅ | Reentrant returns |
-| 17 | `17_transition_enter_args` | ❌ | ❌ | ✅ | Enter transition args |
-| 18 | `18_transition_exit_args` | ❌ | ❌ | ❌ | Exit transition args |
-| 19 | `19_transition_forward` | ✅ | ✅ | ✅ | Forward transitions |
-| 20 | `20_transition_pop` | ✅ | ✅ | ✅ | Pop transitions |
-| 21 | `21_actions_basic` | ✅ | ✅ | ✅ | Basic actions |
-| 22 | `22_operations_basic` | ✅ | ✅ | ✅ | Basic operations |
-| 23 | `23_persist_basic` | ✅ | ❌ | ❌ | Basic persistence |
-| 24 | `24_persist_roundtrip` | ✅ | ❌ | ❌ | Persistence roundtrip |
-| 25 | `25_persist_stack` | ✅ | ❌ | ❌ | Persistence with stack |
-| 26 | `26_state_params` | ✅ | ✅ | ✅ | State parameters |
-| 29 | `29_forward_enter_first` | ✅ | ✅ | ✅ | Send $> before non-$> forward |
-| 30 | `30_hsm_default_forward` | ✅ | ✅ | ✅ | State-level `=> $^` |
-| 31 | `31_doc_lamp_basic` | ❌ | ❌ | ❌ | Document lamp example (COMPILE FAIL) |
-| 32 | `32_doc_lamp_hsm` | ❌ | ❌ | ❌ | Document lamp HSM example (COMPILE FAIL) |
-| 33 | `33_doc_history_basic` | ✅ | ✅ | ✅ | Document history basic |
-| 34 | `34_doc_history_hsm` | ✅ | ✅ | ✅ | Document history HSM |
-| 35 | `35_return_init` | ❌ | ❌ | ❌ | Return value initialization (COMPILE FAIL) |
-| 36 | `36_context_basic` | ✅ | ✅ | ❌ | `@@.param`, `@@:return`, `@@:event` |
-| 37 | `37_context_reentrant` | ✅ | ✅ | ❌ | Nested interface calls, context isolation |
-| 38 | `38_context_data` | ✅ | ❌ | ❌ | `@@:data[key]` persistence across transitions |
-| 39 | `39_tagged_instantiation` | ✅ | ✅ | ✅ | `@@System()` tagged instantiation |
+Run the test runner for current results:
 
-*All primary tests passing. Full test suite: 557/558 (99.8%)*
-
----
-
-## Validation Commands
-
-**V4 Test Runner:**
 ```bash
-cd /path/to/frame_transpiler/framepiler_test_env/tests/common/primary
-./run_tests.sh   # Runs all 36 tests for Python, TypeScript, Rust
-```
-
-**Single Language:**
-```bash
-# Filter results
-./run_tests.sh 2>&1 | grep python_3
-
-# Check specific test output
-cat /path/to/framepiler_test_env/output/python/tests/08_hsm.py
+cd framepiler_test_env/tests
+./run_tests.sh              # All languages
+./run_tests.sh --python     # Single language
+./run_tests.sh --category primary  # Single category
 ```
 
 **Test file extensions:**
-- `.fpy` — Python test sources
-- `.fts` — TypeScript test sources
-- `.frs` — Rust test sources
+- `.fpy` — Python
+- `.fts` — TypeScript
+- `.frs` — Rust
+- `.fc` — C
 
 ---
 
