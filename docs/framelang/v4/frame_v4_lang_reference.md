@@ -151,7 +151,8 @@ interface:
 
 **Rules:**
 - Method names must be unique within the interface
-- Parameters are untyped identifiers (types live in native code)
+- Parameters use Frame notation: `name: type` (e.g., `process(data: str, priority: int)`)
+- Parameters can also be untyped if types are handled in native code: `process(data, priority)`
 - Return type annotation is Frame syntax (used for codegen)
 - Default return value is a native expression, used when no handler sets `system.return`
 - A return type with no default implies `None`/`null`/`None` as default
@@ -215,8 +216,19 @@ $Processing {
 ### 4.3 Event Handlers
 
 ```
-<event_name> ( <params>? ) (: <return_type>)? {
+<event_name> ( <params>? ) (: <return_type> (= <default_value>)? )? {
     <body>
+}
+```
+
+**Return value initialization:** When a handler declares a return type with a default value (`= <expr>`), that expression is evaluated and stored in `@@:return` before the handler body executes. If the handler completes without setting `@@:return`, the default value is used.
+
+```frame
+compute(a, b): int = foo(a + b) {
+    // @@:return already initialized to foo(a + b)
+    if special_case:
+        @@:return = 999    // Override the default
+    // Otherwise the default value is returned
 }
 ```
 
@@ -468,16 +480,29 @@ Private helper methods on the system class.
 
 ```
 actions:
-    <action_name> ( <params>? ) (: <return_type>)? {
+    <action_name> ( <params>? ) (: <return_type> (= <default_value>)? )? {
         <body>
     }
 ```
 
+**Return value initialization:** When an action declares a return type with a default value (`= <expr>`), that expression is evaluated and stored in `@@:return` before the action body executes.
+
+```frame
+actions:
+    validate(x): bool = check_basic(x) {
+        // @@:return already initialized to check_basic(x)
+        if extra_validation_needed:
+            @@:return = deep_check(x)
+    }
+```
+
 **Rules:**
-- Actions can access domain variables, state variables (via `$.`), and `system.return`
-- Actions can return values to their callers (native function return)
+- Actions are declared at the **system level**, not inside states
+- Actions can access **domain variables** and `@@:return`
+- Actions **cannot** access state variables (`$.`) — they have no state context
+- Actions can return values to their callers (via `@@:return`)
 - Actions **cannot** trigger transitions — transitions are only valid in event handlers
-- `return <expr>` in actions is native function return, NOT `system.return` sugar
+- Parameters use Frame notation: `action_name(param: type)`
 
 ---
 
@@ -487,15 +512,27 @@ Public methods that bypass the state machine entirely.
 
 ```
 operations:
-    <op_name> ( <params>? ) (: <return_type>)? {
+    <op_name> ( <params>? ) (: <return_type> (= <default_value>)? )? {
         <body>
+    }
+```
+
+**Return value initialization (non-static only):** Non-static operations can declare a return type with a default value (`= <expr>`), which initializes `@@:return` before the operation body executes.
+
+```frame
+operations:
+    calculate(x): int = baseline(x) {
+        // @@:return already initialized to baseline(x)
+        if adjustment_needed:
+            @@:return = adjust(@@:return)
     }
 ```
 
 **Rules:**
 - Operations do not create events or go through the kernel
 - Direct access to domain variables
-- No access to state variables or `system.return`
+- Non-static operations can use `@@:return` with initialization syntax
+- No access to state variables (`$.`)
 - Body is entirely native code (no Frame statements)
 
 **Static operations** (no `self`/`this`):
@@ -506,6 +543,8 @@ operations:
         return a + b
     }
 ```
+
+Static operations use native `return` statements and cannot use `@@:return` or return value initialization.
 
 ---
 

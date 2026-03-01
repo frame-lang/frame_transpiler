@@ -75,9 +75,9 @@ system SystemName {
 - For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
-- **Version**: v0.94.2 (branch `v4_pure`)
+- **Version**: v0.95.1 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
-- **V4 Test Status**: Python 152/152 (100%), TypeScript 133/133 (100%), Rust 133/133 (100%), C 135/136 (99%) — 553/554 total (99.8%)
+- **V4 Test Status**: Python 144/144 (100%), TypeScript 126/126 (100%), Rust 129/129 (100%), C 138/138 (100%) — 537/537 total (100%)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 
@@ -88,11 +88,11 @@ system SystemName {
 📖 **READ**: [`framepiler_test_env/tests/README.md`](framepiler_test_env/tests/README.md) - Complete test documentation
 
 **Test Counts:**
-- Python: 152 tests (.fpy)
-- TypeScript: 133 tests (.fts)
-- Rust: 133 tests (.frs)
-- C: In progress (.fc)
-- **Total: 418 test files**
+- Python: 144 tests (.fpy)
+- TypeScript: 126 tests (.fts)
+- Rust: 129 tests (.frs)
+- C: 138 tests (.fc)
+- **Total: 537 test files**
 
 **Test Output Directories:**
 - `framepiler_test_env/output/python/tests/` - Python generated output
@@ -103,7 +103,7 @@ system SystemName {
 ### V4 Test Runner (UNIFIED)
 ```bash
 cd framepiler_test_env/tests
-./run_tests.sh              # Run ALL tests (152 py + 133 ts + 133 rs)
+./run_tests.sh              # Run ALL tests (144 py + 126 ts + 129 rs + 138 c)
 ./run_tests.sh --python     # Run only Python
 ./run_tests.sh --category primary  # Run only primary category
 ./run_tests.sh --help       # Show all options
