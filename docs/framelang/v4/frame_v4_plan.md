@@ -247,7 +247,7 @@ cd framepiler_test_env/tests
 
 ## Future Roadmap
 
-### Phase 14: Parent State Parameters (Planned) 📋
+### Phase 14: Parent State Parameters ✅
 
 **Feature:** Allow passing parameters to parent states in HSM declarations.
 
@@ -348,7 +348,7 @@ $ProcessingA => $Processing(handler_a) {
 
 ---
 
-### Phase 16: Docker Test Infrastructure (Planned) 📋
+### Phase 16: Docker Test Infrastructure ✅
 
 **Feature:** Improve Docker-based test infrastructure for reliable cross-platform testing.
 
