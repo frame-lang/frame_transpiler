@@ -283,41 +283,46 @@ impl FrameParser {
         self.skip_whitespace();
         self.expect_char('{')?;
         
-        // Parse system sections
+        // Parse system sections in fixed order: interface, machine, actions, operations, domain
+        // Each section is optional, but if present they must appear in this order.
         let mut interface = vec![];
         let mut machine = None;
         let mut actions = vec![];
         let mut operations = vec![];
         let mut domain = vec![];
-        
-        // Loop until we find the closing brace OR hit EOF
-        while self.cursor < self.source.len() && !self.peek_char('}') {
+
+        self.skip_whitespace();
+
+        // 1. interface: (optional)
+        if self.peek_keyword("interface:") {
+            interface = self.parse_interface()?;
             self.skip_whitespace();
-
-            // Check for EOF after skip_whitespace
-            if self.cursor >= self.source.len() {
-                break;
-            }
-
-            if self.peek_keyword("interface:") {
-                interface = self.parse_interface()?;
-            } else if self.peek_keyword("machine:") {
-                machine = Some(self.parse_machine()?);
-            } else if self.peek_keyword("actions:") {
-                actions = self.parse_actions()?;
-            } else if self.peek_keyword("operations:") {
-                operations = self.parse_operations()?;
-            } else if self.peek_keyword("domain:") {
-                domain = self.parse_domain()?;
-            } else if self.peek_char('}') {
-                // Found closing brace, exit loop
-                break;
-            } else {
-                // Skip unknown content
-                self.skip_to_next_section();
-            }
         }
-        
+
+        // 2. machine: (optional)
+        if self.peek_keyword("machine:") {
+            machine = Some(self.parse_machine()?);
+            self.skip_whitespace();
+        }
+
+        // 3. actions: (optional)
+        if self.peek_keyword("actions:") {
+            actions = self.parse_actions()?;
+            self.skip_whitespace();
+        }
+
+        // 4. operations: (optional)
+        if self.peek_keyword("operations:") {
+            operations = self.parse_operations()?;
+            self.skip_whitespace();
+        }
+
+        // 5. domain: (optional)
+        if self.peek_keyword("domain:") {
+            domain = self.parse_domain()?;
+            self.skip_whitespace();
+        }
+
         self.expect_char('}')?;
         
         // Build persist_attr if @@persist was seen before this system

@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** February 2026
 **Audience:** Implementation team
-**Status:** Normative — Python 145/145, TypeScript 127/127, Rust 130/130, C 139/139 (541/541 total, 100%)
+**Status:** Normative — Python 144/144, TypeScript 126/126, Rust 130/130, C 139/139 (539/539 total, 100%)
 
 ---
 
@@ -880,7 +880,7 @@ On restore:
 
 ## 11. Implementation Status
 
-**Core features implemented across all four target languages. Current status: 541/541 tests passing (100%).**
+**Core features implemented across all four target languages. Current status: 539/539 tests passing (100%).**
 
 ### 11.1 Kernel Implementation ✅
 

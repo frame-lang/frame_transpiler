@@ -112,7 +112,7 @@ Annotations apply to the immediately following `@@system`.
 }
 ```
 
-Declares a state machine system. Sections may appear in any order but the conventional order shown above is recommended. All sections are optional.
+Declares a state machine system. Sections are optional but **must appear in the order shown**: interface → machine → actions → operations → domain.
 
 **System parameters** (three groups, all optional, in fixed positional order):
 

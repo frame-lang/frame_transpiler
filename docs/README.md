@@ -23,11 +23,11 @@ V4 is a **pure preprocessor** for `@@system` blocks. Native code passes through 
 - Output: `framepiler_test_env/output/{python,typescript,rust,c}/tests/`
 
 **V4 Test Status:**
-- Python: 145/145 (100%)
-- TypeScript: 127/127 (100%)
+- Python: 144/144 (100%)
+- TypeScript: 126/126 (100%)
 - Rust: 130/130 (100%)
 - C: 139/139 (100%)
-- **Total: 541/541 (100%)**
+- **Total: 539/539 (100%)**
 
 ## Framelang Design
 
