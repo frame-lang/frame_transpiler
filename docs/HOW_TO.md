@@ -27,7 +27,7 @@ Frame is a state machine language that transpiles to multiple target languages (
 - **Branch**: `v4_pure` (V4 pipeline development)
 - **Active Work**: V4 pure preprocessor architecture
 - **Active Languages**: Python 3, TypeScript, Rust, C
-- **V4 Test Status**: Python 144/144 (100%), TypeScript 126/126 (100%), Rust 129/129 (100%), C 138/138 (100%) — 537/537 total (100%)
+- **V4 Test Status**: Python 145/145 (100%), TypeScript 127/127 (100%), Rust 130/130 (100%), C 139/139 (100%) — 541/541 total (100%)
 - **Shared Test Environment**: Active - using `framepiler_test_env`
 - **LLVM**: on indefinite hold
 

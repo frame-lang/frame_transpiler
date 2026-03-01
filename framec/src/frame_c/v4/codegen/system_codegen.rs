@@ -1177,16 +1177,69 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
             // Initialize __compartment with initial state
             match syntax.language {
                 TargetLanguage::Rust => {
-                    // For Rust, we need to use Ident with the full constructor expression
-                    // This is a workaround since CodegenNode::New doesn't work for Rust ::new()
-                    body.push(CodegenNode::assign(
-                        CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
-                        CodegenNode::Ident(format!("{}::new(\"{}\")", compartment_class, first_state.name)),
-                    ));
-                    body.push(CodegenNode::assign(
-                        CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
-                        CodegenNode::Ident("None".to_string()),
-                    ));
+                    // Rust: Create compartment chain for HSM if start state has parent
+                    if !ancestor_chain.is_empty() {
+                        // For Rust, use a block expression inside struct literal
+                        // This creates parent chain and returns the child compartment
+                        let mut block_expr = String::new();
+                        block_expr.push_str("{\n");
+
+                        // Create compartments from root to leaf
+                        let mut prev_comp_var = "None".to_string();
+                        for (i, ancestor) in ancestor_chain.iter().enumerate() {
+                            let comp_var = format!("__parent_comp_{}", i);
+                            block_expr.push_str(&format!(
+                                "let mut {} = {}Compartment::new(\"{}\");\n",
+                                comp_var, system.name, ancestor.name
+                            ));
+                            block_expr.push_str(&format!(
+                                "{}.parent_compartment = {};\n",
+                                comp_var, prev_comp_var
+                            ));
+                            // Initialize state vars for this ancestor
+                            for var in &ancestor.state_vars {
+                                let init_val = if let Some(ref init) = var.init {
+                                    expression_to_string(init, TargetLanguage::Rust)
+                                } else {
+                                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
+                                };
+                                block_expr.push_str(&format!(
+                                    "{}.state_vars.insert(\"{}\".to_string(), {});\n",
+                                    comp_var, var.name, init_val
+                                ));
+                            }
+                            prev_comp_var = format!("Some(Box::new({}))", comp_var);
+                        }
+                        // Create the start state compartment with parent link
+                        block_expr.push_str(&format!(
+                            "let mut __child = {}Compartment::new(\"{}\");\n",
+                            system.name, first_state.name
+                        ));
+                        block_expr.push_str(&format!(
+                            "__child.parent_compartment = {};\n",
+                            prev_comp_var
+                        ));
+                        block_expr.push_str("__child\n}");
+
+                        body.push(CodegenNode::assign(
+                            CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
+                            CodegenNode::Ident(block_expr),
+                        ));
+                        body.push(CodegenNode::assign(
+                            CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
+                            CodegenNode::Ident("None".to_string()),
+                        ));
+                    } else {
+                        // No HSM parent - simple compartment creation
+                        body.push(CodegenNode::assign(
+                            CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
+                            CodegenNode::Ident(format!("{}Compartment::new(\"{}\")", system.name, first_state.name)),
+                        ));
+                        body.push(CodegenNode::assign(
+                            CodegenNode::field(CodegenNode::self_ref(), "__next_compartment"),
+                            CodegenNode::Ident("None".to_string()),
+                        ));
+                    }
                 }
                 TargetLanguage::C => {
                     // C: Create compartment chain for HSM if start state has parent
@@ -2615,6 +2668,17 @@ this._context_stack.pop();"#,
 
                 // Check if method has a non-void return type
                 let return_type_str = method.return_type.as_ref().map(|t| type_to_string(t));
+                // Convert Frame types to C types
+                let return_type_str = return_type_str.map(|s| {
+                    match s.as_str() {
+                        "str" | "string" | "String" => "char*".to_string(),
+                        "bool" | "boolean" => "bool".to_string(),
+                        "int" | "number" | "Any" => "int".to_string(),
+                        "float" | "double" => "double".to_string(),
+                        "void" | "None" => "void".to_string(),
+                        _ => s
+                    }
+                });
                 let has_return_value = return_type_str.as_ref()
                     .map(|s| s != "void" && s != "None")
                     .unwrap_or(false);
@@ -4271,8 +4335,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 TargetLanguage::Rust => format!("{}self._sv_{} = {};", indent_str, var_name, expanded_expr),
-                TargetLanguage::C => format!("{}{}_FrameDict_set(self->__compartment->state_vars, \"{}\", (void*)(intptr_t)({}));",
-                    indent_str, ctx.system_name, var_name, expanded_expr),
+                TargetLanguage::C => {
+                    if ctx.use_sv_comp {
+                        format!("{}{}_FrameDict_set(__sv_comp->state_vars, \"{}\", (void*)(intptr_t)({}));",
+                            indent_str, ctx.system_name, var_name, expanded_expr)
+                    } else {
+                        format!("{}{}_FrameDict_set(self->__compartment->state_vars, \"{}\", (void*)(intptr_t)({}));",
+                            indent_str, ctx.system_name, var_name, expanded_expr)
+                    }
+                }
                 _ => format!("{}this.__compartment.state_vars[\"{}\"] = {};", indent_str, var_name, expanded_expr),
             }
         }
@@ -4999,24 +5070,37 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
         }
         TargetLanguage::TypeScript => {
             // Generate saveState method
-            // Phase 14.6: Serialize compartment structure (no _state field, state lives in compartment)
+            // Phase 14.6: Serialize compartment structure including HSM parent_compartment chain
             let mut save_body = String::new();
-            save_body.push_str("return {\n");
-            save_body.push_str("    _compartment: this.__compartment.copy(),\n");
-            // Stack stores compartment objects
-            save_body.push_str("    _state_stack: this._state_stack.map(c => c.copy()),\n");
+            // Helper to serialize compartment chain recursively
+            save_body.push_str("const serializeComp = (c: any): any => {\n");
+            save_body.push_str("    if (!c) return null;\n");
+            save_body.push_str("    return {\n");
+            save_body.push_str("        state: c.state,\n");
+            save_body.push_str("        state_args: {...c.state_args},\n");
+            save_body.push_str("        state_vars: {...c.state_vars},\n");
+            save_body.push_str("        enter_args: {...c.enter_args},\n");
+            save_body.push_str("        exit_args: {...c.exit_args},\n");
+            save_body.push_str("        forward_event: c.forward_event,\n");
+            save_body.push_str("        parent_compartment: serializeComp(c.parent_compartment),\n");
+            save_body.push_str("    };\n");
+            save_body.push_str("};\n");
+            save_body.push_str("return JSON.stringify({\n");
+            save_body.push_str("    _compartment: serializeComp(this.__compartment),\n");
+            // Stack stores compartment objects - serialize each with its parent chain
+            save_body.push_str("    _state_stack: this._state_stack.map((c: any) => serializeComp(c)),\n");
 
             // Add domain variables
             for var in &system.domain {
                 save_body.push_str(&format!("    {}: this.{},\n", var.name, var.name));
             }
 
-            save_body.push_str("};");
+            save_body.push_str("});\n");
 
             methods.push(CodegenNode::Method {
                 name: "saveState".to_string(),
                 params: vec![],
-                return_type: Some("any".to_string()),  // 'any' allows property access
+                return_type: Some("string".to_string()),  // Returns JSON string
                 body: vec![CodegenNode::NativeBlock {
                     code: save_body,
                     span: None,
@@ -5028,27 +5112,27 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             });
 
             // Generate restoreState static method
-            // Phase 14.6: Restore compartment structure (no _state field, state lives in compartment)
+            // Phase 14.6: Restore compartment structure including HSM parent_compartment chain
             let mut restore_body = String::new();
-            restore_body.push_str(&format!("const instance = Object.create({}.prototype);\n", system.name));
-            // Restore compartment - create fresh instance and copy properties (state is in compartment.state)
-            restore_body.push_str(&format!("instance.__compartment = new {}Compartment(data._compartment.state);\n", system.name));
-            restore_body.push_str("instance.__compartment.state_args = {...(data._compartment.state_args || {})};\n");
-            restore_body.push_str("instance.__compartment.state_vars = {...(data._compartment.state_vars || {})};\n");
-            restore_body.push_str("instance.__compartment.enter_args = {...(data._compartment.enter_args || {})};\n");
-            restore_body.push_str("instance.__compartment.exit_args = {...(data._compartment.exit_args || {})};\n");
-            restore_body.push_str("instance.__compartment.forward_event = data._compartment.forward_event;\n");
-            restore_body.push_str("instance.__next_compartment = null;\n");
-            // Restore stack - each element is a serialized compartment
-            restore_body.push_str(&format!("instance._state_stack = (data._state_stack || []).map((c: any) => {{\n"));
-            restore_body.push_str(&format!("    const comp = new {}Compartment(c.state);\n", system.name));
-            restore_body.push_str("    comp.state_args = {...(c.state_args || {})};\n");
-            restore_body.push_str("    comp.state_vars = {...(c.state_vars || {})};\n");
-            restore_body.push_str("    comp.enter_args = {...(c.enter_args || {})};\n");
-            restore_body.push_str("    comp.exit_args = {...(c.exit_args || {})};\n");
-            restore_body.push_str("    comp.forward_event = c.forward_event;\n");
+            // Helper to deserialize compartment chain recursively
+            restore_body.push_str(&format!("const deserializeComp = (data: any): {}Compartment | null => {{\n", system.name));
+            restore_body.push_str("    if (!data) return null;\n");
+            restore_body.push_str(&format!("    const comp = new {}Compartment(data.state);\n", system.name));
+            restore_body.push_str("    comp.state_args = {...(data.state_args || {})};\n");
+            restore_body.push_str("    comp.state_vars = {...(data.state_vars || {})};\n");
+            restore_body.push_str("    comp.enter_args = {...(data.enter_args || {})};\n");
+            restore_body.push_str("    comp.exit_args = {...(data.exit_args || {})};\n");
+            restore_body.push_str("    comp.forward_event = data.forward_event;\n");
+            restore_body.push_str("    comp.parent_compartment = deserializeComp(data.parent_compartment);\n");
             restore_body.push_str("    return comp;\n");
-            restore_body.push_str("});\n");
+            restore_body.push_str("};\n");
+            restore_body.push_str("const data = JSON.parse(json);\n");
+            restore_body.push_str(&format!("const instance = Object.create({}.prototype);\n", system.name));
+            // Restore compartment with full parent chain
+            restore_body.push_str("instance.__compartment = deserializeComp(data._compartment);\n");
+            restore_body.push_str("instance.__next_compartment = null;\n");
+            // Restore stack - each element is a serialized compartment with its parent chain
+            restore_body.push_str("instance._state_stack = (data._state_stack || []).map((c: any) => deserializeComp(c));\n");
             restore_body.push_str("instance._context_stack = [];\n");
 
             // Restore domain variables
@@ -5060,7 +5144,7 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
 
             methods.push(CodegenNode::Method {
                 name: "restoreState".to_string(),
-                params: vec![Param::new("data").with_type("any")],
+                params: vec![Param::new("json").with_type("string")],
                 return_type: Some(system.name.clone()),
                 body: vec![CodegenNode::NativeBlock {
                     code: restore_body,
@@ -5073,17 +5157,54 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             });
         }
         TargetLanguage::Rust => {
-            // Rust uses serde by default (requires serde, serde_json in Cargo.toml)
-            // Project owner is responsible for adding dependencies
+            // Rust uses serde_json (requires serde_json in Cargo.toml)
+            // HSM persistence: serialize entire compartment chain including parent_compartment
 
             {
-                // Generate save_state that manually builds JSON
-                // Use compartment-based architecture
+                // Generate save_state that recursively serializes compartment chain
                 let mut save_body = String::new();
-                save_body.push_str("let stack_states: Vec<&str> = self._state_stack.iter().map(|(s, _)| s.as_str()).collect();\n");
+                // Helper function to serialize a compartment and its parent chain
+                save_body.push_str(&format!("fn serialize_comp(comp: &{}Compartment) -> serde_json::Value {{\n", system.name));
+                save_body.push_str("    let parent = match &comp.parent_compartment {\n");
+                save_body.push_str("        Some(p) => serialize_comp(p),\n");
+                save_body.push_str("        None => serde_json::Value::Null,\n");
+                save_body.push_str("    };\n");
+                save_body.push_str("    let state_vars: std::collections::HashMap<String, i32> = comp.state_vars.clone();\n");
+                save_body.push_str("    serde_json::json!({\n");
+                save_body.push_str("        \"state\": comp.state,\n");
+                save_body.push_str("        \"state_vars\": state_vars,\n");
+                save_body.push_str("        \"parent_compartment\": parent,\n");
+                save_body.push_str("    })\n");
+                save_body.push_str("}\n");
+
+                // Before serializing, copy _sv_ fields into compartment state_vars
+                save_body.push_str("// Sync _sv_ fields into compartment chain for persistence\n");
+                save_body.push_str(&format!("let mut comp_ptr: *mut {}Compartment = &mut self.__compartment as *mut _;\n", system.name));
+                save_body.push_str("unsafe {\n");
+                save_body.push_str("    loop {\n");
+                if let Some(ref machine) = system.machine {
+                    for state in &machine.states {
+                        for var in &state.state_vars {
+                            save_body.push_str(&format!("        if (*comp_ptr).state == \"{}\" {{\n", state.name));
+                            save_body.push_str(&format!("            (*comp_ptr).state_vars.insert(\"{}\".to_string(), self._sv_{});\n", var.name, var.name));
+                            save_body.push_str("        }\n");
+                        }
+                    }
+                }
+                save_body.push_str("        match &mut (*comp_ptr).parent_compartment {\n");
+                save_body.push_str(&format!("            Some(p) => comp_ptr = p.as_mut() as *mut {}Compartment,\n", system.name));
+                save_body.push_str("            None => break,\n");
+                save_body.push_str("        }\n");
+                save_body.push_str("    }\n");
+                save_body.push_str("}\n");
+
+                save_body.push_str("let compartment_data = serialize_comp(&self.__compartment);\n");
+                save_body.push_str("let stack_data: Vec<serde_json::Value> = self._state_stack.iter()\n");
+                save_body.push_str("    .map(|(s, _)| serde_json::json!({\"state\": s}))\n");
+                save_body.push_str("    .collect();\n");
                 save_body.push_str("serde_json::json!({\n");
-                save_body.push_str("    \"_state\": self.__compartment.state,\n");
-                save_body.push_str("    \"_state_stack\": stack_states,\n");
+                save_body.push_str("    \"_compartment\": compartment_data,\n");
+                save_body.push_str("    \"_state_stack\": stack_data,\n");
 
                 // Add domain variables
                 for var in &system.domain {
@@ -5106,22 +5227,59 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                     decorators: vec![],
                 });
 
-                // Generate restore_state that parses JSON and creates new instance
+                // Generate restore_state that recursively deserializes compartment chain
                 let mut restore_body = String::new();
                 restore_body.push_str("let data: serde_json::Value = serde_json::from_str(json).unwrap();\n");
+                // Helper function to deserialize a compartment and its parent chain
+                restore_body.push_str(&format!("fn deserialize_comp(data: &serde_json::Value) -> {}Compartment {{\n", system.name));
+                restore_body.push_str(&format!("    let mut comp = {}Compartment::new(data[\"state\"].as_str().unwrap());\n", system.name));
+                restore_body.push_str("    if let Some(vars) = data[\"state_vars\"].as_object() {\n");
+                restore_body.push_str("        for (k, v) in vars {\n");
+                restore_body.push_str("            comp.state_vars.insert(k.clone(), v.as_i64().unwrap_or(0) as i32);\n");
+                restore_body.push_str("        }\n");
+                restore_body.push_str("    }\n");
+                restore_body.push_str("    if !data[\"parent_compartment\"].is_null() {\n");
+                restore_body.push_str("        comp.parent_compartment = Some(Box::new(deserialize_comp(&data[\"parent_compartment\"])));\n");
+                restore_body.push_str("    }\n");
+                restore_body.push_str("    comp\n");
+                restore_body.push_str("}\n");
 
                 // Restore stack as Vec<(String, StateContext)>
                 restore_body.push_str(&format!("let stack: Vec<(String, {}StateContext)> = data[\"_state_stack\"].as_array()\n", system.name));
                 restore_body.push_str("    .map(|arr| arr.iter()\n");
-                restore_body.push_str(&format!("        .filter_map(|v| v.as_str().map(|s| (s.to_string(), {}StateContext::Empty)))\n", system.name));
+                restore_body.push_str(&format!("        .filter_map(|v| v[\"state\"].as_str().map(|s| (s.to_string(), {}StateContext::Empty)))\n", system.name));
                 restore_body.push_str("        .collect())\n");
                 restore_body.push_str("    .unwrap_or_default();\n");
+
+                // First deserialize compartment so we can access it for state vars
+                restore_body.push_str("let compartment = deserialize_comp(&data[\"_compartment\"]);\n");
 
                 restore_body.push_str(&format!("let mut instance = {} {{\n", system.name));
                 restore_body.push_str("    _state_stack: stack,\n");
                 restore_body.push_str("    _context_stack: vec![],\n");
-                restore_body.push_str(&format!("    __compartment: {}Compartment::new(data[\"_state\"].as_str().unwrap()),\n", system.name));
+                restore_body.push_str("    __compartment: compartment,\n");
                 restore_body.push_str("    __next_compartment: None,\n");
+
+                // Restore _sv_ fields from compartment chain
+                // Walk chain to find values for each state's vars
+                if let Some(ref machine) = system.machine {
+                    for state in &machine.states {
+                        for var in &state.state_vars {
+                            let default_val = var.init.as_ref()
+                                .map(|e| expression_to_string(e, TargetLanguage::Rust))
+                                .unwrap_or_else(|| {
+                                    match &var.var_type {
+                                        Type::Int => "0".to_string(),
+                                        Type::Float => "0.0".to_string(),
+                                        Type::Bool => "false".to_string(),
+                                        Type::String => "String::new()".to_string(),
+                                        _ => "Default::default()".to_string(),
+                                    }
+                                });
+                            restore_body.push_str(&format!("    _sv_{}: {},\n", var.name, default_val));
+                        }
+                    }
+                }
 
                 // Restore domain variables
                 for var in &system.domain {
@@ -5140,6 +5298,29 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 }
 
                 restore_body.push_str("};\n");
+
+                // After instance creation, restore _sv_ fields from compartment state_vars
+                // Walk compartment chain to find values
+                restore_body.push_str("// Restore _sv_ fields from compartment chain\n");
+                restore_body.push_str("let mut comp_ptr = &instance.__compartment;\n");
+                restore_body.push_str("loop {\n");
+                if let Some(ref machine) = system.machine {
+                    for state in &machine.states {
+                        for var in &state.state_vars {
+                            restore_body.push_str(&format!("    if comp_ptr.state == \"{}\" {{\n", state.name));
+                            restore_body.push_str(&format!("        if let Some(&v) = comp_ptr.state_vars.get(\"{}\") {{\n", var.name));
+                            restore_body.push_str(&format!("            instance._sv_{} = v;\n", var.name));
+                            restore_body.push_str("        }\n");
+                            restore_body.push_str("    }\n");
+                        }
+                    }
+                }
+                restore_body.push_str("    match &comp_ptr.parent_compartment {\n");
+                restore_body.push_str("        Some(p) => comp_ptr = p,\n");
+                restore_body.push_str("        None => break,\n");
+                restore_body.push_str("    }\n");
+                restore_body.push_str("}\n");
+
                 restore_body.push_str("instance");
 
                 methods.push(CodegenNode::Method {
@@ -5159,26 +5340,81 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
         }
         TargetLanguage::C => {
             // C uses cJSON library (requires cJSON.h/cJSON.c or -lcjson)
-            // Project owner is responsible for including cJSON
+            // HSM persistence: serialize entire compartment chain including parent_compartment
+
+            // First, generate helper functions for compartment serialization/deserialization
+            // These will be generated as static functions before save_state/restore_state
+
+            // Generate serialize_compartment helper
+            let mut serialize_helper = String::new();
+            serialize_helper.push_str(&format!("static cJSON* {}_serialize_compartment({}_Compartment* comp) {{\n", system.name, system.name));
+            serialize_helper.push_str("    if (!comp) return cJSON_CreateNull();\n");
+            serialize_helper.push_str("    cJSON* obj = cJSON_CreateObject();\n");
+            serialize_helper.push_str("    cJSON_AddStringToObject(obj, \"state\", comp->state);\n");
+            // Serialize state_vars (iterate over bucket-based linked list)
+            serialize_helper.push_str("    cJSON* vars = cJSON_CreateObject();\n");
+            serialize_helper.push_str(&format!("    {}_FrameDict* sv = comp->state_vars;\n", system.name));
+            serialize_helper.push_str("    if (sv) {\n");
+            serialize_helper.push_str("        for (int i = 0; i < sv->bucket_count; i++) {\n");
+            serialize_helper.push_str(&format!("            {}_FrameDictEntry* entry = sv->buckets[i];\n", system.name));
+            serialize_helper.push_str("            while (entry) {\n");
+            serialize_helper.push_str("                cJSON_AddNumberToObject(vars, entry->key, (double)(intptr_t)entry->value);\n");
+            serialize_helper.push_str("                entry = entry->next;\n");
+            serialize_helper.push_str("            }\n");
+            serialize_helper.push_str("        }\n");
+            serialize_helper.push_str("    }\n");
+            serialize_helper.push_str("    cJSON_AddItemToObject(obj, \"state_vars\", vars);\n");
+            // Recursively serialize parent
+            serialize_helper.push_str(&format!("    cJSON_AddItemToObject(obj, \"parent_compartment\", {}_serialize_compartment(comp->parent_compartment));\n", system.name));
+            serialize_helper.push_str("    return obj;\n");
+            serialize_helper.push_str("}\n\n");
+
+            // Generate deserialize_compartment helper
+            let mut deserialize_helper = String::new();
+            deserialize_helper.push_str(&format!("static {}_Compartment* {}_deserialize_compartment(cJSON* data) {{\n", system.name, system.name));
+            deserialize_helper.push_str("    if (!data || cJSON_IsNull(data)) return NULL;\n");
+            deserialize_helper.push_str("    cJSON* state_item = cJSON_GetObjectItem(data, \"state\");\n");
+            // strdup the state string since cJSON memory will be freed
+            deserialize_helper.push_str(&format!("    {}_Compartment* comp = {}_Compartment_new(strdup(state_item->valuestring));\n", system.name, system.name));
+            // Deserialize state_vars
+            deserialize_helper.push_str("    cJSON* vars = cJSON_GetObjectItem(data, \"state_vars\");\n");
+            deserialize_helper.push_str("    if (vars) {\n");
+            deserialize_helper.push_str("        cJSON* var_item;\n");
+            deserialize_helper.push_str("        cJSON_ArrayForEach(var_item, vars) {\n");
+            deserialize_helper.push_str(&format!("            {}_FrameDict_set(comp->state_vars, var_item->string, (void*)(intptr_t)(int)var_item->valuedouble);\n", system.name));
+            deserialize_helper.push_str("        }\n");
+            deserialize_helper.push_str("    }\n");
+            // Recursively deserialize parent
+            deserialize_helper.push_str("    cJSON* parent = cJSON_GetObjectItem(data, \"parent_compartment\");\n");
+            deserialize_helper.push_str(&format!("    comp->parent_compartment = {}_deserialize_compartment(parent);\n", system.name));
+            deserialize_helper.push_str("    return comp;\n");
+            deserialize_helper.push_str("}\n\n");
+
+            // Add helper functions as a NativeBlock method (will be output before other methods)
+            methods.push(CodegenNode::NativeBlock {
+                code: serialize_helper + &deserialize_helper,
+                span: None,
+            });
 
             // Generate save_state function - returns char* (JSON string, caller must free)
             let mut save_body = String::new();
             save_body.push_str("cJSON* root = cJSON_CreateObject();\n");
-            save_body.push_str("cJSON_AddStringToObject(root, \"_state\", self->__compartment->state);\n");
+            // Serialize entire compartment chain
+            save_body.push_str(&format!("cJSON_AddItemToObject(root, \"_compartment\", {}_serialize_compartment(self->__compartment));\n", system.name));
 
-            // Serialize state stack
+            // Serialize state stack (simplified - just states for now)
             save_body.push_str("cJSON* stack_arr = cJSON_CreateArray();\n");
             save_body.push_str(&format!("for (int i = 0; i < {}_FrameVec_size(self->_state_stack); i++) {{\n", system.name));
             save_body.push_str(&format!("    {}_Compartment* comp = ({}_Compartment*){}_FrameVec_get(self->_state_stack, i);\n",
                 system.name, system.name, system.name));
-            save_body.push_str("    cJSON_AddItemToArray(stack_arr, cJSON_CreateString(comp->state));\n");
+            save_body.push_str("    cJSON* stack_obj = cJSON_CreateObject();\n");
+            save_body.push_str("    cJSON_AddStringToObject(stack_obj, \"state\", comp->state);\n");
+            save_body.push_str("    cJSON_AddItemToArray(stack_arr, stack_obj);\n");
             save_body.push_str("}\n");
             save_body.push_str("cJSON_AddItemToObject(root, \"_state_stack\", stack_arr);\n");
 
             // Serialize domain variables
             for var in &system.domain {
-                // For V4, type is Unknown but we can extract it from raw_code
-                // raw_code format: "name: type = init" or "type name = init"
                 let type_str = extract_type_from_raw_domain(&var.raw_code, &var.name);
 
                 let json_add = if is_int_type(&type_str) {
@@ -5190,7 +5426,6 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 } else if is_string_type(&type_str) {
                     format!("cJSON_AddStringToObject(root, \"{}\", self->{});\n", var.name, var.name)
                 } else {
-                    // Default to number for unknown types
                     format!("cJSON_AddNumberToObject(root, \"{}\", (double)(intptr_t)self->{});\n", var.name, var.name)
                 };
                 save_body.push_str(&json_add);
@@ -5224,16 +5459,17 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
             restore_body.push_str(&format!("instance->_context_stack = {}_FrameVec_new();\n", system.name));
             restore_body.push_str("instance->__next_compartment = NULL;\n\n");
 
-            // Restore compartment from _state
-            restore_body.push_str("cJSON* state_item = cJSON_GetObjectItem(root, \"_state\");\n");
-            restore_body.push_str(&format!("instance->__compartment = {}_Compartment_new(strdup(state_item->valuestring));\n\n", system.name));
+            // Restore entire compartment chain
+            restore_body.push_str("cJSON* comp_data = cJSON_GetObjectItem(root, \"_compartment\");\n");
+            restore_body.push_str(&format!("instance->__compartment = {}_deserialize_compartment(comp_data);\n\n", system.name));
 
             // Restore state stack
             restore_body.push_str("cJSON* stack_arr = cJSON_GetObjectItem(root, \"_state_stack\");\n");
             restore_body.push_str("if (stack_arr) {\n");
             restore_body.push_str("    cJSON* stack_item;\n");
             restore_body.push_str("    cJSON_ArrayForEach(stack_item, stack_arr) {\n");
-            restore_body.push_str(&format!("        {}_Compartment* comp = {}_Compartment_new(strdup(stack_item->valuestring));\n",
+            restore_body.push_str("        cJSON* state_obj = cJSON_GetObjectItem(stack_item, \"state\");\n");
+            restore_body.push_str(&format!("        {}_Compartment* comp = {}_Compartment_new(strdup(state_obj->valuestring));\n",
                 system.name, system.name));
             restore_body.push_str(&format!("        {}_FrameVec_push(instance->_state_stack, comp);\n", system.name));
             restore_body.push_str("    }\n");
@@ -5241,7 +5477,6 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
 
             // Restore domain variables
             for var in &system.domain {
-                // For V4, type is Unknown but we can extract it from raw_code
                 let type_str = extract_type_from_raw_domain(&var.raw_code, &var.name);
 
                 let json_get = if is_int_type(&type_str) {
@@ -5253,7 +5488,6 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 } else if is_string_type(&type_str) {
                     format!("instance->{} = strdup(cJSON_GetObjectItem(root, \"{}\")->valuestring);\n", var.name, var.name)
                 } else {
-                    // Default to int for unknown types
                     format!("instance->{} = (int)cJSON_GetObjectItem(root, \"{}\")->valuedouble;\n", var.name, var.name)
                 };
                 restore_body.push_str(&json_get);

@@ -3,7 +3,7 @@
 **Version:** 1.2
 **Date:** February 2026
 **Audience:** Implementation team
-**Status:** Normative — Python 152/152, TypeScript 133/133, Rust 133/133, C 135/136 (553/554 total)
+**Status:** Normative — Python 145/145, TypeScript 127/127, Rust 130/130, C 139/139 (541/541 total, 100%)
 
 ---
 
@@ -599,27 +599,288 @@ def my_operation(self, param) -> int:
 
 ## 10. Persistence
 
-### 10.1 Save
+The `@@persist` annotation generates `save_state()` and `restore_state()` methods for serializing and deserializing system state. Each target language implements persistence with its native serialization idioms.
 
-`@@persist` generates a `save_state()` method that serializes:
-- Current compartment (state, state_args, state_vars)
-- Domain variables
-- State stack
+### 10.1 What Gets Persisted
 
-### 10.2 Restore
+| Component | Description |
+|-----------|-------------|
+| Current compartment | State name, state_args, state_vars |
+| HSM parent chain | Full parent_compartment chain for hierarchical states |
+| State stack | All pushed compartments (for `push$/pop$` history) |
+| Domain variables | All domain variables with their current values |
+| Context stack | Re-initialized empty on restore |
 
-`restore_state()` deserializes and creates a new instance:
-- Sets `__compartment` directly (NO enter event)
-- Restores domain variables
-- Restores state stack
+### 10.2 Python Persistence
 
-**Key:** Restore does NOT invoke the enter handler — the state is being restored, not entered.
+**Strategy:** Native `pickle` serialization (automatic object graph traversal)
+
+```python
+def save_state(self) -> bytes:
+    return pickle.dumps(self)
+
+@staticmethod
+def restore_state(data: bytes) -> "SystemName":
+    return pickle.loads(data)
+```
+
+**Characteristics:**
+- Automatic handling of nested objects, HSM parent chains, and state stacks
+- Binary format (not human-readable)
+- No manual serialization code required
+- Restores complete object graph including parent compartment references
+
+### 10.3 TypeScript Persistence
+
+**Strategy:** JSON serialization with recursive compartment helpers
+
+```typescript
+public saveState(): string {
+    return JSON.stringify({
+        _compartment: this.serializeCompartment(this.__compartment),
+        _state_stack: this._state_stack.map(c => this.serializeCompartment(c)),
+        // domain variables...
+    });
+}
+
+public static restoreState(json: string): SystemName {
+    const data = JSON.parse(json);
+    const instance = Object.create(SystemName.prototype);
+    instance.__compartment = instance.deserializeCompartment(data._compartment);
+    instance._state_stack = data._state_stack.map((c: any) =>
+        instance.deserializeCompartment(c));
+    instance._context_stack = [];
+    // restore domain variables...
+    return instance;
+}
+```
+
+**Compartment serialization** (recursive for HSM):
+```typescript
+private serializeCompartment(comp: SystemNameCompartment): any {
+    return {
+        state: comp.state,
+        state_vars: Object.fromEntries(comp.state_vars),
+        parent_compartment: comp.parent_compartment
+            ? this.serializeCompartment(comp.parent_compartment)
+            : null
+    };
+}
+```
+
+**Characteristics:**
+- Human-readable JSON format
+- Recursive serialization of HSM parent chains
+- Returns string from `saveState()`, accepts string in `restoreState()`
+- State stack serialized as array of compartment objects
+
+### 10.4 Rust Persistence
+
+**Strategy:** serde_json with explicit field synchronization
+
+Rust uses dual storage for state variables:
+- `_sv_*` struct fields for type-safe access
+- `compartment.state_vars` HashMap for runtime flexibility
+
+**Save** syncs struct fields INTO compartment before serialization:
+```rust
+pub fn save_state(&mut self) -> String {
+    // Sync _sv_ fields into current compartment's state_vars
+    unsafe {
+        let mut comp_ptr: *mut SystemNameCompartment = &mut self.__compartment;
+        loop {
+            match (*comp_ptr).state.as_str() {
+                "StateName" => {
+                    (*comp_ptr).state_vars.insert("var_name".to_string(), self._sv_var_name);
+                }
+                // ... other states
+                _ => {}
+            }
+            match (*comp_ptr).parent_compartment {
+                Some(ref mut p) => comp_ptr = p.as_mut(),
+                None => break,
+            }
+        }
+    }
+    serde_json::to_string(&SerializableState {
+        _compartment: self.serialize_compartment(&self.__compartment),
+        _state_stack: self._state_stack.iter()
+            .map(|(state, ctx)| /* ... */).collect(),
+        // domain variables...
+    }).unwrap()
+}
+```
+
+**Restore** syncs compartment state_vars back INTO struct fields:
+```rust
+pub fn restore_state(json: &str) -> Self {
+    let data: serde_json::Value = serde_json::from_str(json).unwrap();
+    let mut instance = Self { /* ... */ };
+    instance.__compartment = Self::deserialize_compartment(&data["_compartment"]);
+    // Restore _state_stack...
+
+    // Sync state_vars back into _sv_ struct fields
+    unsafe {
+        let mut comp_ptr: *mut SystemNameCompartment = &mut instance.__compartment;
+        loop {
+            match (*comp_ptr).state.as_str() {
+                "StateName" => {
+                    if let Some(v) = (*comp_ptr).state_vars.get("var_name") {
+                        instance._sv_var_name = *v;
+                    }
+                }
+                // ... other states
+                _ => {}
+            }
+            match (*comp_ptr).parent_compartment {
+                Some(ref mut p) => comp_ptr = p.as_mut(),
+                None => break,
+            }
+        }
+    }
+    instance._context_stack = Vec::new();
+    instance
+}
+```
+
+**Characteristics:**
+- JSON format via serde_json
+- Explicit sync between typed struct fields and HashMap storage
+- HSM parent chain traversal for both save and restore
+- Raw pointer traversal required for mutable parent chain access
+
+### 10.5 C Persistence
+
+**Strategy:** cJSON library with manual memory management
+
+**Save:**
+```c
+char* SystemName_save_state(SystemName* self) {
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddItemToObject(root, "_compartment",
+        SystemName_serialize_compartment(self->__compartment));
+
+    // Serialize state stack
+    cJSON* stack_arr = cJSON_CreateArray();
+    for (int i = 0; i < SystemName_FrameVec_size(self->_state_stack); i++) {
+        SystemName_Compartment* comp = SystemName_FrameVec_get(self->_state_stack, i);
+        cJSON* stack_item = cJSON_CreateObject();
+        cJSON_AddStringToObject(stack_item, "state", comp->state);
+        cJSON_AddItemToArray(stack_arr, stack_item);
+    }
+    cJSON_AddItemToObject(root, "_state_stack", stack_arr);
+
+    // Domain variables...
+    char* json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return json;
+}
+```
+
+**Compartment serialization** (recursive for HSM):
+```c
+static cJSON* SystemName_serialize_compartment(SystemName_Compartment* comp) {
+    cJSON* obj = cJSON_CreateObject();
+    cJSON_AddStringToObject(obj, "state", comp->state);
+
+    // Serialize state_vars from FrameDict buckets
+    cJSON* vars = cJSON_CreateObject();
+    for (int i = 0; i < comp->state_vars->bucket_count; i++) {
+        SystemName_FrameDictEntry* entry = comp->state_vars->buckets[i];
+        while (entry) {
+            cJSON_AddNumberToObject(vars, entry->key, (double)(intptr_t)entry->value);
+            entry = entry->next;
+        }
+    }
+    cJSON_AddItemToObject(obj, "state_vars", vars);
+
+    // Recursive parent serialization
+    if (comp->parent_compartment) {
+        cJSON_AddItemToObject(obj, "parent_compartment",
+            SystemName_serialize_compartment(comp->parent_compartment));
+    } else {
+        cJSON_AddNullToObject(obj, "parent_compartment");
+    }
+    return obj;
+}
+```
+
+**Restore** (critical: `strdup()` for string ownership):
+```c
+static SystemName* SystemName_restore_state(const char* json) {
+    cJSON* root = cJSON_Parse(json);
+    SystemName* instance = malloc(sizeof(SystemName));
+    instance->_state_stack = SystemName_FrameVec_new();
+    instance->_context_stack = SystemName_FrameVec_new();
+
+    // Deserialize compartment (uses strdup for state strings)
+    instance->__compartment = SystemName_deserialize_compartment(
+        cJSON_GetObjectItem(root, "_compartment"));
+
+    // Restore state stack (strdup required!)
+    cJSON* stack_arr = cJSON_GetObjectItem(root, "_state_stack");
+    cJSON* stack_item;
+    cJSON_ArrayForEach(stack_item, stack_arr) {
+        cJSON* state_obj = cJSON_GetObjectItem(stack_item, "state");
+        SystemName_Compartment* comp =
+            SystemName_Compartment_new(strdup(state_obj->valuestring));
+        SystemName_FrameVec_push(instance->_state_stack, comp);
+    }
+
+    // Domain variables...
+    cJSON_Delete(root);  // Free cJSON memory AFTER strdup
+    return instance;
+}
+```
+
+**Characteristics:**
+- JSON format via cJSON library
+- Manual memory management with `strdup()` for all strings
+- Bucket-based FrameDict iteration for state_vars
+- `cJSON_Delete()` called AFTER all string copies made
+- Recursive compartment helpers for HSM parent chains
+
+### 10.6 Restore Semantics
+
+**Critical invariant:** Restore does NOT invoke the enter handler (`$>`). The state is being *restored*, not *entered*.
+
+| Operation | Enter Handler | State Vars |
+|-----------|---------------|------------|
+| `-> $State` (transition) | Invoked | Reset to initial values |
+| `-> pop$` (history) | NOT invoked | Restored from saved compartment |
+| `restore_state()` | NOT invoked | Restored from serialized data |
+
+### 10.7 HSM Persistence
+
+For hierarchical state machines, the entire parent compartment chain is serialized:
+
+```json
+{
+    "_compartment": {
+        "state": "Child",
+        "state_vars": {"child_count": 3},
+        "parent_compartment": {
+            "state": "Parent",
+            "state_vars": {"parent_count": 102},
+            "parent_compartment": null
+        }
+    },
+    "_state_stack": [],
+    "domain_var": 42
+}
+```
+
+On restore:
+1. Parent chain is rebuilt recursively from root to leaf
+2. Each compartment's `parent_compartment` pointer is set correctly
+3. State variables at each level are restored
+4. Event forwarding (`=> $^`) works correctly after restore
 
 ---
 
 ## 11. Implementation Status
 
-**Core features implemented across all four target languages. Current status: 553/554 tests passing (99.8%).**
+**Core features implemented across all four target languages. Current status: 541/541 tests passing (100%).**
 
 ### 11.1 Kernel Implementation ✅
 
