@@ -40,7 +40,7 @@ See `docs/framelang/v4/frame_v4_lang_reference.md` Section 9 for the full specif
 
 ## Test Infrastructure
 
-**V4 Test Status:** Python 30/152, TypeScript 26/133, Rust 25/133, C 12/12 — 93/430 total
+**V4 Test Status:** Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
 
 **Test sources:** `framepiler_test_env/tests/` (dynamically discovered)
 - `.fpy` — Python sources
@@ -117,25 +117,30 @@ Handler Body:
 ## Pipeline
 
 ```
-Source (.frm)
+Source (.fpy/.fts/.frs/.fc)
      │
-     ├──→ Frame Parser ──→ Frame AST
-     │                         │
-     │                         ▼
-     │                     Arcanum (symbol table)
-     │                         │
-     │                         ▼
-     │                     Validator (E4xx errors)
-     │                         │
-     │                         ▼
-     │                     Codegen (CodegenNode IR)
-     │                         │
-     │                         ▼
-     │                     Backend (Python/Rust/TS)
-     │                         │
-     ▼                         ▼
-Native code ─────────────→ Target code
-(preserved)                (generated + native)
+     ├──→ Stage 0: Segmenter ──→ Prolog + System Body + Epilog spans
+     │                                    │
+     │                                    ▼
+     │                          Stage 1: Lexer ──→ Token stream
+     │                                    │
+     │                                    ▼
+     │                          Stage 2: Pipeline Parser ──→ SystemAst
+     │                                    │
+     │                                    ▼
+     │                          Stage 3: Arcanum (symbol table)
+     │                                    │
+     │                                    ▼
+     │                          Stage 4: Validator (E4xx errors)
+     │                                    │
+     │                                    ▼
+     │                          Stage 5: Codegen (CodegenNode IR)
+     │                                    │
+     │                                    ▼
+     │                          Stage 6: Backend (Python/Rust/TS/C)
+     │                                    │
+     ▼                                    ▼
+     Stage 7: Assembler ──→ Prolog + Generated class + Epilog
 ```
 
 ## V4 Syntax
@@ -168,6 +173,8 @@ from typing import List
     domain:
         var history: List = []
 }
+
+# Section order: operations → interface → machine → actions → domain
 
 # Native code (preserved)
 if __name__ == '__main__':
@@ -224,24 +231,30 @@ This is opt-in and non-blocking. See `docs/architecture_v5/PLAN.md`.
 
 | File | Purpose |
 |------|---------|
-| `v4/frame_parser.rs` | Parse Frame syntax |
+| `v4/segmenter/` | Stage 0: Source segmentation |
+| `v4/lexer/` | Stage 1: Tokenization |
+| `v4/pipeline_parser/` | Stage 2: Parse tokens → SystemAst |
 | `v4/frame_ast.rs` | Frame AST types |
-| `v4/arcanum.rs` | Symbol table |
-| `v4/frame_validator.rs` | Frame validation |
-| `v4/native_region_scanner.rs` | Find Frame islands |
-| `v4/codegen/system_codegen.rs` | AST → CodegenNode |
-| `v4/codegen/backends/*.rs` | CodegenNode → target code |
-| `v4/pipeline/compiler.rs` | Main pipeline |
+| `v4/arcanum.rs` | Stage 3: Symbol table |
+| `v4/frame_validator.rs` | Stage 4: Validation |
+| `v4/codegen/system_codegen.rs` | Stage 5: AST → CodegenNode |
+| `v4/codegen/backends/*.rs` | Stage 6: CodegenNode → target code |
+| `v4/assembler/` | Stage 7: Output assembly |
+| `v4/pipeline/compiler.rs` | Orchestrates all stages |
+| `v4/native_region_scanner.rs` | SyntaxSkipper (string/comment awareness) |
+| `v4/frame_parser.rs` | Legacy parser (being replaced by pipeline) |
 
 ### Error Codes
 
 | Code | Description |
 |------|-------------|
 | E001 | Parse error |
+| E002 | Segmentation error |
+| E113 | System blocks out of order |
+| E400 | Code after terminal statement |
 | E402 | Unknown state reference |
 | E403 | Duplicate state definition |
 | E405 | Parameter mismatch |
-| E4xx | (More planned - see VALIDATION_EXPANSION_PLAN.md) |
 
 ---
 

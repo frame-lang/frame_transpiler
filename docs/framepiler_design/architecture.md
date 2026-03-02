@@ -46,10 +46,10 @@ Output: Native prolog + Generated class + Native epilog
 
 | Language | Target | File Extension | Status |
 |----------|--------|----------------|--------|
-| Python | `python_3` | `.fpy` | 100% (152/152 tests) |
-| TypeScript | `typescript` | `.fts` | 100% (133/133 tests) |
-| Rust | `rust` | `.frs` | 96% (128/133 tests) |
-| C | `c` | `.fc` | 96% (130/136 tests) |
+| Python | `python_3` | `.fpy` | 100% (144/144 tests) |
+| TypeScript | `typescript` | `.fts` | 100% (126/126 tests) |
+| Rust | `rust` | `.frs` | 100% (130/130 tests) |
+| C | `c` | `.fc` | 100% (139/139 tests) |
 
 ## Features
 

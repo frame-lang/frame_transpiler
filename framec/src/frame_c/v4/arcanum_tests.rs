@@ -211,6 +211,7 @@ mod tests {
             params: vec![],
             body: ActionBody {
                 span: FrameSpan::new(0, 10),
+                code: None,
             },
             span: FrameSpan::new(30, 40),
         });
@@ -222,7 +223,9 @@ mod tests {
             return_type: Type::Int,
             body: OperationBody {
                 span: FrameSpan::new(0, 10),
+                code: None,
             },
+            is_static: false,
             span: FrameSpan::new(40, 50),
         });
 
@@ -241,6 +244,7 @@ mod tests {
             var_type: Type::Int,
             initializer: None,
             is_frame: true,
+            raw_code: None,
             span: FrameSpan::new(70, 80),
         });
 
@@ -361,6 +365,7 @@ mod tests {
             var_type: Type::Int,
             initializer: None,
             is_frame: true,
+            raw_code: None,
             span: FrameSpan::new(10, 30),
         });
 

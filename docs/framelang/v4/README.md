@@ -3,7 +3,7 @@
 **Status:** Normative — All four target languages implemented
 **Version:** 1.4
 **Date:** 2026-02-27
-**Test Status:** 553/554 passing (99.8%) — Python 152/152, TypeScript 133/133, Rust 133/133, C 135/136
+**Test Status:** 539/539 passing (100%) — Python 144/144, TypeScript 126/126, Rust 130/130, C 139/139
 
 ---
 

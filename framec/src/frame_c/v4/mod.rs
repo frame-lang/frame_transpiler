@@ -26,22 +26,29 @@ pub mod outline_scanner;
 pub mod facade;
 pub mod ast;
 pub mod arcanum;
-pub mod domain_scanner;
+// DEAD CODE — renamed with _ prefix (see frame_v4_reorg_plan.md)
+// pub mod domain_scanner;
+// pub mod native_symbol_snapshot;
+// pub mod python_transpiler;
+// pub mod rust_domain_scanner;
+// pub mod machines;
+// pub mod ts_harness_machine;
+// pub mod system_transformer;
+// pub mod parser_debug;
+
 pub mod interface_parser;
 pub mod system_parser;
 pub mod machine_parser;
-pub mod native_symbol_snapshot;
-pub mod python_transpiler;
 pub mod system_param_semantics;
-pub mod rust_domain_scanner;
-pub mod machines;
-pub mod ts_harness_machine;
-pub mod system_transformer;
 // Phase 1: Frame AST modules
 pub mod frame_ast;
 pub mod frame_parser;
 pub mod frame_validator;
-pub mod parser_debug;
+// New pipeline stages (per frame_v4_pipeline_architecture.md)
+pub mod segmenter;
+pub mod lexer;
+pub mod pipeline_parser;
+pub mod assembler;
 // Phase 3: Pipeline infrastructure
 pub mod pipeline;
 // Phase 4: Code generation infrastructure

@@ -179,18 +179,21 @@ impl FrameValidator {
             }
         } else {
             // State exists, check transition argument arity against STATE PARAMS
-            // Transition args like -> $State(a, b) go to state params $State(a, b)
-            let args_count = trans.args.len();
-            if let Some(expected) = arcanum.get_state_param_count(system_name, &trans.target) {
-                if expected != args_count {
-                    if !self.errors.iter().any(|e| e.code == "E405" && e.span.as_ref() == Some(&trans.span)) {
-                        self.errors.push(ValidationError::new(
-                            "E405",
-                            format!(
-                                "State '{}' expects {} parameters but {} provided",
-                                trans.target, expected, args_count
-                            )
-                        ).with_span(trans.span.clone()));
+            // Skip arity checking when args are NativeExpr blobs (native compiler handles it)
+            let has_native_args = trans.args.iter().any(|a| matches!(a, Expression::NativeExpr(_)));
+            if !has_native_args {
+                let args_count = trans.args.len();
+                if let Some(expected) = arcanum.get_state_param_count(system_name, &trans.target) {
+                    if expected != args_count {
+                        if !self.errors.iter().any(|e| e.code == "E405" && e.span.as_ref() == Some(&trans.span)) {
+                            self.errors.push(ValidationError::new(
+                                "E405",
+                                format!(
+                                    "State '{}' expects {} parameters but {} provided",
+                                    trans.target, expected, args_count
+                                )
+                            ).with_span(trans.span.clone()));
+                        }
                     }
                 }
             }
@@ -449,9 +452,21 @@ impl FrameValidator {
         if let Some(idx) = terminal_index {
             let last_idx = statements.len() - 1;
             if idx != last_idx {
-                // Check if remaining statements are non-trivial (native code is not in AST)
+                // Check if remaining statements are non-trivial
+                // NativeCode with only braces/whitespace and Return are trivial
                 let has_non_trivial_after = statements[idx + 1..].iter().any(|s| {
-                    !matches!(s, Statement::Return(_))
+                    match s {
+                        Statement::Return(_) => false,
+                        Statement::NativeCode(code) => {
+                            // Only braces, whitespace, semicolons, and comments are trivial
+                            let trimmed = code.trim();
+                            !trimmed.is_empty()
+                                && trimmed != "}"
+                                && trimmed != "};"
+                                && !trimmed.chars().all(|c| c == '}' || c == ' ' || c == '\n' || c == '\r' || c == '\t')
+                        }
+                        _ => true,
+                    }
                 });
                 if has_non_trivial_after {
                     let span = match &statements[idx] {
@@ -468,9 +483,10 @@ impl FrameValidator {
         }
     }
 
-    /// Check if a statement is a terminal statement (transition or forward)
+    /// Check if a statement is a terminal statement (transition only).
+    /// Forwards (`=> $^`) are NOT terminal — they dispatch to the parent and return.
     fn is_terminal_statement(&self, stmt: &Statement) -> bool {
-        matches!(stmt, Statement::Transition(_) | Statement::Forward(_))
+        matches!(stmt, Statement::Transition(_))
     }
     
     /// Validate a transition statement
@@ -497,18 +513,21 @@ impl FrameValidator {
             ).with_span(transition.span.clone()));
         } else {
             // E405: Check STATE PARAMETER arity
-            // Transition args like -> $State(a, b) are passed to state params $State(a, b)
-            let target_state = state_map.get(&transition.target).unwrap();
-            if target_state.params.len() != transition.args.len() {
-                self.errors.push(ValidationError::new(
-                    "E405",
-                    format!(
-                        "State '{}' expects {} parameters but {} provided",
-                        transition.target,
-                        target_state.params.len(),
-                        transition.args.len()
-                    )
-                ).with_span(transition.span.clone()));
+            // Skip arity checking when args are NativeExpr blobs (native compiler handles it)
+            let has_native_args = transition.args.iter().any(|a| matches!(a, Expression::NativeExpr(_)));
+            if !has_native_args {
+                let target_state = state_map.get(&transition.target).unwrap();
+                if target_state.params.len() != transition.args.len() {
+                    self.errors.push(ValidationError::new(
+                        "E405",
+                        format!(
+                            "State '{}' expects {} parameters but {} provided",
+                            transition.target,
+                            target_state.params.len(),
+                            transition.args.len()
+                        )
+                    ).with_span(transition.span.clone()));
+                }
             }
         }
     }

@@ -9,13 +9,13 @@
 
 ## Current Status
 
-**Test Results (2026-02-28):**
-- Python: 153/153 tests passing (100%)
-- TypeScript: 134/134 tests passing (100%)
-- Rust: 134/134 tests passing (100%)
-- C: 137/137 tests passing (100%)
+**Test Results (2026-03-02):**
+- Python: 144/144 tests passing (100%)
+- TypeScript: 126/126 tests passing (100%)
+- Rust: 130/130 tests passing (100%)
+- C: 139/139 tests passing (100%)
 
-**Total PRTC: 558/558 tests passing (100%)**
+**Total PRTC: 539/539 tests passing (100%)**
 
 **Known Issues:**
 | Test | Language | Issue |
@@ -232,14 +232,14 @@ cd framepiler_test_env/tests
 | 9 | All PRTC | ✅ Architecture complete |
 | 10 | Infrastructure | ✅ Test crates working |
 | 11 | 36-38 | ✅ All 4 languages passing |
-| 12 | C | ✅ 137/137 (100%) |
+| 12 | C | ✅ 139/139 (100%) |
 | 13 | 39 | ✅ Tagged instantiation working |
 
-**Current PRTC:** 558/558 (100%)
-- Python: 153/153 (100%)
-- TypeScript: 134/134 (100%)
-- Rust: 134/134 (100%)
-- C: 137/137 (100%)
+**Current PRTC:** 539/539 (100%)
+- Python: 144/144 (100%)
+- TypeScript: 126/126 (100%)
+- Rust: 130/130 (100%)
+- C: 139/139 (100%)
 
 ---
 

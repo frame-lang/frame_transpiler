@@ -5602,6 +5602,10 @@ fn convert_statement(stmt: &Statement) -> CodegenNode {
         Statement::Expression(expr_ast) => {
             CodegenNode::ExprStmt(Box::new(convert_expression(&expr_ast.expr)))
         }
+        Statement::NativeCode(code) => {
+            // V4 pipeline: native code stored directly in AST, emit as raw code
+            CodegenNode::NativeBlock { code: code.clone(), span: None }
+        }
     }
 }
 
@@ -5783,6 +5787,7 @@ mod tests {
             var_type: Type::Int,
             initializer: Some(Expression::Literal(Literal::Int(0))),
             is_frame: false,
+            raw_code: None,
             span: Span::new(0, 0),
         });
 

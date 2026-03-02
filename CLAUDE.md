@@ -36,15 +36,18 @@
 ```frame
 # Modern Frame system structure
 system SystemName {
+    operations:
+        operationName(): type { }
+
     interface:
         methodName(param: type): returnType
-    
+
     machine:
         $StateName {
             eventName(params) {
                 // handler code
             }
-            
+
             $>() {  // Enter handler
                 // enter code
             }
@@ -53,13 +56,10 @@ system SystemName {
                 // exit code
             }
         }
-    
+
     actions:
         actionName() { }
-    
-    operations:
-        operationName(): type { }
-    
+
     domain:
         var x = 0
 }
@@ -75,7 +75,7 @@ system SystemName {
 - For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
-- **Version**: v0.95.1 (branch `v4_pure`)
+- **Version**: v0.96.0 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
 - **V4 Test Status**: Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
@@ -90,9 +90,9 @@ system SystemName {
 **Test Counts:**
 - Python: 144 tests (.fpy)
 - TypeScript: 126 tests (.fts)
-- Rust: 129 tests (.frs)
-- C: 138 tests (.fc)
-- **Total: 537 test files**
+- Rust: 130 tests (.frs)
+- C: 139 tests (.fc)
+- **Total: 539 test files**
 
 **Test Output Directories:**
 - `framepiler_test_env/output/python/tests/` - Python generated output
@@ -103,7 +103,7 @@ system SystemName {
 ### V4 Test Runner (UNIFIED)
 ```bash
 cd framepiler_test_env/tests
-./run_tests.sh              # Run ALL tests (144 py + 126 ts + 129 rs + 138 c)
+./run_tests.sh              # Run ALL tests (144 py + 126 ts + 130 rs + 139 c)
 ./run_tests.sh --python     # Run only Python
 ./run_tests.sh --category primary  # Run only primary category
 ./run_tests.sh --help       # Show all options
@@ -144,28 +144,39 @@ This ensures tests exit with proper failure codes for automated testing systems.
 V4 is a preprocessor for `@@system` blocks. Native code passes through verbatim.
 
 ```
-Source file with @@system blocks
+Source file (.fpy/.fts/.frs/.fc)
     ↓
-FrameParser (frame_parser.rs) - Parse @@system into FrameAst
+Stage 0: Segmenter (segmenter/) - Split source into prolog, system body, epilog spans
     ↓
-Arcanum (arcanum.rs) - Build symbol table from AST
+Stage 1: Lexer (lexer/) - Tokenize system body into Frame token stream
     ↓
-FrameValidator (frame_validator.rs) - Validate transitions, states
+Stage 2: Pipeline Parser (pipeline_parser/) - Parse tokens into SystemAst
     ↓
-SystemCodegen (system_codegen.rs) - Generate CodegenNode AST
+Stage 3: Arcanum (arcanum.rs) - Build symbol table from AST
     ↓
-Language Backend (backends/*.rs) - Emit target language code
+Stage 4: Validator (frame_validator.rs) - Validate transitions, states, section order
     ↓
-Output: Native prolog + Generated class + Native epilog
+Stage 5: Codegen (codegen/system_codegen.rs) - Generate CodegenNode IR
+    ↓
+Stage 6: Backend Emitter (codegen/backends/*.rs) - Emit target language code
+    ↓
+Stage 7: Assembler (assembler/) - Stitch prolog + generated class + epilog
+    ↓
+Output: Complete target language file
 ```
 
 **"Oceans Model"**: Native code is the ocean (passed through verbatim), `@@system` blocks are islands (expanded to classes).
 
 **Key V4 Files**:
-- `framec/src/frame_c/v4/frame_parser.rs` - Parse `@@system` blocks
-- `framec/src/frame_c/v4/arcanum.rs` - Symbol table
-- `framec/src/frame_c/v4/codegen/system_codegen.rs` - Generate CodegenNode
-- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust}.rs` - Emit code
+- `framec/src/frame_c/v4/segmenter/` - Stage 0: source segmentation
+- `framec/src/frame_c/v4/lexer/` - Stage 1: tokenization
+- `framec/src/frame_c/v4/pipeline_parser/` - Stage 2: parse tokens into AST
+- `framec/src/frame_c/v4/arcanum.rs` - Stage 3: symbol table
+- `framec/src/frame_c/v4/frame_validator.rs` - Stage 4: validation
+- `framec/src/frame_c/v4/codegen/system_codegen.rs` - Stage 5: CodegenNode IR
+- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust,c}.rs` - Stage 6: emit code
+- `framec/src/frame_c/v4/assembler/` - Stage 7: output assembly
+- `framec/src/frame_c/v4/pipeline/compiler.rs` - Orchestrates all stages
 
 ### V3 Pipeline (Legacy - for reference only)
 - Module Partitioner → Native Region Scanner → MIR Assembler → Expander → Splicer
@@ -180,6 +191,11 @@ Output: Native prolog + Generated class + Native epilog
 import math
 
 @@system MySystem {
+    operations:
+        static helper(): int {
+            return 42
+        }
+
     interface:
         method(param: type): returnType
 

@@ -227,17 +227,16 @@ pub struct EventParam {
 }
 
 /// Handler body contains Frame statements only
-/// Native code is handled by the splicer in codegen, not stored in AST
+/// Handler body containing an interleaved sequence of Frame statements and native code
 #[derive(Debug, Clone)]
 pub struct HandlerBody {
-    /// Frame statements only (transitions, forwards, etc.)
+    /// Ordered sequence of Frame statements and NativeCode chunks
     pub statements: Vec<Statement>,
-    /// Full span of handler body (used by scanner/splicer)
+    /// Full span of handler body in source
     pub span: Span,
 }
 
-/// Statement in a handler - Frame statements only
-/// Native code is NOT in the AST - it's handled by splicer in codegen
+/// Statement in a handler body — Frame statements interleaved with native code
 #[derive(Debug, Clone)]
 pub enum Statement {
     /// Frame transition statement (->)
@@ -260,6 +259,8 @@ pub enum Statement {
     Loop(LoopAst),
     /// Frame expression (assignments, calls, etc.)
     Expression(ExpressionAst),
+    /// Native code chunk within handler body (V4 pipeline: Lexer extracts, Parser stores)
+    NativeCode(String),
 }
 
 /// Transition statement (-> $State)
@@ -444,8 +445,10 @@ pub struct ActionParam {
 /// Action body - native code only, content preserved by splicer
 #[derive(Debug, Clone)]
 pub struct ActionBody {
-    /// Span referencing original source - splicer extracts content directly
+    /// Span referencing original source
     pub span: Span,
+    /// Native body content (extracted during parsing, used by codegen directly)
+    pub code: Option<String>,
 }
 
 /// Operation definition (with return type)
@@ -471,8 +474,10 @@ pub struct OperationParam {
 /// Operation body - native code only, content preserved by splicer
 #[derive(Debug, Clone)]
 pub struct OperationBody {
-    /// Span referencing original source - splicer extracts content directly
+    /// Span referencing original source
     pub span: Span,
+    /// Native body content (extracted during parsing, used by codegen directly)
+    pub code: Option<String>,
 }
 
 /// Domain variable
@@ -696,6 +701,7 @@ mod tests {
         system.persist_attr = Some(PersistAttr {
             save_name: Some("custom_save".to_string()),
             restore_name: None,
+            library: None,
             span: Span::new(0, 20),
         });
 

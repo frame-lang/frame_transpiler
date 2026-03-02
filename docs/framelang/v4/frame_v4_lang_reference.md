@@ -104,15 +104,15 @@ Annotations apply to the immediately following `@@system`.
 
 ```
 @@system <Identifier> ( <system_params> )? {
+    ( operations: <operations_block> )?
     ( interface: <interface_block> )?
     ( machine: <machine_block> )?
     ( actions: <actions_block> )?
-    ( operations: <operations_block> )?
     ( domain: <domain_block> )?
 }
 ```
 
-Declares a state machine system. Sections are optional but **must appear in the order shown**: interface → machine → actions → operations → domain.
+Declares a state machine system. Sections are optional but **must appear in the order shown**: operations → interface → machine → actions → domain.
 
 **System parameters** (three groups, all optional, in fixed positional order):
 
@@ -1029,6 +1029,11 @@ import logging
 @@persist
 @@system OrderProcessor ($(order_type), $>(initial_data), max_retries) {
 
+    operations:
+        static version(): str {
+            return "1.0.0"
+        }
+
     interface:
         submit(order)
         cancel(reason)
@@ -1090,11 +1095,6 @@ import logging
     actions:
         validate(data) {
             return data is not None
-        }
-
-    operations:
-        static version(): str {
-            return "1.0.0"
         }
 
     domain:

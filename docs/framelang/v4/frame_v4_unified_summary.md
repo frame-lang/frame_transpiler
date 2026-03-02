@@ -13,7 +13,7 @@ Frame V4 is a **pure preprocessor** for state machine specifications. Native cod
 
 **Target Languages:** Python 3, TypeScript, Rust, C (in development)
 
-**Current Test Status:** Python 152/152 (100%), TypeScript 133/133 (100%), Rust 128/133 (96%), C 130/136 (96%) - 543/554 total (98%)
+**Current Test Status:** Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) - 539/539 total (100%)
 
 ---
 
@@ -337,11 +337,11 @@ Generates `save_state()` and `restore_state()` methods.
 
 | Language | Status | Tests |
 |----------|--------|-------|
-| Python 3 | Complete | 152/152 (100%) |
-| TypeScript | Complete | 133/133 (100%) |
-| Rust | Complete | 128/133 (96%) |
-| C | In Development | 130/136 (96%) |
-| **Total** | **98%** | **543/554** |
+| Python 3 | Complete | 144/144 (100%) |
+| TypeScript | Complete | 126/126 (100%) |
+| Rust | Complete | 130/130 (100%) |
+| C | Complete | 139/139 (100%) |
+| **Total** | **100%** | **539/539** |
 
 ### 7.2 Implemented Features
 

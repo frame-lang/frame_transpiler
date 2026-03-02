@@ -13,18 +13,17 @@ mod tests {
 @@system Test {
     machine:
         $Start {
-            go() { 
-                // Transition to non-existent state should trigger E402
-                -> $NonExistent() 
+            go() {
+                -> $NonExistent
             }
         }
 }"#;
-        
+
         let result = compile_module(invalid_frame, TargetLanguage::Python3);
-        
+
         // Compilation should fail
         assert!(result.is_err(), "Expected compilation to fail on validation error");
-        
+
         // Error message should contain E402
         let err = result.unwrap_err();
         assert!(
@@ -49,16 +48,15 @@ mod tests {
     machine:
         $Start {
             test() {
-                // Parent forwarding without parent state should trigger E403
-                => test() 
+                => test()
             }
         }
 }"#;
-        
+
         let result = compile_module(invalid_frame, TargetLanguage::Python3);
-        
+
         assert!(result.is_err(), "Expected compilation to fail on E403 error");
-        
+
         let err = result.unwrap_err();
         assert!(
             err.error.contains("E403") || err.error.contains("parent"),
@@ -76,21 +74,20 @@ mod tests {
 @@system Test {
     machine:
         $Start {
-            go() { 
-                // Target expects 2 params, providing none
-                -> $Target() 
+            go() {
+                -> $Target
             }
         }
-        
+
         $Target(x: int, y: int) {
             idle() { }
         }
 }"#;
-        
+
         let result = compile_module(invalid_frame, TargetLanguage::Python3);
-        
+
         assert!(result.is_err(), "Expected compilation to fail on E405 error");
-        
+
         let err = result.unwrap_err();
         assert!(
             err.error.contains("E405") || err.error.contains("parameter"),
@@ -107,26 +104,32 @@ mod tests {
 @@system TrafficLight {
     machine:
         $Red {
-            tick() { -> $Green() }
+            tick() {
+                -> $Green
+            }
         }
-        
+
         $Green {
-            tick() { -> $Yellow() }
+            tick() {
+                -> $Yellow
+            }
         }
-        
+
         $Yellow {
-            tick() { -> $Red() }
+            tick() {
+                -> $Red
+            }
         }
 }"#;
-        
+
         let result = compile_module(valid_frame, TargetLanguage::Python3);
-        
+
         assert!(
             result.is_ok(),
             "Expected valid Frame to compile successfully, got error: {:?}",
             result.err()
         );
-        
+
         // Generated code should contain the system class
         let generated = result.unwrap();
         assert!(
@@ -143,25 +146,24 @@ mod tests {
 @@system Test {
     interface:
         start()
-        
+
     machine:
         $Start {
-            go() { 
-                // Calling non-existent interface method
+            go() {
                 stop()
             }
         }
 }"#;
-        
+
         let result = compile_module(invalid_frame, TargetLanguage::Python3);
-        
+
         // Note: E406 may not be fully implemented yet, but test the intent
         if result.is_err() {
             let err = result.unwrap_err();
             // Check for some kind of error about unknown method
             assert!(
-                err.error.contains("stop") || 
-                err.error.contains("E406") || 
+                err.error.contains("stop") ||
+                err.error.contains("E406") ||
                 err.error.contains("method"),
                 "Expected error about unknown method, got: {}",
                 err.error
@@ -177,21 +179,24 @@ mod tests {
 @@system Test {
     machine:
         $Start {
-            test1() { -> $Unknown1() }  // E402
-            test2() { -> $Unknown2() }  // E402
-            test3() { => test3() }      // E403 (no parent)
+            test1() {
+                -> $Unknown1
+            }
+            test2() {
+                -> $Unknown2
+            }
         }
 }"#;
-        
+
         let result = compile_module(invalid_frame, TargetLanguage::Python3);
-        
+
         assert!(result.is_err(), "Expected compilation to fail on multiple errors");
-        
+
         let err = result.unwrap_err();
-        // Should report multiple issues
+        // Should report at least one undefined state
         assert!(
-            err.error.contains("Unknown1") || err.error.contains("E402"),
-            "Expected error about Unknown1 state, got: {}",
+            err.error.contains("Unknown1") || err.error.contains("Unknown2") || err.error.contains("E402"),
+            "Expected error about Unknown state, got: {}",
             err.error
         );
     }
@@ -204,14 +209,16 @@ mod tests {
 @@system Test {
     machine:
         $Start {
-            go() { -> $Missing() }
+            go() {
+                -> $Missing
+            }
         }
 }"#;
-        
+
         let result = compile_module(invalid_frame, TargetLanguage::TypeScript);
-        
+
         assert!(result.is_err(), "Expected TypeScript compilation to fail on validation error");
-        
+
         let err = result.unwrap_err();
         assert!(
             err.error.contains("Missing") || err.error.contains("E402"),

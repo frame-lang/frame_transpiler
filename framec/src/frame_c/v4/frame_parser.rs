@@ -1444,10 +1444,9 @@ impl FrameParser {
         
         self.expect_char('}')?;
 
-        // ActionBody just stores span - splicer extracts content from original source
-        Ok(ActionBody {
-            span: Span::new(start, self.cursor),
-        })
+        let span = Span::new(start, self.cursor);
+        let code = self.extract_body_content(&span);
+        Ok(ActionBody { span, code: Some(code) })
     }
 
     /// Parse operations section
@@ -1581,10 +1580,9 @@ impl FrameParser {
         
         self.expect_char('}')?;
 
-        // OperationBody just stores span - splicer extracts content from original source
-        Ok(OperationBody {
-            span: Span::new(start, self.cursor),
-        })
+        let span = Span::new(start, self.cursor);
+        let code = self.extract_body_content(&span);
+        Ok(OperationBody { span, code: Some(code) })
     }
 
     /// Parse domain section
@@ -1758,6 +1756,25 @@ impl FrameParser {
                 break;
             }
             self.skip_to_next_line();
+        }
+    }
+
+    // ========================================================================
+    // Body Content Extraction
+    // ========================================================================
+
+    /// Extract the inner content of a braced body from source bytes.
+    /// Strips outer `{ }` and normalizes indentation.
+    fn extract_body_content(&self, span: &Span) -> String {
+        let bytes = &self.source[span.start..span.end];
+        let text = std::str::from_utf8(bytes).unwrap_or("");
+        // Strip outer braces
+        let trimmed = text.trim();
+        if trimmed.starts_with('{') && trimmed.ends_with('}') {
+            let inner = &trimmed[1..trimmed.len() - 1];
+            inner.trim_matches('\n').to_string()
+        } else {
+            text.to_string()
         }
     }
 
