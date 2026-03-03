@@ -464,8 +464,8 @@ done
 
 ### Features to Implement
 - Event parameter passing via `__e._parameters`
-- `return expr` sugar (sets system.return and exits handler)
-- `system.return = expr` explicit assignment
+- `return expr` sugar (sets `@@:return` and exits handler)
+- `@@:return = expr` explicit assignment
 - Interface header default return values (`method(): int = 10`)
 - Context stack for reentrancy
 
@@ -474,7 +474,7 @@ done
 | Test | Description | Key Features |
 |------|-------------|--------------|
 | `primary/07_params` | Event parameters | Parameter unpacking from `_parameters` |
-| `primary/13_system_return` | Return values | `return expr`, `system.return = expr` |
+| `primary/13_system_return` | Return values | `return expr`, `@@:return = expr` |
 | `primary/14_system_return_default` | Default returns | Interface header `= default` |
 | `primary/15_system_return_chain` | Chained returns | Return through multiple states |
 | `primary/16_system_return_reentrant` | Nested calls | Reentrant interface calls |
@@ -522,7 +522,7 @@ Interface methods:
 
 #### 3.3 System Return Expansion
 
-For `FrameSegmentKind::SystemReturn`:
+For `FrameSegmentKind::ReturnSugar`:
 ```rust
 // "return expr" -> set return value and exit
 TargetLanguage::YourLang => {
@@ -531,9 +531,9 @@ TargetLanguage::YourLang => {
 }
 ```
 
-For `FrameSegmentKind::SystemReturnAssign`:
+For `FrameSegmentKind::ContextReturnAssign`:
 ```rust
-// "system.return = expr" -> set return value, continue
+// "@@:return = expr" -> set return value, continue
 TargetLanguage::YourLang => {
     // _context_stack[-1]._return = expr
 }

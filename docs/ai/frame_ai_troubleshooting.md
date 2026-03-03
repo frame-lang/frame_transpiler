@@ -37,7 +37,7 @@ $State {
 # CORRECT
 $State {
     event() {
-        system.return = 42
+        @@:return = 42
         return
     }
 }
@@ -377,7 +377,7 @@ $State {
 |------------|------------|-------|
 | `^(value)` | `return value` | Return with value |
 | `^` | `return` | Return without value |
-| `^= value` | `system.return = value` | Interface return |
+| `^= value` | `@@:return = value` | Interface return |
 | `\|event\|` | `event()` | Event handler |
 | `&&` | `and` | Logical AND |
 | `\|\|` | `or` | Logical OR |
@@ -456,7 +456,7 @@ system StateMachine {
         $State {
             event(params) {
                 var x = params["x"]
-                system.return = x
+                @@:return = x
                 return
             }
         }

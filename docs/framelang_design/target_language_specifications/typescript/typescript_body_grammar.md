@@ -42,7 +42,7 @@ Frame constructs (`$State`, `$Child => $Parent`, `$>()`, `<$()`, `->`, `=> $^`,
 
 Body roles:
 - Event handlers: may interleave native TS with Frame statements (MixedBody). The compiler expands Frame statements (transition/forward/stack ops, return) into TS glue.
-- Actions/operations: native-only. Frame statements are prohibited. However, the pseudo-symbol `system.return` is allowed as an expression or assignment and is desugared to `this.returnStack[this.returnStack.length - 1]`.
+- Actions/operations: native-only. Frame statements are prohibited. However, the pseudo-symbol `@@:return` is allowed as an expression or assignment and is desugared to `this.returnStack[this.returnStack.length - 1]`.
 
 ## Initially Unsupported
 - Optional chaining `?.`, nullish coalescing `??`, ternary `?:` (pending spec).

@@ -427,8 +427,6 @@ Generated code:
 self._context_stack[-1]._return = value
 ```
 
-**Legacy:** `system.return = value` is an alias for `@@:return = value`.
-
 ### 7.3 Return Sugar in Handlers
 
 ```frame
@@ -567,7 +565,7 @@ def _state_MyState(self, __e):
 Private helper methods that CAN access:
 - Domain variables
 - State variables via `$.varName`
-- `system.return`
+- `@@:return`
 
 Actions CANNOT:
 - Trigger transitions
@@ -586,8 +584,9 @@ def __my_action(self, param):
 
 Public methods that bypass the state machine entirely:
 - Direct access to domain variables
+- Non-static operations CAN use `@@:return`
 - No access to state variables
-- No access to `system.return`
+- No Frame state-machine syntax (transitions, push/pop, state vars) -- error E401
 - Pure native code
 
 ```python

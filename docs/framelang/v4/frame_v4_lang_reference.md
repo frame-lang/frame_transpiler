@@ -1,7 +1,7 @@
 # Frame V4 Language Reference
 
-**Version:** 1.2
-**Date:** February 2026  
+**Version:** 1.3
+**Date:** March 2026
 **Audience:** Implementation team  
 **Status:** Normative — this document defines the language. Ambiguities are bugs in this spec.
 
@@ -79,7 +79,7 @@ Trailing comma after last entry is permitted. Unknown keys are warnings.
 |----------------|---------------------------|
 | Enter/exit parameters on any transition | Yes |
 | Event forwarding (`-> =>`) | Yes |
-| `system.return` usage | Yes |
+| `@@:return` usage | Yes |
 | Interface methods with return values | Yes |
 
 **Note:** State stack generation is managed internally by the compiler and is not user-configurable.
@@ -154,7 +154,7 @@ interface:
 - Parameters use Frame notation: `name: type` (e.g., `process(data: str, priority: int)`)
 - Parameters can also be untyped if types are handled in native code: `process(data, priority)`
 - Return type annotation is Frame syntax (used for codegen)
-- Default return value is a native expression, used when no handler sets `system.return`
+- Default return value is a native expression, used when no handler sets `@@:return`
 - A return type with no default implies `None`/`null`/`None` as default
 
 ---
@@ -412,8 +412,6 @@ return                  // everywhere: native return, pass through unchanged
 
 The splicer distinguishes handler context from action context.
 
-**Legacy:** `system.return` is an alias for `@@:return` for backward compatibility.
-
 ---
 
 ## 5.7 Compartment: The Runtime Model
@@ -501,8 +499,28 @@ actions:
 - Actions can access **domain variables** and `@@:return`
 - Actions **cannot** access state variables (`$.`) — they have no state context
 - Actions can return values to their callers (via `@@:return`)
-- Actions **cannot** trigger transitions — transitions are only valid in event handlers
 - Parameters use Frame notation: `action_name(param: type)`
+- `return` in actions is the **native** language return (NOT Frame return sugar)
+
+**Forbidden Frame syntax in actions (E401):**
+
+Actions exist outside the state machine and cannot control it. The following Frame statements are compile-time errors in action bodies:
+
+| Forbidden | Example | Reason |
+|-----------|---------|--------|
+| Transitions | `-> $State` | Only event handlers can change state |
+| Transition+forward | `-> => $State` | Only event handlers can change state |
+| Dispatch to parent | `=> $^` | Only event handlers can dispatch |
+| Push | `push$` | Only event handlers can push state |
+| Pop | `pop$` | Only event handlers can pop state |
+| State variable access | `$.varName` | Actions have no state context |
+
+**Allowed in actions:**
+- `@@.param` — interface parameter access
+- `@@:return` — set/read return value
+- `@@:event` — interface event name
+- `@@:data[key]` — call-scoped data
+- `return` — native function return (no sugar)
 
 ---
 
@@ -532,8 +550,12 @@ operations:
 - Operations do not create events or go through the kernel
 - Direct access to domain variables
 - Non-static operations can use `@@:return` with initialization syntax
-- No access to state variables (`$.`)
-- Body is entirely native code (no Frame statements)
+- `return` in operations is the **native** language return (NOT Frame return sugar)
+- Body is entirely native code (no Frame state-machine statements)
+
+**Forbidden Frame syntax in operations (E401):**
+
+Operations bypass the state machine entirely. The same restrictions as actions apply — transitions, dispatch, push/pop, and state variable access are all compile-time errors. See the table in Section 6 for the full list.
 
 **Static operations** (no `self`/`this`):
 
@@ -1002,13 +1024,13 @@ The compilation pipeline uses scanners in sequence:
 | Code | Condition |
 |------|-----------|
 | E001 | Parse error (malformed Frame syntax) |
+| E401 | Forbidden Frame syntax in action or operation (transitions, dispatch, push/pop, state vars) |
 | E402 | Unknown state reference (`-> $NonExistent`) |
 | E403 | Duplicate state definition |
 | E405 | Parameter mismatch (interface/handler arity) |
 | E4xx | Cross-state variable access (TBD) |
 | E4xx | `=> $^` in state without parent (TBD) |
 | E4xx | `push$`/`pop$` with `state_stack = off` and no auto-enable (TBD) |
-| E4xx | Transition in action (TBD) |
 | E4xx | Duplicate state variable name (TBD) |
 | E4xx | HSM cycle detected (TBD) |
 

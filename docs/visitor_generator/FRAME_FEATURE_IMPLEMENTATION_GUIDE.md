@@ -181,7 +181,7 @@ operations:
 ```
 
 **Return Value Handling:**
-- **Frame Pattern**: `system.return = value; return`
+- **Frame Pattern**: `@@:return = value; return`
 - **Language Adaptations**: Each language uses native return mechanisms
 
 ### 5. **Domain Variables**

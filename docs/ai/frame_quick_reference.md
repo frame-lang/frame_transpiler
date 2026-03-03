@@ -187,7 +187,7 @@ system AsyncSystem {
         $Ready {
             async process(id) {
                 var data = await fetch_data(id)
-                system.return = data
+                @@:return = data
             }
         }
 }

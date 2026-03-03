@@ -1,7 +1,7 @@
 # Frame V4 Error Codes
 
-**Version:** 1.0
-**Date:** February 2026
+**Version:** 1.1
+**Date:** March 2026
 **Status:** Normative
 
 ---
@@ -46,7 +46,7 @@
 | Code | Name | Description |
 |------|------|-------------|
 | E400 | `unreachable-code` | Code after terminal statement (transition, return) |
-| E401 | `frame-in-action` | Frame statement in action or operation body |
+| E401 | `frame-in-action` | Forbidden Frame statement in action or operation body (transitions, dispatch, push/pop, state variable access) |
 | E402 | `unknown-state` | Transition targets undefined state |
 | E403 | `invalid-forward` | `=> $^` in state without parent |
 | E404 | `duplicate-state` | State name declared more than once |
@@ -87,7 +87,6 @@
 
 | Code | Name | Description |
 |------|------|-------------|
-| E450 | `return-in-operation` | `system.return` used in operation |
 | E451 | `return-type-mismatch` | Handler return type doesn't match interface |
 
 ### Codegen Errors (E46x)
@@ -135,7 +134,7 @@
 | E113 | Partial | Section order checking |
 | E114 | Partial | Duplicate section checking |
 | E400 | No | Unreachable code detection |
-| E401 | Partial | Frame-in-action checking |
+| E401 | Yes | Frame-in-action validation (transitions, dispatch, push/pop, state vars) |
 | E402 | Yes | Unknown state validation |
 | E403 | No | Forward validation disabled |
 | E404 | Yes | Duplicate state validation |

@@ -4347,103 +4347,52 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => format!("{}this.__compartment.state_vars[\"{}\"] = {};", indent_str, var_name, expanded_expr),
             }
         }
-        FrameSegmentKind::SystemReturn => {
-            // system.return = <expr> or return <expr>
-            // return <expr> is sugar for system.return = <expr>; return (early exit)
-            // system.return = just sets value without returning (for chain semantics)
+        FrameSegmentKind::ReturnSugar => {
+            // return <expr> — sugar for: set @@:return = expr, then return (early exit)
+            // return (bare) — just a native return from the handler
             //
             // Return value is stored on context stack: _context_stack[-1]._return
             // This enables reentrancy - nested calls have their own context
-            let trimmed = segment_text.trim_start();
-            let is_return_sugar = trimmed.starts_with("return ");
-            let expr = extract_system_return_expr(&segment_text);
+            let expr = extract_return_sugar_expr(&segment_text);
             // Expand any state variable references in the expression
             let expanded_expr = expand_state_vars_in_expr(&expr, lang, ctx);
 
             match lang {
                 TargetLanguage::Python3 => {
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return", indent_str)
-                        } else {
-                            // system.return with no expr - just a read, shouldn't happen here
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        // ^ expr: set context return, then return (early exit)
-                        format!("{}self._context_stack[-1]._return = {}\n{}return", indent_str, expanded_expr, indent_str)
+                        format!("{}return", indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr)
+                        format!("{}self._context_stack[-1]._return = {}\n{}return", indent_str, expanded_expr, indent_str)
                     }
                 }
                 TargetLanguage::TypeScript => {
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return;", indent_str)
-                        } else {
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        // Set context return, then return
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}return;", indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     }
                 }
                 TargetLanguage::C => {
-                    // C: Use CTX macro or direct context stack access
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return;", indent_str)
-                        } else {
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        // Set context return via macro, then return
-                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});\n{}return;", indent_str, ctx.system_name, expanded_expr, indent_str)
+                        format!("{}return;", indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});", indent_str, ctx.system_name, expanded_expr)
+                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});\n{}return;", indent_str, ctx.system_name, expanded_expr, indent_str)
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Rust: use context stack pattern (handlers are void, set context._return)
-                    // Evaluate expression first to avoid borrow conflicts
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
-                    } else if is_return_sugar {
-                        // return expr: set context return, then return
-                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}\n{}return;", indent_str, expanded_expr, indent_str, indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}", indent_str, expanded_expr, indent_str)
+                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}\n{}return;", indent_str, expanded_expr, indent_str, indent_str)
                     }
                 }
                 _ => {
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return;", indent_str)
-                        } else {
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}return;", indent_str)
                     } else {
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     }
                 }
-            }
-        }
-        FrameSegmentKind::SystemReturnExpr => {
-            // bare system.return - read current return value from context stack
-            match lang {
-                TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
-                TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
-                TargetLanguage::C => format!("{}_CTX(self)->_return", ctx.system_name),
-                TargetLanguage::Rust => "self._context_stack.last().and_then(|ctx| ctx._return.as_ref()).cloned()".to_string(),
-                _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
             }
         }
         FrameSegmentKind::ContextParamShorthand => {
@@ -4766,21 +4715,12 @@ fn extract_state_var_name(text: &str) -> String {
     }
 }
 
-/// Extract expression from system.return = <expr> or return <expr>
-fn extract_system_return_expr(text: &str) -> String {
+/// Extract expression from return <expr> sugar
+fn extract_return_sugar_expr(text: &str) -> String {
     let text = text.trim();
-    // Handle return sugar: return <expr>
     if text.starts_with("return ") {
         let after_return = text[7..].trim();
         return after_return.to_string();
-    }
-    // Handle system.return = <expr>
-    if text.starts_with("system.return") {
-        let after = &text[13..];
-        let trimmed = after.trim();
-        if trimmed.starts_with('=') {
-            return trimmed[1..].trim().to_string();
-        }
     }
     String::new()
 }

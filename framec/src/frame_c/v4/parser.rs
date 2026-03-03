@@ -508,7 +508,7 @@ impl Parser {
                 break;
             }
             
-            // Special handling for System token - in handler bodies, it's likely "system.return"
+            // Special handling for System token - in handler bodies, it could be a system call
             // not a system declaration, so treat it as native code
             if token.token_type == TokenType::System {
                 if need_space {

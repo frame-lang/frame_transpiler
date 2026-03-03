@@ -766,12 +766,6 @@ impl<'a> Parser<'a> {
                     ));
                 }
 
-                Token::SystemReturn => {
-                    statements.push(Statement::NativeCode(
-                        "system.return".to_string(),
-                    ));
-                }
-
                 _ => {
                     // Unknown token in native mode — skip
                 }
@@ -825,6 +819,10 @@ impl<'a> Parser<'a> {
         };
 
         let body = self.parse_body_block()?;
+
+        // E401: Validate no forbidden Frame syntax in action body
+        self.validate_no_forbidden_frame_syntax(&body.statements, "action", &name)?;
+
         let code = self.extract_span_content(&body.span);
 
         Ok(ActionAst {
@@ -916,6 +914,10 @@ impl<'a> Parser<'a> {
         };
 
         let body = self.parse_body_block()?;
+
+        // E401: Validate no forbidden Frame syntax in operation body
+        self.validate_no_forbidden_frame_syntax(&body.statements, "operation", &name)?;
+
         let code = self.extract_span_content(&body.span);
 
         Ok(OperationAst {
@@ -1264,6 +1266,94 @@ impl<'a> Parser<'a> {
         let start = span.start.min(end);
         let text = std::str::from_utf8(&source[start..end]).unwrap_or("");
         text.trim_matches('\n').to_string()
+    }
+
+    /// E401: Validate that action/operation bodies don't contain forbidden Frame syntax.
+    ///
+    /// Forbidden in actions/operations:
+    /// - `-> $State` (transitions)
+    /// - `-> => $State` (transition with forwarding)
+    /// - `-> pop$` (pop transition)
+    /// - `=> $^` (dispatch to parent)
+    /// - `push$` / `pop$` (state stack operations)
+    /// - `$.varName` (state variable access)
+    ///
+    /// Allowed:
+    /// - `@@.param`, `@@:return`, `@@:event`, `@@:data[key]`, `@@:params[key]` (context access)
+    /// - `return` (native return statement, not Frame sugar)
+    fn validate_no_forbidden_frame_syntax(
+        &self,
+        statements: &[Statement],
+        context_kind: &str,   // "action" or "operation"
+        context_name: &str,   // the action/operation name
+    ) -> Result<(), ParseError> {
+        for stmt in statements {
+            match stmt {
+                Statement::Transition(t) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: Transition '-> ${}' is not allowed in {} '{}'. \
+                             Transitions are only allowed in event handlers.",
+                            t.target, context_kind, context_name
+                        ),
+                        span: t.span.clone(),
+                    });
+                }
+                Statement::TransitionForward(t) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: Transition with forwarding '-> => ${}' is not allowed in {} '{}'. \
+                             Transitions are only allowed in event handlers.",
+                            t.target, context_kind, context_name
+                        ),
+                        span: t.span.clone(),
+                    });
+                }
+                Statement::Forward(f) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: Dispatch '=> {}' is not allowed in {} '{}'. \
+                             Dispatch is only allowed in event handlers.",
+                            f.event, context_kind, context_name
+                        ),
+                        span: f.span.clone(),
+                    });
+                }
+                Statement::StackPush(s) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: 'push$' is not allowed in {} '{}'. \
+                             State stack operations are only allowed in event handlers.",
+                            context_kind, context_name
+                        ),
+                        span: s.span.clone(),
+                    });
+                }
+                Statement::StackPop(s) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: 'pop$' is not allowed in {} '{}'. \
+                             State stack operations are only allowed in event handlers.",
+                            context_kind, context_name
+                        ),
+                        span: s.span.clone(),
+                    });
+                }
+                Statement::NativeCode(code) if code.starts_with("$.") => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: State variable access '{}' is not allowed in {} '{}'. \
+                             State variables are only accessible in event handlers.",
+                            code, context_kind, context_name
+                        ),
+                        span: Span::new(0, 0), // No precise span available for NativeCode
+                    });
+                }
+                // Allowed: Return (native in actions/operations), NativeCode, @@:* context access
+                _ => {}
+            }
+        }
+        Ok(())
     }
 }
 

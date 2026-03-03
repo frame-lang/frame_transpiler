@@ -206,7 +206,7 @@ machine:
         
         # Setting interface return value
         get_data() {
-            system.return = self.data
+            @@:return = self.data
             return
         }
         
@@ -254,10 +254,10 @@ actions:
         print(f"ERROR: {msg}")
     }
     
-    # Actions can set system.return
+    # Actions can set @@:return
     _process() : int = -1 {
         if self.data {
-            system.return = 42
+            @@:return = 42
             return 1  # Return to caller
         }
         return 0
@@ -757,7 +757,7 @@ system Toggle {
         $Off {
             toggle() -> $On
             is_on() {
-                system.return = false
+                @@:return = false
                 return
             }
         }
@@ -765,7 +765,7 @@ system Toggle {
         $On {
             toggle() -> $Off
             is_on() {
-                system.return = true
+                @@:return = true
                 return
             }
         }
@@ -816,7 +816,7 @@ system Counter {
         
         $Complete(final: int) {
             get_result() {
-                system.return = final
+                @@:return = final
                 return
             }
         }
@@ -872,7 +872,7 @@ $State {
 # CORRECT
 $State {
     get() {
-        system.return = 42
+        @@:return = 42
         return
     }
 }
@@ -1031,7 +1031,7 @@ When generating Frame code:
 3. **Is it a class/object?** → Use `class Name { }`
 4. **Need to organize code?** → Use `module Name { }`
 5. **Need state transitions?** → Use `-> $StateName`
-6. **Need to return from interface?** → Use `system.return = value`
+6. **Need to return from interface?** → Use `@@:return = value`
 7. **Need async operations?** → Use `async fn` and `await`
 8. **Need pattern matching?** → Use `match/case` statements
 9. **Need error handling?** → Use `try/except/finally`
@@ -1051,7 +1051,7 @@ When generating Frame code:
 
 ### Important Implementation Details
 1. **Two-Pass Parsing**: Symbol table built first, then code parsed
-2. **Greedy Token Matching**: `system.return` matched as single token
+2. **Greedy Token Matching**: `@@:return` matched as single token
 3. **Context Tracking**: Parser tracks function vs system context
 4. **Scope Isolation**: Functions cannot access system internals
 5. **Auto-Global Generation**: Module variables get `global` declarations
@@ -1062,7 +1062,7 @@ When working with Frame code:
 
 ✅ Use `$` prefix for all state names
 ✅ Use Python operators (`and`, `or`, `not`) not C-style
-✅ Use `system.return =` for interface returns
+✅ Use `@@:return =` for interface returns
 ✅ Use `->` for state transitions
 ✅ Use `#` for comments, not `//`
 ✅ Put domain block last in systems

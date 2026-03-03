@@ -244,7 +244,7 @@ done
 ### Features to Implement
 - [ ] Event parameter passing via `__e->_parameters`
 - [ ] `return expr` sugar (sets context return and exits handler)
-- [ ] `system.return = expr` explicit assignment
+- [ ] `@@:return = expr` explicit assignment
 - [ ] Interface header default return values (`method(): int = 10`)
 - [ ] Context stack for reentrancy (`_context_stack`)
 - [ ] `FrameContext` type with `_return` slot
@@ -254,7 +254,7 @@ done
 | Test | Description | Key Features |
 |------|-------------|--------------|
 | `primary/07_params.fc` | Event parameters | Parameter unpacking from `_parameters` |
-| `primary/13_system_return.fc` | Return values | `return expr`, `system.return = expr` |
+| `primary/13_system_return.fc` | Return values | `return expr`, `@@:return = expr` |
 | `primary/14_system_return_default.fc` | Default returns | Interface header `= default` |
 | `primary/15_system_return_chain.fc` | Chained returns | Return through multiple states |
 | `primary/16_system_return_reentrant.fc` | Nested calls | Reentrant interface calls |

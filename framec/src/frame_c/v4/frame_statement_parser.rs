@@ -28,11 +28,7 @@ impl FrameStatementParser {
                 // No MIR item needed - just pass through
                 Err(ParseError::err(ParseErrorKind::InvalidHead, "state var handled by splicer"))
             }
-            FrameSegmentKind::SystemReturn => self.parse_system_return(text, span),
-            FrameSegmentKind::SystemReturnExpr => {
-                // bare system.return - just returns the current value
-                Ok(MirItem::SystemReturnExpr{ span })
-            }
+            FrameSegmentKind::ReturnSugar => self.parse_return_sugar(text, span),
             // Context syntax - handled inline by the splicer expansion
             FrameSegmentKind::ContextParamShorthand |
             FrameSegmentKind::ContextReturn |
@@ -156,29 +152,18 @@ impl FrameStatementParser {
         Ok(if is_push { MirItem::StackPush{ span } } else { MirItem::StackPop{ span } })
     }
 
-    fn parse_system_return(&self, line: &[u8], span: RegionSpan) -> Result<MirItem, ParseError> {
-        // Expect: system.return = <expr> or ^ <expr>
+    fn parse_return_sugar(&self, line: &[u8], span: RegionSpan) -> Result<MirItem, ParseError> {
+        // Expect: return <expr>
         let mut i = 0usize; let n = line.len();
         while i<n && line[i].is_ascii_whitespace() { i+=1; }
-        // Check for caret sugar: ^ <expr>
-        if i < n && line[i] == b'^' {
-            i += 1;
+        // Check for return <expr>
+        if i + 6 <= n && &line[i..i+6] == b"return" {
+            i += 6;
             while i<n && line[i].is_ascii_whitespace() { i+=1; }
             let expr = String::from_utf8_lossy(&line[i..]).trim().to_string();
-            return Ok(MirItem::SystemReturn{ expr, span });
+            return Ok(MirItem::ReturnSugar{ expr, span });
         }
-        // Check for system.return = <expr>
-        if i + 13 <= n && &line[i..i+13] == b"system.return" {
-            i += 13;
-            while i<n && line[i].is_ascii_whitespace() { i+=1; }
-            if i < n && line[i] == b'=' && (i+1 >= n || line[i+1] != b'=') {
-                i += 1;
-                while i<n && line[i].is_ascii_whitespace() { i+=1; }
-                let expr = String::from_utf8_lossy(&line[i..]).trim().to_string();
-                return Ok(MirItem::SystemReturn{ expr, span });
-            }
-        }
-        Err(ParseError::err(ParseErrorKind::InvalidHead, "malformed system.return"))
+        Err(ParseError::err(ParseErrorKind::InvalidHead, "malformed return"))
     }
 
     fn balanced_paren_block<'a>(&self, line: &'a [u8], open_idx: usize) -> Result<(&'a [u8], usize), ParseError> {

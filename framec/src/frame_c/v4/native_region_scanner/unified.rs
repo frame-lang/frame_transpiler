@@ -388,41 +388,6 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 seg_start = i;
             }
 
-            // System return: system.return = <expr> or system.return
-            b's' if i + 12 < end && &bytes[i..i + 13] == b"system.return" => {
-                if seg_start < i {
-                    regions.push(Region::NativeText {
-                        span: RegionSpan { start: seg_start, end: i }
-                    });
-                }
-                let start = i;
-                i += 13; // Skip "system.return"
-
-                // Skip whitespace
-                while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') {
-                    i += 1;
-                }
-
-                if i < end && bytes[i] == b'=' && (i + 1 >= end || bytes[i + 1] != b'=') {
-                    // system.return = <expr>
-                    i += 1; // Skip '='
-                    i = skipper.find_line_end(bytes, i, end);
-                    regions.push(Region::FrameSegment {
-                        span: RegionSpan { start, end: i },
-                        kind: FrameSegmentKind::SystemReturn,
-                        indent: 0,
-                    });
-                } else {
-                    // bare system.return
-                    regions.push(Region::FrameSegment {
-                        span: RegionSpan { start, end: i },
-                        kind: FrameSegmentKind::SystemReturnExpr,
-                        indent: 0,
-                    });
-                }
-                seg_start = i;
-            }
-
             _ => {
                 i += 1;
             }
@@ -566,7 +531,7 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     if b == b'r' && pos + 6 <= end && &bytes[pos..pos + 6] == b"return" {
         let after_return = pos + 6;
         if after_return < end && (bytes[after_return] == b' ' || bytes[after_return] == b'\t') {
-            return Some((after_return, FrameSegmentKind::SystemReturn));
+            return Some((after_return, FrameSegmentKind::ReturnSugar));
         }
     }
 

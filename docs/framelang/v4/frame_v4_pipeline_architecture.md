@@ -256,7 +256,7 @@ The Lexer operates in two modes, controlled by the Parser via a callback or mode
 **Structural Mode** (default): Tokenizes Frame language syntax — keywords, identifiers, operators, delimiters, type annotations.
 
 **Native-Aware Mode**: Activated when the lexer enters a handler body, action body, or operation body. In this mode, the lexer:
-- Recognizes Frame constructs: `-> $State`, `=> $^`, `push$`, `pop$`, `$.varName`, `@@.param`, `@@:return`, `system.return`, `return <expr>`
+- Recognizes Frame constructs: `-> $State`, `=> $^`, `push$`, `pop$`, `$.varName`, `@@.param`, `@@:return`, `return <expr>`
 - Passes everything else through as `NativeCode(String)` tokens
 - Uses `SyntaxSkipper` to avoid false Frame construct detection inside native strings/comments
 
@@ -301,9 +301,6 @@ pub enum Token {
     ContextEvent,            // "@@:event"
     ContextData(String),     // "@@:data[key]"
     ContextParams(String),   // "@@:params[key]"
-
-    // ===== System Syntax =====
-    SystemReturn,        // "system.return"
 
     // ===== Delimiters =====
     LBrace,              // "{"
@@ -398,7 +395,6 @@ In native-aware mode, the Lexer scans the handler/action/operation body byte-by-
    - `@@:event` → `ContextEvent`
    - `@@:data[key]` → `ContextData(key)`
    - `@@:params[key]` → `ContextParams(key)`
-   - `system.return` → `SystemReturn`
 
 3. **Native pass-through**: Everything between Frame constructs is accumulated into `NativeCode(String)` tokens.
 
@@ -469,7 +465,7 @@ exit_handler    := ExitHandler (LParen param_list RParen)? LBrace handler_body R
 
 handler_body    := (frame_stmt | NativeCode)*
 frame_stmt      := transition | forward | push | pop | state_var_access
-                 | state_var_assign | system_return | context_access | return_sugar
+                 | state_var_assign | context_access | return_sugar
 transition      := Arrow StateRef(target)
                  | Arrow FatArrow StateRef(target)
                  | Arrow PopState
@@ -480,7 +476,6 @@ pop             := PopState
 state_var_access := StateVarRef(name)
 state_var_assign := StateVarRef(name) Equals native_expr
 context_access  := ContextParam | ContextReturn | ContextEvent | ContextData | ContextParams
-system_return   := SystemReturn (Equals native_expr)?
 return_sugar    := Return native_expr?
 
 actions_section   := Actions SectionColon action*
@@ -530,7 +525,6 @@ pub enum Statement {
     Return(ReturnAst),
     StateVarAccess(StateVarAccessAst),
     StateVarAssign(StateVarAssignAst),
-    SystemReturn(SystemReturnAst),
     ContextAccess(ContextAccessAst),
 
     // NEW: native code chunk within handler body

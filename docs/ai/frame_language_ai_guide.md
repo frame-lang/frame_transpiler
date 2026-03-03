@@ -147,14 +147,14 @@ $State {
     
     # Handler with return value (interface method)
     query() {
-        system.return = self.data
+        @@:return = self.data
         return
     }
     
     # Async handler (v0.37+)
     async process(id) {
         var result = await fetch_data(id)
-        system.return = result
+        @@:return = result
     }
 }
 ```
@@ -485,7 +485,7 @@ system AsyncProcessor {
         $Idle {
             async handle(data) {
                 var result = await self.process(data)
-                system.return = result
+                @@:return = result
             }
         }
 }
@@ -790,7 +790,7 @@ class TrafficLight:
 | Variable | Purpose | Scope |
 |----------|---------|-------|
 | `self` | Instance reference | Instance methods |
-| `system.return` | Set interface return value | Event handlers |
+| `@@:return` | Set interface return value | Event handlers |
 | `$@` | Current event | Event handlers |
 
 ## 🚀 Advanced Features

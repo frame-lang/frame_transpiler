@@ -72,7 +72,7 @@ Owner: native backend track
 - Backend Plans: C / C++ / Rust / Java (going_native directory)
 10) MixedBody Parser Normalization (TS/Py)
 - Implement FIRST‑set SOLIndex + Frame‑statement mini‑parsers in segmenters:
-  - FIRST set: `->`, `=>` `$^`, `push$`, `pop$`, `system.return =`.
+  - FIRST set: `->`, `=>` `$^`, `push$`, `pop$`, `@@:return =`.
   - Streaming DPDA‑protected pass builds Frame‑statement entries; per‑entry mini‑parsers return MIR with precise failures.
 - Replace per‑char Frame‑statement checks with SOLIndex; keep DPDA closers authoritative.
 - Add Unicode torture fixtures (NBSP indents, emoji in strings/templates/f‑strings) and negative fixtures (unterminated constructs).

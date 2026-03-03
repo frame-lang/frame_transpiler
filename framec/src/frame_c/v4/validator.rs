@@ -363,8 +363,7 @@ impl Validator {
                                 }
                             }
                             let name = String::from_utf8_lossy(&seg[name_start..j]).to_string();
-                            // Ignore the special `system.return` variable.
-                            if name != "return" && !name.is_empty() && !interface_methods.contains(&name) {
+                            if !name.is_empty() && !interface_methods.contains(&name) {
                                 issues.push(ValidationIssue {
                                     message: format!("E406: system.{} call must target an interface method", name),
                                 });
@@ -380,22 +379,6 @@ impl Validator {
         issues
     }
 
-    /// Validate `system.return` usage according to policy.
-    ///
-    /// Current semantics treat `system.return` as a per-call slot that can be
-    /// read or written from handlers, actions, and non-static operations.
-    /// Sugar such as `return expr` is handled in the code generators for
-    /// handlers only; the validator now only reserves a hook for future
-    /// placement checks and does not emit E407 by default.
-    pub fn validate_system_return_usage(
-        &self,
-        body_bytes: &[u8],
-        regions: &[Region],
-        kind: super::validator::BodyKind,
-    ) -> Vec<ValidationIssue> {
-        let _ = (body_bytes, regions, kind);
-        Vec::new()
-    }
 
     // Outer grammar structural checks (headers inside sections)
     pub fn validate_outer_grammar(&self, bytes: &[u8], start: usize, _lang: TargetLanguage, outline: &[OutlineItem]) -> Vec<ValidationIssue> {

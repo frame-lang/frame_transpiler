@@ -1821,12 +1821,11 @@ impl FrameParser {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
                 Region::FrameSegment { span, kind, indent } => {
-                    // StateVar, StateVarAssign, SystemReturn, SystemReturnExpr, and Context segments
+                    // StateVar, StateVarAssign, ReturnSugar, and Context segments
                     // are inline expressions handled by the splicer during code generation
                     if *kind == FrameSegmentKind::StateVar
                         || *kind == FrameSegmentKind::StateVarAssign
-                        || *kind == FrameSegmentKind::SystemReturn
-                        || *kind == FrameSegmentKind::SystemReturnExpr
+                        || *kind == FrameSegmentKind::ReturnSugar
                         || *kind == FrameSegmentKind::ContextParamShorthand
                         || *kind == FrameSegmentKind::ContextReturn
                         || *kind == FrameSegmentKind::ContextEvent
@@ -1908,15 +1907,10 @@ impl FrameParser {
                 // No separate statement needed - return an error that will be handled
                 Err(ParseError::Expected("StateVar handled by splicer".to_string()))
             }
-            FrameSegmentKind::SystemReturn => {
-                // system.return = <expr> or ^ <expr>
+            FrameSegmentKind::ReturnSugar => {
+                // return <expr> sugar
                 // Handled by splicer expansion, similar to StateVar
-                Err(ParseError::Expected("SystemReturn handled by splicer".to_string()))
-            }
-            FrameSegmentKind::SystemReturnExpr => {
-                // bare system.return (read expression)
-                // Handled by splicer expansion
-                Err(ParseError::Expected("SystemReturnExpr handled by splicer".to_string()))
+                Err(ParseError::Expected("ReturnSugar handled by splicer".to_string()))
             }
             // Context syntax and tagged instantiation - handled by splicer expansion
             FrameSegmentKind::ContextParamShorthand |

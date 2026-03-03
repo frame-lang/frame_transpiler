@@ -655,9 +655,6 @@ pub fn validate_module_demo_with_mode(content_str: &str, lang: TargetLanguage, s
         // Enforce no native after terminal MIR at body level
         let extra = validator.validate_terminal_last_native(body_bytes, &scan.regions, &mir, lang);
         res.issues.extend(extra);
-        // Enforce that system.return is not used in operations.
-        let ret_issues = validator.validate_system_return_usage(body_bytes, &scan.regions, b.kind);
-        res.issues.extend(ret_issues);
         // Enforce that system.method(...) calls target interface methods.
         if matches!(b.kind, BodyKind::Handler | BodyKind::Action | BodyKind::Operation) {
             let sys_issues = validator.validate_system_calls_interface(body_bytes, &scan.regions, &interface_methods);

@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "frame_build"
-version = "0.96.0"
+version = "0.96.1"
 dependencies = [
  "anyhow",
  "framec",
@@ -394,7 +394,7 @@ dependencies = [
 
 [[package]]
 name = "framec"
-version = "0.96.0"
+version = "0.96.1"
 dependencies = [
  "chrono",
  "clap",

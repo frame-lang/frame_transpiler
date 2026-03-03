@@ -30,7 +30,7 @@ system TrafficLight {
             }
             
             get_state() {
-                system.return = "RED"
+                @@:return = "RED"
                 return
             }
         }
@@ -45,7 +45,7 @@ system TrafficLight {
             emergency_stop() -> $Red
             
             get_state() {
-                system.return = "GREEN"
+                @@:return = "GREEN"
                 return
             }
             
@@ -64,7 +64,7 @@ system TrafficLight {
             emergency_stop() -> $Red
             
             get_state() {
-                system.return = "YELLOW"
+                @@:return = "YELLOW"
                 return
             }
             
@@ -124,7 +124,7 @@ system Counter {
             }
             
             get_value() {
-                system.return = self.value
+                @@:return = self.value
                 return
             }
         }
@@ -145,7 +145,7 @@ system Counter {
             }
             
             get_value() {
-                system.return = 0
+                @@:return = 0
                 return
             }
         }
@@ -170,7 +170,7 @@ system Counter {
             }
             
             get_value() {
-                system.return = self.value
+                @@:return = self.value
                 return
             }
         }
@@ -199,12 +199,12 @@ system DataFetcher {
                 self.current_url = url
                 -> $Fetching
                 var result = await self.do_fetch(url)
-                system.return = result
+                @@:return = result
                 -> $Idle
             }
             
             get_status() {
-                system.return = "idle"
+                @@:return = "idle"
                 return
             }
         }
@@ -220,14 +220,14 @@ system DataFetcher {
             }
             
             get_status() {
-                system.return = "fetching"
+                @@:return = "fetching"
                 return
             }
             
             async fetch(url) {
                 # Queue the request
                 self.queue.append(url)
-                system.return = {"queued": true}
+                @@:return = {"queued": true}
                 return
             }
         }
@@ -258,18 +258,18 @@ system QueueProcessor {
         $Ready {
             async add_task(task) {
                 self.queue.append(task)
-                system.return = len(self.queue)
+                @@:return = len(self.queue)
                 return
             }
             
             async process_all() {
                 if len(self.queue) == 0 {
-                    system.return = []
+                    @@:return = []
                     return
                 }
                 -> $Processing
                 var results = await self.process_queue()
-                system.return = results
+                @@:return = results
                 -> $Ready
             }
         }
@@ -283,7 +283,7 @@ system QueueProcessor {
             
             async add_task(task) {
                 self.queue.append(task)
-                system.return = len(self.queue)
+                @@:return = len(self.queue)
                 return
             }
             
@@ -297,7 +297,7 @@ system QueueProcessor {
             
             async add_task(task) {
                 self.queue.append(task)
-                system.return = len(self.queue)
+                @@:return = len(self.queue)
                 return
             }
         }
@@ -364,7 +364,7 @@ system Menu {
             }
             
             get_current() {
-                system.return = self.options[self.current_option]
+                @@:return = self.options[self.current_option]
                 return
             }
         }
@@ -396,7 +396,7 @@ system Menu {
             back() -> $MainMenu
             
             get_current() {
-                system.return = self.options[self.current_option]
+                @@:return = self.options[self.current_option]
                 return
             }
         }
@@ -428,7 +428,7 @@ system Menu {
             back() -> $MainMenu
             
             get_current() {
-                system.return = self.options[self.current_option]
+                @@:return = self.options[self.current_option]
                 return
             }
         }
@@ -465,16 +465,16 @@ system FormValidator {
                 self.errors = self.validate_fields()
                 if len(self.errors) == 0 {
                     -> $Valid
-                    system.return = true
+                    @@:return = true
                 } else {
                     -> $Invalid
-                    system.return = false
+                    @@:return = false
                 }
                 return
             }
             
             get_errors() {
-                system.return = self.errors
+                @@:return = self.errors
                 return
             }
         }
@@ -496,7 +496,7 @@ system FormValidator {
             }
             
             get_errors() {
-                system.return = []
+                @@:return = []
                 return
             }
         }
@@ -516,7 +516,7 @@ system FormValidator {
             }
             
             get_errors() {
-                system.return = self.errors
+                @@:return = self.errors
                 return
             }
         }
@@ -658,23 +658,23 @@ system CommandProcessor {
             execute(command) {
                 match command {
                     case {"type": "move", "direction": dir} {
-                        system.return = self.handle_move(dir)
+                        @@:return = self.handle_move(dir)
                     }
                     case {"type": "attack", "target": t} {
-                        system.return = self.handle_attack(t)
+                        @@:return = self.handle_attack(t)
                     }
                     case {"type": "quit"} {
                         -> $Shutdown
-                        system.return = "Shutting down..."
+                        @@:return = "Shutting down..."
                     }
                     case [cmd, *args] {
-                        system.return = self.handle_list_command(cmd, args)
+                        @@:return = self.handle_list_command(cmd, args)
                     }
                     case str() {
-                        system.return = self.handle_string_command(command)
+                        @@:return = self.handle_string_command(command)
                     }
                     case _ {
-                        system.return = "Unknown command"
+                        @@:return = "Unknown command"
                     }
                 }
                 return
@@ -733,25 +733,25 @@ system ProductFactory {
             create_product(name, price) {
                 if name in self.products {
                     print(f"Product {name} already exists")
-                    system.return = self.products[name]
+                    @@:return = self.products[name]
                 } else {
                     var product = Product(name, price)
                     self.products[name] = product
-                    system.return = product
+                    @@:return = product
                 }
                 return
             }
             
             list_products() {
-                system.return = list(self.products.values())
+                @@:return = list(self.products.values())
                 return
             }
             
             get_product(name) {
                 if name in self.products {
-                    system.return = self.products[name]
+                    @@:return = self.products[name]
                 } else {
-                    system.return = None
+                    @@:return = None
                 }
                 return
             }
@@ -886,7 +886,7 @@ system RetryableOperation {
                 try {
                     var result = self.operation()
                     -> $Success
-                    system.return = {"success": true, "result": result}
+                    @@:return = {"success": true, "result": result}
                 } except Exception as e {
                     self.last_error = e
                     self.attempts = self.attempts + 1
@@ -918,7 +918,7 @@ system RetryableOperation {
         $Failed {
             $>() {
                 print(f"Operation failed after {self.attempts} attempts")
-                system.return = {"success": false, "error": str(self.last_error)}
+                @@:return = {"success": false, "error": str(self.last_error)}
             }
         }
     
@@ -983,16 +983,16 @@ system TodoManager {
                 var task_id = self.next_id
                 self.tasks[task_id] = task
                 self.next_id = self.next_id + 1
-                system.return = task_id
+                @@:return = task_id
                 return
             }
             
             complete_task(id) {
                 if id in self.tasks {
                     self.tasks[id].complete()
-                    system.return = true
+                    @@:return = true
                 } else {
-                    system.return = false
+                    @@:return = false
                 }
                 return
             }
@@ -1021,7 +1021,7 @@ system TodoManager {
                         }
                     }
                 }
-                system.return = results
+                @@:return = results
                 return
             }
             
@@ -1049,7 +1049,7 @@ system TodoManager {
                     by_priority[task.priority] = by_priority[task.priority] + 1
                 }
                 
-                system.return = {
+                @@:return = {
                     "total": total,
                     "completed": completed,
                     "pending": total - completed,
@@ -1131,13 +1131,13 @@ system Calculator {
                 } elif op == "multiply" {
                     result = MathUtils::multiply(a, b)
                 }
-                system.return = format_result(result)
+                @@:return = format_result(result)
                 return
             }
             
             circle_area(r) {
                 var area = MathUtils::circle_area(r)
-                system.return = format_result(area)
+                @@:return = format_result(area)
                 return
             }
         }
@@ -1187,7 +1187,7 @@ system DebugDemo {
             }
             
             debug_state() {
-                system.return = "Ready"
+                @@:return = "Ready"
             }
         }
         
@@ -1205,13 +1205,13 @@ system DebugDemo {
         
         $Error {
             debug_state() {
-                system.return = "Error"
+                @@:return = "Error"
             }
         }
         
         $Complete {
             debug_state() {
-                system.return = "Complete"
+                @@:return = "Complete"
             }
         }
     
