@@ -1,0 +1,220 @@
+@@target rust
+
+// Dogfooded body closer — C# language brace matcher.
+// C#-specific: verbatim strings (@"..."), interpolated ($"..."), raw ($"""..."""),
+// combined (@$"..." / $@"..."), preprocessor directives (#region etc.), char literals.
+//
+// State machine flow:
+//   $Init.scan() → $Scanning.$>() ↔ $InString/$InCharLiteral/$InVerbatimString/$InRawString
+//                                    /$InLineComment/$InBlockComment/$InPreprocessor
+
+@@system CsBodyCloserFsm {
+    interface:
+        scan()
+
+    machine:
+        $Init {
+            scan() {
+                -> $Scanning
+            }
+        }
+
+        $Scanning {
+            $>() {
+                let n = self.bytes.len();
+                while self.pos < n {
+                    let b = self.bytes[self.pos];
+                    if b == b'\n' {
+                        self.pos += 1;
+                    } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'/' {
+                        self.pos += 2;
+                        -> $InLineComment
+                    } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
+                        self.pos += 2;
+                        -> $InBlockComment
+                    } else if b == b'#' {
+                        self.pos += 1;
+                        -> $InPreprocessor
+                    } else if b == b'\'' {
+                        self.pos += 1;
+                        -> $InCharLiteral
+                    } else if b == b'@' {
+                        // @"verbatim" or @$"verbatim interp"
+                        if self.pos + 1 < n && self.bytes[self.pos + 1] == b'"' {
+                            self.pos += 2;
+                            -> $InVerbatimString
+                        } else if self.pos + 2 < n && self.bytes[self.pos + 1] == b'$' && self.bytes[self.pos + 2] == b'"' {
+                            self.pos += 3;
+                            -> $InVerbatimString
+                        } else {
+                            self.pos += 1;
+                        }
+                    } else if b == b'$' {
+                        // $"interp" or $"""raw""" or $$"..." etc.
+                        let mut j = self.pos;
+                        let mut _dollars: usize = 0;
+                        while j < n && self.bytes[j] == b'$' { _dollars += 1; j += 1; }
+                        // Check for @$"..." → verbatim interp (handled above via @)
+                        let mut k = j;
+                        let mut quotes: usize = 0;
+                        while k < n && self.bytes[k] == b'"' { quotes += 1; k += 1; }
+                        if quotes >= 3 {
+                            // Raw string $"""..."""
+                            self.raw_quotes = quotes;
+                            self.pos = k;
+                            -> $InRawString
+                        } else if j < n && self.bytes[j] == b'"' {
+                            // $"interpolated"
+                            self.pos = j + 1;
+                            -> $InString
+                        } else {
+                            self.pos += 1;
+                        }
+                    } else if b == b'"' {
+                        self.pos += 1;
+                        -> $InString
+                    } else if b == b'{' {
+                        self.depth += 1;
+                        self.pos += 1;
+                    } else if b == b'}' {
+                        self.depth -= 1;
+                        self.pos += 1;
+                        if self.depth == 0 {
+                            self.result_pos = self.pos - 1;
+                            self.error_kind = 0;
+                            return
+                        }
+                    } else {
+                        self.pos += 1;
+                    }
+                }
+                self.error_kind = 3;
+                self.error_msg = "body not closed".to_string();
+            }
+        }
+
+        $InString {
+            $>() {
+                let n = self.bytes.len();
+                while self.pos < n {
+                    if self.bytes[self.pos] == b'\\' {
+                        self.pos += 2;
+                        continue;
+                    }
+                    if self.bytes[self.pos] == b'"' {
+                        self.pos += 1;
+                        -> $Scanning
+                    }
+                    self.pos += 1;
+                }
+                self.error_kind = 1;
+                self.error_msg = "unterminated string".to_string();
+            }
+        }
+
+        $InCharLiteral {
+            $>() {
+                let n = self.bytes.len();
+                while self.pos < n {
+                    if self.bytes[self.pos] == b'\\' {
+                        self.pos += 2;
+                        continue;
+                    }
+                    if self.bytes[self.pos] == b'\'' {
+                        self.pos += 1;
+                        -> $Scanning
+                    }
+                    self.pos += 1;
+                }
+                self.error_kind = 1;
+                self.error_msg = "unterminated char".to_string();
+            }
+        }
+
+        $InVerbatimString {
+            $>() {
+                // Verbatim: "" is escape for literal quote, single " ends
+                let n = self.bytes.len();
+                while self.pos < n {
+                    if self.pos + 1 < n && self.bytes[self.pos] == b'"' && self.bytes[self.pos + 1] == b'"' {
+                        self.pos += 2;
+                        continue;
+                    }
+                    if self.bytes[self.pos] == b'"' {
+                        self.pos += 1;
+                        -> $Scanning
+                    }
+                    self.pos += 1;
+                }
+                self.error_kind = 1;
+                self.error_msg = "unterminated verbatim string".to_string();
+            }
+        }
+
+        $InRawString {
+            $>() {
+                // Raw string: close when we see N consecutive quotes (where N = raw_quotes)
+                let n = self.bytes.len();
+                while self.pos < n {
+                    if self.bytes[self.pos] == b'"' {
+                        let mut q: usize = 0;
+                        let mut p = self.pos;
+                        while p < n && self.bytes[p] == b'"' { q += 1; p += 1; }
+                        if q >= self.raw_quotes {
+                            self.pos = p;
+                            -> $Scanning
+                        }
+                        self.pos = p;
+                    } else {
+                        self.pos += 1;
+                    }
+                }
+                self.error_kind = 4;
+                self.error_msg = "unterminated raw".to_string();
+            }
+        }
+
+        $InLineComment {
+            $>() {
+                let n = self.bytes.len();
+                while self.pos < n && self.bytes[self.pos] != b'\n' {
+                    self.pos += 1;
+                }
+                -> $Scanning
+            }
+        }
+
+        $InBlockComment {
+            $>() {
+                let n = self.bytes.len();
+                while self.pos + 1 < n {
+                    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
+                        self.pos += 2;
+                        -> $Scanning
+                    }
+                    self.pos += 1;
+                }
+                self.error_kind = 2;
+                self.error_msg = "unterminated comment".to_string();
+            }
+        }
+
+        $InPreprocessor {
+            $>() {
+                let n = self.bytes.len();
+                while self.pos < n && self.bytes[self.pos] != b'\n' {
+                    self.pos += 1;
+                }
+                -> $Scanning
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var depth: i32 = 1
+        var result_pos: usize = 0
+        var error_kind: usize = 0
+        var error_msg: String = String::new()
+        var raw_quotes: usize = 0
+}

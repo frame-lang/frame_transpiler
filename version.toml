@@ -15,4 +15,4 @@ full = "0.96.2"
 [metadata]
 release_date = "2026-03-03"
 release_type = "bug-fix"  # major, minor, bug-fix, hotfix
-build_number = 67
+build_number = 68

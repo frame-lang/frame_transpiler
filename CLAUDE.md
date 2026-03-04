@@ -81,7 +81,7 @@ system SystemName {
 - **Type System**: Frame has no type system — types are opaque strings passed through verbatim as `Type::Custom(String)`
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
-- **Dogfooding**: C BodyCloser replaced with Frame system (`body_closer/c.frs` → `c.gen.rs`)
+- **Dogfooding**: All 7 body closers replaced with Frame systems (`body_closer/*.frs` → `*.gen.rs`)
 
 ## Test Infrastructure (CRITICAL - USE TEST REPO ONLY)
 
