@@ -9,7 +9,7 @@
 //! chunk — no further source scanning is needed.
 
 use crate::frame_c::v4::frame_ast::*;
-use crate::frame_c::v4::lexer::{Lexer, Token, Spanned, LexError, LexerMode};
+use crate::frame_c::v4::lexer::{Lexer, Token, Spanned, LexError};
 use crate::frame_c::visitors::TargetLanguage;
 
 // ============================================================================
@@ -1124,13 +1124,8 @@ impl<'a> Parser<'a> {
             return Ok(Type::Unknown);
         }
 
-        match type_text.as_str() {
-            "int" | "i32" | "i64" => Ok(Type::Int),
-            "float" | "f32" | "f64" => Ok(Type::Float),
-            "str" | "string" | "String" | "&str" => Ok(Type::String),
-            "bool" => Ok(Type::Bool),
-            _ => Ok(Type::Custom(type_text)),
-        }
+        // Frame has no type system — pass all types through verbatim
+        Ok(Type::Custom(type_text))
     }
 
     // ========================================================================
@@ -1415,15 +1410,15 @@ mod tests {
         assert_eq!(m.name, "send");
         assert_eq!(m.params.len(), 2);
         assert_eq!(m.params[0].name, "msg");
-        assert_eq!(m.params[0].param_type, Type::String);
+        assert_eq!(m.params[0].param_type, Type::Custom("str".into()));
         assert_eq!(m.params[1].name, "count");
-        assert_eq!(m.params[1].param_type, Type::Int);
+        assert_eq!(m.params[1].param_type, Type::Custom("int".into()));
     }
 
     #[test]
     fn test_interface_with_return_type() {
         let sys = parse_py("interface:\n    getData(): int");
-        assert_eq!(sys.interface[0].return_type, Some(Type::Int));
+        assert_eq!(sys.interface[0].return_type, Some(Type::Custom("int".into())));
     }
 
     #[test]
@@ -1495,7 +1490,7 @@ mod tests {
     fn test_domain_with_types() {
         let sys = parse_py("domain:\n    var count: int = 0");
         assert_eq!(sys.domain[0].name, "count");
-        assert_eq!(sys.domain[0].var_type, Type::Int);
+        assert_eq!(sys.domain[0].var_type, Type::Custom("int".into()));
     }
 
     #[test]
@@ -1568,7 +1563,7 @@ mod tests {
         let sys = parse_py("operations:\n    getValue(): int {\n        return 42\n    }");
         assert_eq!(sys.operations.len(), 1);
         assert_eq!(sys.operations[0].name, "getValue");
-        assert_eq!(sys.operations[0].return_type, Type::Int);
+        assert_eq!(sys.operations[0].return_type, Type::Custom("int".into()));
     }
 
     #[test]

@@ -24,7 +24,6 @@ use std::convert::TryFrom;
 
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::native_region_scanner::unified::SyntaxSkipper;
-use crate::frame_c::v4::native_region_scanner::RegionSpan;
 
 // ============================================================================
 // SourceMap and Segment types

@@ -26,7 +26,7 @@ impl LanguageBackend for CppBackend {
 
             CodegenNode::Import { module, .. } => format!("#include <{}>", module),
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract: _, .. } => {
                 let mut result = String::new();
                 let extends = if base_classes.is_empty() {
                     String::new()
@@ -76,7 +76,7 @@ impl LanguageBackend for CppBackend {
                 result
             }
 
-            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, .. } => {
+            CodegenNode::Method { name, params, return_type, body, is_async: _, is_static, visibility, .. } => {
                 let vis = if matches!(visibility, Visibility::Public) { "" } else { "private: " };
                 let static_kw = if *is_static { "static " } else { "" };
                 let return_str = return_type.as_ref().unwrap_or(&"void".to_string()).clone();

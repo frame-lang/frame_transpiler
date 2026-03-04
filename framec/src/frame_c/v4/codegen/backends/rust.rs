@@ -28,7 +28,7 @@ impl LanguageBackend for RustBackend {
                 result
             }
 
-            CodegenNode::Import { module, items, alias } => {
+            CodegenNode::Import { module, items, alias: _ } => {
                 if items.is_empty() {
                     format!("use {};", module)
                 } else {
@@ -36,7 +36,7 @@ impl LanguageBackend for RustBackend {
                 }
             }
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, derives } => {
+            CodegenNode::Class { name, fields, methods, base_classes: _, is_abstract: _, derives } => {
                 let mut result = String::new();
 
                 // Derive attributes (for serde, etc.)
@@ -88,7 +88,7 @@ impl LanguageBackend for RustBackend {
                 result
             }
 
-            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators } => {
+            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators: _ } => {
                 let mut result = String::new();
                 let vis = if matches!(visibility, Visibility::Public) { "pub " } else { "" };
                 let async_kw = if *is_async { "async " } else { "" };
@@ -122,7 +122,7 @@ impl LanguageBackend for RustBackend {
                 result
             }
 
-            CodegenNode::Constructor { params, body, super_call } => {
+            CodegenNode::Constructor { params, body, super_call: _ } => {
                 let params_str = self.emit_params(params, false);
                 let mut result = format!("{}pub fn new({}) -> Self {{\n", ctx.get_indent(), params_str);
                 ctx.push_indent();

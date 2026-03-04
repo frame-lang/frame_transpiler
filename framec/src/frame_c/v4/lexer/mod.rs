@@ -1136,16 +1136,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Advance cursor to end of current line (consuming any trailing content).
-    fn advance_to_line_end(&mut self, end: usize) {
-        let line_end = self.skipper.find_line_end(self.source, self.cursor, end);
-        self.cursor = line_end;
-        // Skip newline character
-        if self.cursor < end && self.source[self.cursor] == b'\n' {
-            self.cursor += 1;
-        }
-    }
-
     /// Skip to actual newline, ignoring language-specific comment/semicolon boundaries.
     /// Used after Frame statements (transitions, forwards) where trailing comments are noise.
     fn skip_to_newline(&mut self, end: usize) {

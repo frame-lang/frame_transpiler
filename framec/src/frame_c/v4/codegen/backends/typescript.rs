@@ -128,7 +128,7 @@ impl LanguageBackend for TypeScriptBackend {
 
             // ===== Methods =====
 
-            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators } => {
+            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators: _ } => {
                 let mut result = String::new();
 
                 let vis = match visibility {

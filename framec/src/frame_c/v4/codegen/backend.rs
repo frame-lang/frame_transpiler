@@ -4,7 +4,7 @@
 //! code generators must implement.
 
 use crate::frame_c::visitors::TargetLanguage;
-use super::ast::{CodegenNode, Literal, BinaryOp, UnaryOp, Visibility, Param, Field};
+use super::ast::{CodegenNode, Literal, BinaryOp, UnaryOp, Visibility};
 
 /// Emit context tracks state during code generation
 #[derive(Debug, Clone)]
@@ -251,7 +251,7 @@ pub trait LanguageBackend: Send + Sync {
     fn target_language(&self) -> TargetLanguage;
 
     /// Emit a literal value
-    fn emit_literal(&self, lit: &Literal, ctx: &mut EmitContext) -> String {
+    fn emit_literal(&self, lit: &Literal, _ctx: &mut EmitContext) -> String {
         match lit {
             Literal::Int(n) => n.to_string(),
             Literal::Float(f) => format!("{}", f),

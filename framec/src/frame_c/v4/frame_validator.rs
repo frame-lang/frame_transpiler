@@ -70,14 +70,12 @@ impl ValidationError {
 /// Frame AST validator
 pub struct FrameValidator {
     errors: Vec<ValidationError>,
-    warnings: Vec<ValidationError>,
 }
 
 impl FrameValidator {
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
-            warnings: Vec::new(),
         }
     }
     
@@ -452,19 +450,16 @@ impl FrameValidator {
         if let Some(idx) = terminal_index {
             let last_idx = statements.len() - 1;
             if idx != last_idx {
-                // Check if remaining statements are non-trivial
-                // NativeCode with only braces/whitespace and Return are trivial
+                // Check if remaining statements are non-trivial Frame statements.
+                // NativeCode is always trivial — Frame is a preprocessor and cannot
+                // reason about native control flow (if/else, loops, switch, etc.).
+                // The target language compiler handles native reachability.
+                // E400 only catches Frame-level unreachability: transition → transition
+                // with no native code between them.
                 let has_non_trivial_after = statements[idx + 1..].iter().any(|s| {
                     match s {
                         Statement::Return(_) => false,
-                        Statement::NativeCode(code) => {
-                            // Only braces, whitespace, semicolons, and comments are trivial
-                            let trimmed = code.trim();
-                            !trimmed.is_empty()
-                                && trimmed != "}"
-                                && trimmed != "};"
-                                && !trimmed.chars().all(|c| c == '}' || c == ' ' || c == '\n' || c == '\r' || c == '\t')
-                        }
+                        Statement::NativeCode(_) => false,
                         _ => true,
                     }
                 });

@@ -63,7 +63,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
             // ===== FRAME STATEMENT DETECTION (unified for all languages) =====
 
             // Try to match Frame statements at start of line
-            if let Some((new_i, kind)) = match_frame_statement_at_sol(skipper, bytes, i, end, indent) {
+            if let Some((_new_i, kind)) = match_frame_statement_at_sol(skipper, bytes, i, end, indent) {
                 // Emit any preceding native text (excluding indentation)
                 let native_end = i.saturating_sub(indent);
                 if seg_start < native_end {
@@ -352,7 +352,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                 } else if i < end && bytes[i].is_ascii_uppercase() {
                     // @@SystemName() - tagged system instantiation
                     // Must start with uppercase letter (convention for system names)
-                    let name_start = i;
+                    let _name_start = i;
                     while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
                         i += 1;
                     }

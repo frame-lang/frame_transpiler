@@ -3,18 +3,14 @@ use std::collections::{HashMap, HashSet};
 use super::ast::{SystemDecl, MachineDecl, StateDecl, ModuleAst, Span};
 use super::frame_ast::{
     FrameAst, SystemAst as FrameSystemAst, StateAst as FrameStateAst,
-    ModuleAst as FrameModuleAst, MachineAst as FrameMachineAst,
+    MachineAst as FrameMachineAst,
     HandlerAst as FrameHandlerAst, Span as FrameSpan, Type,
 };
 
-/// Convert a Type to its string representation (preserving native type names for V4)
+/// Convert a Type to its string representation — types pass through verbatim
 fn type_to_string(t: &Type) -> String {
     match t {
         Type::Custom(name) => name.clone(),
-        Type::Int => "int".to_string(),
-        Type::Float => "float".to_string(),
-        Type::String => "string".to_string(),
-        Type::Bool => "bool".to_string(),
         Type::Unknown => "Any".to_string(),
     }
 }
@@ -382,37 +378,34 @@ pub(crate) fn collect_domain_vars(bytes: &[u8], span: &Span) -> HashMap<String, 
         
         // Look for variable declarations (simple heuristic)
         // Could be: var name, name:, or just name
-        let mut var_name = None;
-        
+
         // Check for 'var' keyword
-        if p + 3 < end && &bytes[p..p+3] == b"var" && 
+        if p + 3 < end && &bytes[p..p+3] == b"var" &&
            (p + 3 >= end || bytes[p+3] == b' ' || bytes[p+3] == b'\t') {
             p += 3;
             while p < end && (bytes[p] == b' ' || bytes[p] == b'\t') {
                 p += 1;
             }
         }
-        
+
         // Get identifier
         if p < end && (bytes[p].is_ascii_alphabetic() || bytes[p] == b'_') {
             let name_start = p;
             while p < end && (bytes[p].is_ascii_alphanumeric() || bytes[p] == b'_') {
                 p += 1;
             }
-            var_name = Some(String::from_utf8_lossy(&bytes[name_start..p]).to_string());
-            
+            let var_name = String::from_utf8_lossy(&bytes[name_start..p]).to_string();
+
             // Skip whitespace
             while p < end && (bytes[p] == b' ' || bytes[p] == b'\t') {
                 p += 1;
             }
-            
+
             // Check if it's a variable declaration (has : or =)
             if p < end && (bytes[p] == b':' || bytes[p] == b'=') {
-                if let Some(name) = var_name {
-                    // For now, mark all as Unknown type
-                    // Later we can parse type annotations
-                    vars.insert(name, VarType::Unknown);
-                }
+                // For now, mark all as Unknown type
+                // Later we can parse type annotations
+                vars.insert(var_name, VarType::Unknown);
             }
         }
         

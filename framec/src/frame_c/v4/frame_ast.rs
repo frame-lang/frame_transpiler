@@ -7,8 +7,6 @@
 //! This is the SINGLE unified AST for Frame V4. The old `ast.rs` module has been
 //! merged into this file to eliminate the dual-AST problem.
 
-use std::collections::{HashMap, HashSet};
-use crate::frame_c::v4::native_region_scanner::{Region, RegionSpan};
 
 /// Span represents a source location in the original Frame code
 #[derive(Debug, Clone, PartialEq)]
@@ -23,17 +21,14 @@ impl Span {
     }
 }
 
-/// Type information for parameters and variables
+/// Type information for parameters and variables.
+/// Frame has no type system — types are opaque strings passed through verbatim.
+/// All user-written types are stored as Custom(original_text).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
-    /// Basic types
-    Int,
-    Float,
-    String,
-    Bool,
-    /// Custom type (user-defined)
+    /// Any named type — stores the user's original type text verbatim
     Custom(String),
-    /// Unknown/inferred type
+    /// Unknown/inferred type (no type annotation provided)
     Unknown,
 }
 
