@@ -2,13 +2,14 @@
 
 Cross-tool communication document for AI assistants working on the Frame transpiler.
 
-## Current State (v0.96.6, build 72)
+## Current State (v0.96.7, build 73)
 
 ### What Just Happened
-- **Phase 3 ImportScanner dogfooding COMPLETE**: All 7 import scanners converted to Frame systems (`.frs` → `.gen.rs` → `.rs` wrapper), following the exact same proven 3-file pattern as BodyClosers and SyntaxSkippers.
-- **Shared helpers extracted to `import_scanner/mod.rs`**: `starts_kw()` and `is_frame_section_start()` moved from duplicated per-language code to shared module. Called from generated `.gen.rs` files.
-- **7 `.frs` Frame specs written**: C, C++, C#, Java, Python, Rust, TypeScript import scanners, each as a 2-state FSM (`$Init` → `$Scanning`).
-- **All public API preserved**: `ImportScannerC`, `ImportScannerCpp`, `ImportScannerCs`, `ImportScannerJava`, `ImportScannerPy`, `ImportScannerRust`, `ImportScannerTs` — names unchanged, used by `module_partitioner.rs`.
+- **Phase 4 OutlineScanner refactoring COMPLETE**: Eliminated ~80% code duplication by merging `scan()` and `scan_collect()` into a single `scan_internal()` method. Both public methods are now thin wrappers.
+- **`close_body()` dispatch helper added to `body_closer/mod.rs`**: Single polymorphic dispatch function replaces all 21+ inline 7-arm match blocks across the codebase.
+- **Bugs fixed**: (1) `scan_collect()` now tracks `body_scopes` (prevents misinterpreting inner statements as headers), (2) consistent `owner_id` construction using `name_start..name_end`, (3) consistent `kind` logic using `is_global_fn` flag.
+- **`system_param_semantics.rs`**: 30-line `close_system()` function replaced with single `close_body()` call.
+- **Line reduction**: `outline_scanner.rs` 637 → 425 lines (−212 lines, 33% reduction).
 - **547/547 tests passing**: Python 146/146, TypeScript 128/128, Rust 132/132, C 141/141.
 - **Zero compiler warnings**: Clean `cargo build --release`.
 
@@ -28,7 +29,7 @@ Pipeline: Segmenter → Lexer → Parser → Arcanum → Validator → Codegen �
 |-----------|--------|-----------|-----------------|--------|
 | **BodyClosers** | 5-10 per language | 7 languages | Best candidate | ✅ DONE |
 | **SyntaxSkippers** | 3-4 per language | 7 languages | Best candidate | ✅ DONE (refactored to call helpers) |
-| **OutlineScanner** | 5 sections + scope stacks | 1 | Good candidate | 📋 Planned |
+| **OutlineScanner** | 5 sections + scope stacks | 1 | Refactored | ✅ DONE (refactored, not dogfooded) |
 | **NativeRegionScanner** | 2 states + context | 1 (unified) | Good candidate | 📋 Planned |
 | **ImportScanner** | 2 (Init→Scanning) | 7 languages | Best candidate | ✅ DONE |
 | **Lexer** | 2 modes | 1 | Questionable | ❓ Evaluate |
@@ -77,9 +78,16 @@ All 7 import scanners converted to Frame systems. Each FSM has 2 states (`$Init`
 | Rust       | rust_import.frs       | rust_import.gen.rs        | rust.rs           | `use`, `extern` |
 | TypeScript | typescript_import.frs | typescript_import.gen.rs  | typescript.rs     | `import`, `export` |
 
-### Phase 4: OutlineScanner
+### Phase 4: OutlineScanner ✅ COMPLETE (Refactoring Only)
 
-Single unified scanner with 5 section states + scope stack tracking. Needs refactoring first — `scan()` and `scan_collect()` have ~80% code duplication, and BodyCloser routing is repeated 3×7=21 times.
+Refactored the OutlineScanner to eliminate duplication and the 21× BodyCloser dispatch anti-pattern. Not converted to a Frame FSM — too complex/parser-like for Frame to add clarity.
+
+**Changes:**
+- Merged `scan()` and `scan_collect()` into `scan_internal(bytes, start, lang, strict)` — both public methods are now thin wrappers
+- Added `close_body()` to `body_closer/mod.rs` as single polymorphic dispatch point
+- Fixed 3 bugs: missing body_scopes in scan_collect, inconsistent owner_id, inconsistent kind logic
+- Replaced 30-line `close_system()` in `system_param_semantics.rs` with single `close_body()` call
+- Line reduction: 637 → 425 lines (−212, 33%)
 
 ### Phase 5: NativeRegionScanner
 
@@ -117,7 +125,6 @@ cd framepiler_test_env/tests && FRAMEC=../../target/release/framec ./run_tests.s
 - **Worktree + submodule**: The `framepiler_test_env/` directory is a git submodule that is NOT checked out in worktrees. Use the main repo's test infrastructure with `FRAMEC=<worktree>/target/release/framec` pointing to the worktree binary.
 
 ## What's Next
-- **Phase 4: OutlineScanner** — Refactor scan/scan_collect duplication, then convert to Frame system
 - **Phase 5: NativeRegionScanner** — Convert core scanning to Frame system
 - Additional language backend improvements as needed
 - Phase 15 (GraphViz backend) from V4 plan when dogfooding is complete
