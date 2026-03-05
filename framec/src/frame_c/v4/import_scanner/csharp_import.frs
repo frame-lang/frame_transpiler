@@ -1,0 +1,120 @@
+@@target rust
+
+// C# import scanner — Frame-generated state machine.
+// Scans for using directives and preprocessor #directives.
+// Handles C# string types: "...", @"...", $"...", $@"...", """..."""
+//
+// Helpers used: starts_kw (from mod.rs)
+
+@@system CSharpImportScannerFsm {
+    interface:
+        do_scan()
+
+    machine:
+        $Init {
+            do_scan() { -> $Scanning }
+        }
+
+        $Scanning {
+            $>() {
+                let n = self.bytes.len();
+                let mut i = self.start;
+                let mut at_sol = true;
+                let mut done = false;
+                while i < n && !done {
+                    if at_sol {
+                        if self.bytes[i] == b'\n' || self.bytes[i] == b'\r' { i += 1; continue; }
+                        let line_start = i;
+                        let mut j = i;
+                        while j < n && (self.bytes[j] == b' ' || self.bytes[j] == b'\t') { j += 1; }
+                        // Preprocessor line
+                        if j < n && self.bytes[j] == b'#' {
+                            let mut k = j;
+                            while k < n && self.bytes[k] != b'\n' { k += 1; }
+                            self.spans.push(RegionSpan { start: line_start, end: k });
+                            i = if k < n { k + 1 } else { n };
+                            at_sol = true;
+                            continue;
+                        }
+                        // using directive
+                        if j < n && starts_kw(&self.bytes, j, b"using") {
+                            let stmt_start = line_start;
+                            let mut k = j + 5;
+                            // in_s: 0=none, 1=regular", 2=verbatim@", 3=interp$", 4=interp-verbatim$@", 5=raw"""
+                            let mut in_s: u8 = 0;
+                            let mut raw_quotes: usize = 0;
+                            let mut interp_brace: i32 = 0;
+                            let mut found_semi = false;
+                            while k < n {
+                                let b = self.bytes[k];
+                                match b {
+                                    b'/' if in_s == 0 && k + 1 < n && self.bytes[k + 1] == b'/' => {
+                                        k += 2; while k < n && self.bytes[k] != b'\n' { k += 1; }
+                                    }
+                                    b'/' if in_s == 0 && k + 1 < n && self.bytes[k + 1] == b'*' => {
+                                        k += 2;
+                                        while k + 1 < n { if self.bytes[k] == b'*' && self.bytes[k + 1] == b'/' { k += 2; break; } k += 1; }
+                                    }
+                                    b'@' if in_s == 0 && k + 1 < n && self.bytes[k + 1] == b'"' => { in_s = 2; k += 2; continue; }
+                                    b'$' if in_s == 0 && k + 1 < n && self.bytes[k + 1] == b'"' => { in_s = 3; k += 2; continue; }
+                                    b'$' if in_s == 0 && k + 2 < n && self.bytes[k + 1] == b'@' && self.bytes[k + 2] == b'"' => { in_s = 4; k += 3; continue; }
+                                    b'"' if in_s == 0 => {
+                                        let mut q = 1usize;
+                                        let mut p = k + 1;
+                                        while p < n && self.bytes[p] == b'"' { q += 1; p += 1; }
+                                        if q >= 3 { in_s = 5; raw_quotes = q; k = p; continue; }
+                                        else { in_s = 1; k += 1; continue; }
+                                    }
+                                    b'"' if in_s == 1 => { in_s = 0; k += 1; continue; }
+                                    b'\\' if in_s == 1 => { k += 2; continue; }
+                                    b'"' if in_s == 2 => {
+                                        if k + 1 < n && self.bytes[k + 1] == b'"' { k += 2; continue; }
+                                        else { in_s = 0; k += 1; continue; }
+                                    }
+                                    b'"' if in_s == 3 && interp_brace == 0 => { in_s = 0; k += 1; continue; }
+                                    b'{' if in_s == 3 || in_s == 4 => { interp_brace += 1; k += 1; continue; }
+                                    b'}' if (in_s == 3 || in_s == 4) && interp_brace > 0 => { interp_brace -= 1; k += 1; continue; }
+                                    b'"' if in_s == 4 => {
+                                        if k + 1 < n && self.bytes[k + 1] == b'"' { k += 2; continue; }
+                                        else if interp_brace == 0 { in_s = 0; k += 1; continue; }
+                                        else { k += 1; continue; }
+                                    }
+                                    b'"' if in_s == 5 => {
+                                        let mut q = 1usize;
+                                        let mut p = k + 1;
+                                        while p < n && self.bytes[p] == b'"' { q += 1; p += 1; }
+                                        if q >= raw_quotes { in_s = 0; k = p; continue; }
+                                        else { k = p; continue; }
+                                    }
+                                    b';' if in_s == 0 => {
+                                        self.spans.push(RegionSpan { start: stmt_start, end: k });
+                                        found_semi = true;
+                                        k += 1; i = k; at_sol = true; break;
+                                    }
+                                    b'\n' => { k += 1; }
+                                    _ => { k += 1; }
+                                }
+                            }
+                            if found_semi { continue; }
+                            // EOF without semicolon
+                            if in_s != 0 || (in_s == 3 || in_s == 4) && interp_brace != 0 || in_s == 5 {
+                                self.issues.push(ValidationIssue { message: "E110: unterminated using directive".into() });
+                            }
+                            self.spans.push(RegionSpan { start: stmt_start, end: n });
+                            break;
+                        }
+                        // Not a preprocessor/using at SOL => imports block finished
+                        break;
+                    } else {
+                        if self.bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
+                    }
+                }
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var start: usize = 0
+        var spans: Vec<RegionSpan> = Vec::new()
+        var issues: Vec<ValidationIssue> = Vec::new()
+}
