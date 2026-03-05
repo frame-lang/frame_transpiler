@@ -1,0 +1,94 @@
+@@target rust
+
+// C import scanner — Frame-generated state machine.
+// Scans for #include directives at SOL, with backslash continuation.
+//
+// Helpers used: starts_kw (from mod.rs)
+
+@@system CImportScannerFsm {
+    interface:
+        do_scan()
+
+    machine:
+        $Init {
+            do_scan() { -> $Scanning }
+        }
+
+        $Scanning {
+            $>() {
+                let n = self.bytes.len();
+                let mut i = self.start;
+                let mut at_sol = true;
+                while i < n {
+                    if at_sol {
+                        if self.bytes[i] == b'\n' || self.bytes[i] == b'\r' { i += 1; continue; }
+                        let line_start = i;
+                        let mut j = i;
+                        while j < n && (self.bytes[j] == b' ' || self.bytes[j] == b'\t') { j += 1; }
+                        if j < n && self.bytes[j] == b'#' {
+                            // Check for #include
+                            let mut k = j + 1;
+                            while k < n && (self.bytes[k] == b' ' || self.bytes[k] == b'\t') { k += 1; }
+                            let key_start = k;
+                            while k < n && self.bytes[k].is_ascii_alphabetic() { k += 1; }
+                            let kw = &self.bytes[key_start..k];
+                            if kw == b"include" {
+                                // Logical line: handle backslash continuation
+                                let mut p = k;
+                                loop {
+                                    while p < n && self.bytes[p] != b'\n' { p += 1; }
+                                    // Check backslash continuation
+                                    let mut q = if p > 0 { p - 1 } else { 0 };
+                                    while q > line_start && (self.bytes[q] == b' ' || self.bytes[q] == b'\t' || self.bytes[q] == b'\r') { q -= 1; }
+                                    let cont = self.bytes.get(q).copied() == Some(b'\\');
+                                    if cont {
+                                        if p < n { p += 1; continue; } else { break; }
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                // Basic closure check for <...> or "..."
+                                let mut has_closure = false;
+                                let mut s = k;
+                                while s < p && (self.bytes[s] == b' ' || self.bytes[s] == b'\t') { s += 1; }
+                                if s < p {
+                                    if self.bytes[s] == b'<' {
+                                        let mut t = s + 1;
+                                        while t < p { if self.bytes[t] == b'>' { has_closure = true; break; } t += 1; }
+                                    } else if self.bytes[s] == b'"' {
+                                        let mut t = s + 1;
+                                        let mut esc = false;
+                                        while t < p {
+                                            let b = self.bytes[t];
+                                            if esc { esc = false; t += 1; continue; }
+                                            if b == b'\\' { esc = true; t += 1; continue; }
+                                            if b == b'"' { has_closure = true; break; }
+                                            t += 1;
+                                        }
+                                    }
+                                }
+                                if !has_closure {
+                                    self.issues.push(ValidationIssue { message: "E110: unterminated include directive".into() });
+                                }
+                                self.spans.push(RegionSpan { start: line_start, end: p.min(n) });
+                                i = p.min(n);
+                                at_sol = true;
+                                continue;
+                            } else {
+                                break; // End of import section
+                            }
+                        }
+                        break; // Not a directive -> end imports
+                    } else {
+                        if self.bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
+                    }
+                }
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var start: usize = 0
+        var spans: Vec<RegionSpan> = Vec::new()
+        var issues: Vec<ValidationIssue> = Vec::new()
+}

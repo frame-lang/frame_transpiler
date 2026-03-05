@@ -1,0 +1,103 @@
+@@target rust
+
+// TypeScript import scanner — Frame-generated state machine.
+// Scans for import/export statements terminated by semicolons.
+// Handles template literals, block/line comments.
+//
+// Helpers used: starts_kw, is_frame_section_start (from mod.rs)
+
+@@system TypeScriptImportScannerFsm {
+    interface:
+        do_scan()
+
+    machine:
+        $Init {
+            do_scan() { -> $Scanning }
+        }
+
+        $Scanning {
+            $>() {
+                let n = self.bytes.len();
+                let mut i = self.start;
+                let mut at_sol = true;
+                while i < n {
+                    if at_sol {
+                        let line_start = i;
+                        let mut j = i;
+                        while j < n && (self.bytes[j] == b' ' || self.bytes[j] == b'\t') { j += 1; }
+                        // Stop at Frame section keywords
+                        if j < n && is_frame_section_start(&self.bytes, j) {
+                            break;
+                        }
+                        if j < n && (starts_kw(&self.bytes, j, b"import") || starts_kw(&self.bytes, j, b"export")) {
+                            let stmt_start = line_start;
+                            let mut k = j;
+                            let mut depth_paren: i32 = 0;
+                            let mut depth_brace: i32 = 0;
+                            let mut tmpl_depth: i32 = 0;
+                            let mut in_s: u8 = 0; // 1 ', 2 ", 3 backtick
+                            let mut found_semicolon = false;
+                            while k < n {
+                                let b = self.bytes[k];
+                                // Comments outside strings/templates
+                                if in_s == 0 {
+                                    if b == b'/' && k + 1 < n && self.bytes[k + 1] == b'/' {
+                                        k += 2; while k < n && self.bytes[k] != b'\n' { k += 1; }
+                                        if k < n { k += 1; continue; } else { break; }
+                                    }
+                                    if b == b'/' && k + 1 < n && self.bytes[k + 1] == b'*' {
+                                        k += 2;
+                                        while k + 1 < n { if self.bytes[k] == b'*' && self.bytes[k + 1] == b'/' { k += 2; break; } k += 1; }
+                                        continue;
+                                    }
+                                }
+                                match b {
+                                    b'\'' if in_s == 0 => { in_s = 1; k += 1; }
+                                    b'"' if in_s == 0 => { in_s = 2; k += 1; }
+                                    b'`' if in_s == 0 => { in_s = 3; tmpl_depth = 0; k += 1; }
+                                    b'`' if in_s == 3 && tmpl_depth == 0 => { in_s = 0; k += 1; }
+                                    b'\\' if in_s == 1 || in_s == 2 => { k += 2; }
+                                    b'$' if in_s == 3 && k + 1 < n && self.bytes[k + 1] == b'{' => { tmpl_depth += 1; k += 2; }
+                                    b'}' if in_s == 3 && tmpl_depth > 0 => { tmpl_depth -= 1; k += 1; }
+                                    b'\'' if in_s == 1 => { in_s = 0; k += 1; }
+                                    b'"' if in_s == 2 => { in_s = 0; k += 1; }
+                                    b'(' if in_s == 0 => { depth_paren += 1; k += 1; }
+                                    b')' if in_s == 0 => { depth_paren -= 1; k += 1; }
+                                    b'{' if in_s == 0 => { depth_brace += 1; k += 1; }
+                                    b'}' if in_s == 0 => { depth_brace -= 1; k += 1; }
+                                    b';' if in_s == 0 && depth_paren == 0 && depth_brace == 0 => {
+                                        self.spans.push(RegionSpan { start: stmt_start, end: k });
+                                        found_semicolon = true;
+                                        k += 1; i = k; at_sol = true; break;
+                                    }
+                                    b'\n' => { k += 1; }
+                                    _ => { k += 1; }
+                                }
+                            }
+                            if k >= n {
+                                if !found_semicolon || in_s != 0 || depth_paren != 0 || depth_brace != 0 || (in_s == 3 && tmpl_depth != 0) {
+                                    self.issues.push(ValidationIssue { message: "E110: unterminated import/export statement".into() });
+                                }
+                                self.spans.push(RegionSpan { start: stmt_start, end: n });
+                                break;
+                            }
+                            continue;
+                        }
+                        // Not import/export at SOL, advance to next line
+                        while i < n && self.bytes[i] != b'\n' { i += 1; }
+                        if i < n { i += 1; }
+                        at_sol = true;
+                        continue;
+                    } else {
+                        if self.bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
+                    }
+                }
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var start: usize = 0
+        var spans: Vec<RegionSpan> = Vec::new()
+        var issues: Vec<ValidationIssue> = Vec::new()
+}

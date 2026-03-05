@@ -1,6 +1,10 @@
 
 // Python syntax skipper â Frame-generated state machine.
-// Handles # comments, triple-quoted strings, and simple strings.
+// Delegates to shared helpers for all scanning logic.
+//
+// Helpers used:
+//   skip_hash_comment, skip_triple_string, skip_simple_string,
+//   find_line_end_python, balanced_paren_end_c_like
 
 struct PythonSyntaxSkipperFsmFrameEvent {
     message: String,
@@ -309,19 +313,9 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
-    fn _state_BalancedParenEnd(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+    fn _state_FindLineEnd(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_BalancedParenEnd_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_Init(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-match __e.message.as_str() {
-    "do_balanced_paren_end" => { self._s_Init_do_balanced_paren_end(__e); }
-    "do_find_line_end" => { self._s_Init_do_find_line_end(__e); }
-    "do_skip_comment" => { self._s_Init_do_skip_comment(__e); }
-    "do_skip_string" => { self._s_Init_do_skip_string(__e); }
+    "$>" => { self._s_FindLineEnd_enter(__e); }
     _ => {}
 }
     }
@@ -340,51 +334,64 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_FindLineEnd(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+    fn _state_Init(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_FindLineEnd_enter(__e); }
+    "do_balanced_paren_end" => { self._s_Init_do_balanced_paren_end(__e); }
+    "do_find_line_end" => { self._s_Init_do_find_line_end(__e); }
+    "do_skip_comment" => { self._s_Init_do_skip_comment(__e); }
+    "do_skip_string" => { self._s_Init_do_skip_string(__e); }
     _ => {}
 }
     }
 
-    fn _s_BalancedParenEnd_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-// C-like paren matching (Python parens same as C)
-let end = self.end;
-let bytes = &self.bytes;
-let mut i = self.pos;
-if i >= end || bytes[i] != b'(' {
-    self.success = 0;
+    fn _state_BalancedParenEnd(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_BalancedParenEnd_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _s_FindLineEnd_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+self.result_pos = find_line_end_python(&self.bytes, self.pos, self.end);
+    }
+
+    fn _s_SkipString_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+// Triple-quoted strings (must check before simple)
+if let Some(j) = skip_triple_string(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
     return
 }
-let mut depth: i32 = 0;
-let mut in_string: u8 = 0;
-while i < end {
-    let b = bytes[i];
-    if in_string != 0 {
-        if b == b'\\' { i += 2; continue; }
-        if b == in_string { in_string = 0; }
-        i += 1;
-        continue;
-    }
-    if b == b'\'' || b == b'"' {
-        in_string = b;
-        i += 1;
-    } else if b == b'(' {
-        depth += 1;
-        i += 1;
-    } else if b == b')' {
-        depth -= 1;
-        i += 1;
-        if depth == 0 {
-            self.result_pos = i;
-            self.success = 1;
-            return
-        }
-    } else {
-        i += 1;
-    }
+// Simple string
+if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
 }
 self.success = 0;
+    }
+
+    fn _s_SkipComment_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+if let Some(j) = skip_hash_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
+}
+self.success = 0;
+    }
+
+    fn _s_Init_do_balanced_paren_end(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = PythonSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_do_skip_string(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = PythonSyntaxSkipperFsmCompartment::new("SkipString");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
     }
 
     fn _s_Init_do_skip_comment(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
@@ -401,97 +408,12 @@ self.__transition(__compartment);
 return;
     }
 
-    fn _s_Init_do_skip_string(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = PythonSyntaxSkipperFsmCompartment::new("SkipString");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
-    }
-
-    fn _s_Init_do_balanced_paren_end(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = PythonSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
-    }
-
-    fn _s_SkipString_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-let b = bytes[i];
-// Triple-quoted strings (must check before simple)
-if (b == b'\'' || b == b'"') && i + 2 < end && bytes[i + 1] == b && bytes[i + 2] == b {
-    let q = b;
-    let mut j = i + 3;
-    while j + 2 < end {
-        if bytes[j] == q && bytes[j + 1] == q && bytes[j + 2] == q {
-            self.result_pos = j + 3;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
-    self.success = 1;
-    return
-}
-// Simple string
-if b == b'\'' || b == b'"' {
-    let q = b;
-    let mut j = i + 1;
-    while j < end {
-        if bytes[j] == b'\\' { j += 2; continue; }
-        if bytes[j] == q {
-            self.result_pos = j + 1;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
-    self.success = 1;
-    return
-}
-self.success = 0;
-    }
-
-    fn _s_SkipComment_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-// Python uses # for comments
-if bytes[i] == b'#' {
-    let mut j = i + 1;
-    while j < end && bytes[j] != b'\n' {
-        j += 1;
-    }
+    fn _s_BalancedParenEnd_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
+if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
     self.result_pos = j;
     self.success = 1;
     return
 }
 self.success = 0;
-    }
-
-    fn _s_FindLineEnd_enter(&mut self, __e: &PythonSyntaxSkipperFsmFrameEvent) {
-// Python: stop at newline, # comment, or semicolon
-let end = self.end;
-let bytes = &self.bytes;
-let mut j = self.pos;
-let mut in_string: u8 = 0;
-while j < end {
-    let b = bytes[j];
-    if b == b'\n' { break; }
-    if in_string != 0 {
-        if b == b'\\' { j += 2; continue; }
-        if b == in_string { in_string = 0; }
-        j += 1;
-        continue;
-    }
-    if b == b'#' || b == b';' { break; }
-    if b == b'\'' || b == b'"' { in_string = b; }
-    j += 1;
-}
-self.result_pos = j;
     }
 }

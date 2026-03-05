@@ -17,7 +17,7 @@
 include!("rust_skipper.gen.rs");
 
 use super::*;
-use super::unified::SyntaxSkipper;
+use super::unified::*;
 use crate::frame_c::v4::body_closer::rust::BodyCloserRust;
 use crate::frame_c::v4::body_closer::BodyCloser;
 

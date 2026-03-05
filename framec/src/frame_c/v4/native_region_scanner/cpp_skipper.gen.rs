@@ -1,6 +1,11 @@
 
 // C++ syntax skipper â Frame-generated state machine.
-// Like C but adds C++ raw strings R"delim(...)delim"
+// Delegates to shared helpers; adds C++ raw strings R"delim(...)delim"
+//
+// Helpers used:
+//   skip_line_comment, skip_block_comment, skip_simple_string,
+//   find_line_end_c_like, balanced_paren_end_c_like
+// Inline: R"delim(...)delim" raw strings (checked before skip_simple_string)
 
 struct CppSyntaxSkipperFsmFrameEvent {
     message: String,
@@ -323,19 +328,19 @@ match __e.message.as_str() {
 }
     }
 
+    fn _state_SkipComment(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_SkipComment_enter(__e); }
+    _ => {}
+}
+    }
+
     fn _state_Init(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
     "do_balanced_paren_end" => { self._s_Init_do_balanced_paren_end(__e); }
     "do_find_line_end" => { self._s_Init_do_find_line_end(__e); }
     "do_skip_comment" => { self._s_Init_do_skip_comment(__e); }
     "do_skip_string" => { self._s_Init_do_skip_string(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_SkipComment(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_SkipComment_enter(__e); }
     _ => {}
 }
     }
@@ -348,29 +353,10 @@ match __e.message.as_str() {
     }
 
     fn _s_BalancedParenEnd_enter(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
-let end = self.end;
-let bytes = &self.bytes;
-let mut i = self.pos;
-if i >= end || bytes[i] != b'(' {
-    self.success = 0;
+if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
     return
-}
-let mut depth: i32 = 0;
-let mut in_string: u8 = 0;
-while i < end {
-    let b = bytes[i];
-    if in_string != 0 {
-        if b == b'\\' { i += 2; continue; }
-        if b == in_string { in_string = 0; }
-        i += 1;
-        continue;
-    }
-    if b == b'\'' || b == b'"' { in_string = b; i += 1; }
-    else if b == b'(' { depth += 1; i += 1; }
-    else if b == b')' {
-        depth -= 1; i += 1;
-        if depth == 0 { self.result_pos = i; self.success = 1; return }
-    } else { i += 1; }
 }
 self.success = 0;
     }
@@ -379,7 +365,7 @@ self.success = 0;
 let i = self.pos;
 let end = self.end;
 let bytes = &self.bytes;
-// C++ raw string: R"delim(...)delim"
+// C++ raw string: R"delim(...)delim" (must check before simple string)
 if i + 1 < end && bytes[i] == b'R' && bytes[i + 1] == b'"' {
     let mut j = i + 2;
     let mut delim: Vec<u8> = Vec::new();
@@ -416,29 +402,31 @@ if i + 1 < end && bytes[i] == b'R' && bytes[i + 1] == b'"' {
     self.success = 1;
     return
 }
-// Simple string
-let b = bytes[i];
-if b == b'\'' || b == b'"' {
-    let q = b;
-    let mut j = i + 1;
-    while j < end {
-        if bytes[j] == b'\\' { j += 2; continue; }
-        if bytes[j] == q {
-            self.result_pos = j + 1;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
+// Simple string via shared helper
+if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
     self.success = 1;
     return
 }
 self.success = 0;
     }
 
-    fn _s_Init_do_balanced_paren_end(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = CppSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
+    fn _s_SkipComment_enter(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
+if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
+}
+if let Some(j) = skip_block_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
+}
+self.success = 0;
+    }
+
+    fn _s_Init_do_find_line_end(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = CppSyntaxSkipperFsmCompartment::new("FindLineEnd");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
 self.__transition(__compartment);
 return;
@@ -451,8 +439,8 @@ self.__transition(__compartment);
 return;
     }
 
-    fn _s_Init_do_find_line_end(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = CppSyntaxSkipperFsmCompartment::new("FindLineEnd");
+    fn _s_Init_do_balanced_paren_end(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = CppSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
 self.__transition(__compartment);
 return;
@@ -465,54 +453,7 @@ self.__transition(__compartment);
 return;
     }
 
-    fn _s_SkipComment_enter(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-    let mut j = i + 2;
-    while j < end && bytes[j] != b'\n' { j += 1; }
-    self.result_pos = j;
-    self.success = 1;
-    return
-}
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-    let mut j = i + 2;
-    while j + 1 < end {
-        if bytes[j] == b'*' && bytes[j + 1] == b'/' {
-            self.result_pos = j + 2;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
-    self.success = 1;
-    return
-}
-self.success = 0;
-    }
-
     fn _s_FindLineEnd_enter(&mut self, __e: &CppSyntaxSkipperFsmFrameEvent) {
-// C-like line end
-let end = self.end;
-let bytes = &self.bytes;
-let mut j = self.pos;
-let mut in_string: u8 = 0;
-while j < end {
-    let b = bytes[j];
-    if b == b'\n' { break; }
-    if in_string != 0 {
-        if b == b'\\' { j += 2; continue; }
-        if b == in_string { in_string = 0; }
-        j += 1;
-        continue;
-    }
-    if b == b';' { break; }
-    if b == b'/' && j + 1 < end && (bytes[j + 1] == b'/' || bytes[j + 1] == b'*') { break; }
-    if b == b'\'' || b == b'"' { in_string = b; }
-    j += 1;
-}
-self.result_pos = j;
+self.result_pos = find_line_end_c_like(&self.bytes, self.pos, self.end);
     }
 }
