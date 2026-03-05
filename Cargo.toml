@@ -9,4 +9,4 @@ members = [
 exclude = ["framec_tests", "framepiler_test_env"]
 
 [workspace.package]
-version = "0.96.3"
+version = "0.96.4"

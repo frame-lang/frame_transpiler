@@ -4007,50 +4007,53 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
         }
         FrameSegmentKind::ContextData => {
             // @@:data[key] - call-scoped data (read)
-            // Extract key from "@@:data[key]"
+            // Extract key from "@@:data[key]" — key includes user quotes (e.g. 'key' or "key")
             let key = extract_bracket_key(&segment_text, "@@:data");
+            let bare_key = key.trim_matches('"').trim_matches('\'');
             match lang {
-                TargetLanguage::Python3 => format!("self._context_stack[-1]._data[\"{}\"]", key),
-                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
-                TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, key),
+                TargetLanguage::Python3 => format!("self._context_stack[-1]._data[{}]", key),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[{}]", key),
+                TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, bare_key),
                 TargetLanguage::Rust => {
                     // For Rust read, we need to handle the dynamic type
                     // The _data HashMap stores Box<dyn Any>, so we need downcast
-                    format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).and_then(|v| v.downcast_ref::<String>()).cloned().unwrap_or_default()", key)
+                    format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).and_then(|v| v.downcast_ref::<String>()).cloned().unwrap_or_default()", bare_key)
                 }
-                _ => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
+                _ => format!("this._context_stack[this._context_stack.length - 1]._data[{}]", key),
             }
         }
         FrameSegmentKind::ContextDataAssign => {
             // @@:data[key] = expr - call-scoped data (assignment)
             // Extract key and value from "@@:data[key] = expr;"
             let key = extract_bracket_key(&segment_text, "@@:data");
+            let bare_key = key.trim_matches('"').trim_matches('\'');
             // Find the = and extract the expression
             let trimmed = segment_text.trim();
             let eq_pos = trimmed.find('=').unwrap_or(trimmed.len());
             let expr = trimmed[eq_pos + 1..].trim().trim_end_matches(';').trim();
             let expanded_expr = expand_state_vars_in_expr(expr, lang, ctx);
             match lang {
-                TargetLanguage::Python3 => format!("{}self._context_stack[-1]._data[\"{}\"] = {}", indent_str, key, expanded_expr),
-                TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._data[\"{}\"] = {};", indent_str, key, expanded_expr),
-                TargetLanguage::C => format!("{}{}_DATA_SET(self, \"{}\", {});", indent_str, ctx.system_name, key, expanded_expr),
+                TargetLanguage::Python3 => format!("{}self._context_stack[-1]._data[{}] = {}", indent_str, key, expanded_expr),
+                TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._data[{}] = {};", indent_str, key, expanded_expr),
+                TargetLanguage::C => format!("{}{}_DATA_SET(self, \"{}\", {});", indent_str, ctx.system_name, bare_key, expanded_expr),
                 TargetLanguage::Rust => {
                     // For Rust, insert into the HashMap with Box<dyn Any>
-                    format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._data.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>); }}", indent_str, key, expanded_expr)
+                    format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._data.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>); }}", indent_str, bare_key, expanded_expr)
                 }
-                _ => format!("{}this._context_stack[this._context_stack.length - 1]._data[\"{}\"] = {};", indent_str, key, expanded_expr),
+                _ => format!("{}this._context_stack[this._context_stack.length - 1]._data[{}] = {};", indent_str, key, expanded_expr),
             }
         }
         FrameSegmentKind::ContextParams => {
             // @@:params[key] - explicit parameter access
-            // Extract key from "@@:params[key]"
+            // Extract key from "@@:params[key]" — key includes user quotes
             let key = extract_bracket_key(&segment_text, "@@:params");
+            let bare_key = key.trim_matches('"').trim_matches('\'');
             match lang {
-                TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", key),
-                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
-                TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, key),
-                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx.event.parameters.get(\"{}\")).cloned()", key),
-                _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
+                TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[{}]", key),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[{}]", key),
+                TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, bare_key),
+                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx.event.parameters.get(\"{}\")).cloned()", bare_key),
+                _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[{}]", key),
             }
         }
         FrameSegmentKind::TaggedInstantiation => {
@@ -4113,11 +4116,13 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 }
 
 /// Extract bracketed key from syntax like "@@:data[key]" or "@@:params[key]"
+/// Returns the raw content between [ and ] — including any user-supplied quotes.
+/// For languages that need a bare key (C, Rust), call .trim_matches on the result.
 fn extract_bracket_key(text: &str, prefix: &str) -> String {
     if let Some(rest) = text.strip_prefix(prefix) {
         if let Some(start) = rest.find('[') {
             if let Some(end) = rest.find(']') {
-                return rest[start + 1..end].trim().trim_matches('"').trim_matches('\'').to_string();
+                return rest[start + 1..end].trim().to_string();
             }
         }
     }
