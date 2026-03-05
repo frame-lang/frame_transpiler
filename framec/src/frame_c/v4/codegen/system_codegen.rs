@@ -162,14 +162,14 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
             // V4: Pass through native code verbatim for Python/TypeScript/Rust
             // But also include type annotation for C backend which needs it
             let field = Field::new(&domain_var.name)
-                .with_visibility(Visibility::Private)
+                .with_visibility(Visibility::Public)
                 .with_type(&type_str)
                 .with_raw_code(raw_code);
             fields.push(field);
         } else {
-            // Legacy: Construct from parsed components
+            // Domain vars are public so generated FSMs can be driven externally
             let mut field = Field::new(&domain_var.name)
-                .with_visibility(Visibility::Private)
+                .with_visibility(Visibility::Public)
                 .with_type(&type_str);
 
             if let Some(ref init) = &domain_var.initializer {
@@ -3548,8 +3548,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             code.push_str(&format!("{}__compartment.enter_args = {{str(i): v for i, v in enumerate(({},))}}\n", indent_str, enter));
                         }
 
-                        // Call __transition
-                        code.push_str(&format!("{}self.__transition(__compartment)", indent_str));
+                        // Call __transition and return to exit the handler
+                        code.push_str(&format!("{}self.__transition(__compartment)\n{}return", indent_str, indent_str));
                         code
                     }
                     TargetLanguage::TypeScript => {
@@ -3590,8 +3590,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             code.push_str(&format!("{}__compartment.enter_args = Object.fromEntries([{}].map((v, i) => [String(i), v]));\n", indent_str, enter));
                         }
 
-                        // Call __transition
-                        code.push_str(&format!("{}this.__transition(__compartment);", indent_str));
+                        // Call __transition and return to exit the handler
+                        code.push_str(&format!("{}this.__transition(__compartment);\n{}return;", indent_str, indent_str));
                         code
                     }
                     TargetLanguage::Rust => {
@@ -3618,8 +3618,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             }
                         }
 
-                        // Call __transition
-                        code.push_str(&format!("{}self.__transition(__compartment)", indent_str));
+                        // Call __transition and return to exit the handler
+                        code.push_str(&format!("{}self.__transition(__compartment);\n{}return;", indent_str, indent_str));
                         code
                     }
                     TargetLanguage::C => {
@@ -3654,15 +3654,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             }
                         }
 
-                        // Call transition
-                        code.push_str(&format!("{}{}_transition(self, __compartment);", indent_str, ctx.system_name));
+                        // Call transition and return to exit the handler
+                        code.push_str(&format!("{}{}_transition(self, __compartment);\n{}return;", indent_str, ctx.system_name, indent_str));
                         code
                     }
                     _ => {
                         // Default: same as TypeScript
                         let mut code = String::new();
                         code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\", this.__compartment.copy());\n", indent_str, ctx.system_name, target));
-                        code.push_str(&format!("{}this.__transition(__compartment);", indent_str));
+                        code.push_str(&format!("{}this.__transition(__compartment);\n{}return;", indent_str, indent_str));
                         code
                     }
                 }

@@ -230,23 +230,9 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
-    fn _state_InLineComment(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+    fn _state_Init(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_InLineComment_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InString(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InString_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InBlockComment(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InBlockComment_enter(__e); }
+    "scan" => { self._s_Init_scan(__e); }
     _ => {}
 }
     }
@@ -258,9 +244,9 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_Init(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+    fn _state_InLineComment(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "scan" => { self._s_Init_scan(__e); }
+    "$>" => { self._s_InLineComment_enter(__e); }
     _ => {}
 }
     }
@@ -272,48 +258,25 @@ match __e.message.as_str() {
 }
     }
 
-    fn _s_InLineComment_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
-    self.pos += 1;
+    fn _state_InBlockComment(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InBlockComment_enter(__e); }
+    _ => {}
 }
+    }
+
+    fn _state_InString(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InString_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _s_Init_scan(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
 let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_InString_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n {
-    if self.bytes[self.pos] == b'\\' {
-        self.pos += 2;
-        continue;
-    }
-    if self.bytes[self.pos] == self.quote_char {
-        self.pos += 1;
-        let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
-}
-self.error_kind = 1;
-self.error_msg = "unterminated string".to_string();
-    }
-
-    fn _s_InBlockComment_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos + 1 < n {
-    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
-        self.pos += 2;
-        let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
-}
-self.error_kind = 2;
-self.error_msg = "unterminated comment".to_string();
+self.__transition(__compartment);
+return;
     }
 
     fn _s_InTemplate_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
@@ -325,7 +288,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     if self.bytes[self.pos] == b'\\' {
         self.pos += 2;
@@ -347,10 +311,15 @@ self.error_kind = 1;
 self.error_msg = "unterminated template".to_string();
     }
 
-    fn _s_Init_scan(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+    fn _s_InLineComment_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n && self.bytes[self.pos] != b'\n' {
+    self.pos += 1;
+}
 let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
+self.__transition(__compartment);
+return;
     }
 
     fn _s_Scanning_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
@@ -363,18 +332,21 @@ while self.pos < n {
         self.pos += 2;
         let mut __compartment = TsBodyCloserFsmCompartment::new("InLineComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
         self.pos += 2;
         let mut __compartment = TsBodyCloserFsmCompartment::new("InBlockComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'\'' || b == b'"' {
         self.quote_char = b;
         self.pos += 1;
         let mut __compartment = TsBodyCloserFsmCompartment::new("InString");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'`' {
         // Check for Frame V4 statements: `push$ or `-> pop$
         if self.pos + 5 < n && &self.bytes[self.pos + 1..self.pos + 6] == b"push$" {
@@ -390,7 +362,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = TsBodyCloserFsmCompartment::new("InTemplate");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'{' {
         self.depth += 1;
         self.pos += 1;
@@ -409,5 +382,40 @@ while self.pos < n {
 self.error_kind = 3;
 self.error_msg = "body not closed".to_string();
     }
-}
 
+    fn _s_InBlockComment_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos + 1 < n {
+    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
+        self.pos += 2;
+        let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 2;
+self.error_msg = "unterminated comment".to_string();
+    }
+
+    fn _s_InString_enter(&mut self, __e: &TsBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n {
+    if self.bytes[self.pos] == b'\\' {
+        self.pos += 2;
+        continue;
+    }
+    if self.bytes[self.pos] == self.quote_char {
+        self.pos += 1;
+        let mut __compartment = TsBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 1;
+self.error_msg = "unterminated string".to_string();
+    }
+}

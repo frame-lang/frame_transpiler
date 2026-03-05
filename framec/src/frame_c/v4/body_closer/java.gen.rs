@@ -228,9 +228,23 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
+    fn _state_InLineComment(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InLineComment_enter(__e); }
+    _ => {}
+}
+    }
+
     fn _state_InBlockComment(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
     "$>" => { self._s_InBlockComment_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_Init(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "scan" => { self._s_Init_scan(__e); }
     _ => {}
 }
     }
@@ -256,18 +270,15 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_Init(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "scan" => { self._s_Init_scan(__e); }
-    _ => {}
+    fn _s_InLineComment_enter(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n && self.bytes[self.pos] != b'\n' {
+    self.pos += 1;
 }
-    }
-
-    fn _state_InLineComment(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InLineComment_enter(__e); }
-    _ => {}
-}
+let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
     }
 
     fn _s_InBlockComment_enter(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
@@ -277,12 +288,20 @@ while self.pos + 1 < n {
         self.pos += 2;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
 self.error_kind = 2;
 self.error_msg = "unterminated comment".to_string();
+    }
+
+    fn _s_Init_scan(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
+let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
     }
 
     fn _s_InString_enter(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
@@ -296,7 +315,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
@@ -315,7 +335,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
@@ -333,22 +354,26 @@ while self.pos < n {
         self.pos += 2;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("InLineComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
         self.pos += 2;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("InBlockComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'\'' {
         self.pos += 1;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("InCharLiteral");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'"' {
         self.pos += 1;
         let mut __compartment = JavaBodyCloserFsmCompartment::new("InString");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'{' {
         self.depth += 1;
         self.pos += 1;
@@ -367,21 +392,4 @@ while self.pos < n {
 self.error_kind = 3;
 self.error_msg = "body not closed".to_string();
     }
-
-    fn _s_Init_scan(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
-let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_InLineComment_enter(&mut self, __e: &JavaBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
-    self.pos += 1;
 }
-let mut __compartment = JavaBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-}
-
