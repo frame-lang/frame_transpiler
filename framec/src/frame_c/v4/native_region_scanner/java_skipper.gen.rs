@@ -1,6 +1,11 @@
 
 // Java syntax skipper â Frame-generated state machine.
-// Like C but adds Java 15+ text blocks """..."""
+// Delegates to shared helpers; adds Java 15+ text blocks """..."""
+//
+// Helpers used:
+//   skip_line_comment, skip_block_comment, skip_simple_string,
+//   find_line_end_c_like, balanced_paren_end_c_like
+// Inline: """...""" text blocks (checked before skip_simple_string)
 
 struct JavaSyntaxSkipperFsmFrameEvent {
     message: String,
@@ -309,16 +314,16 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
-    fn _state_FindLineEnd(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
+    fn _state_SkipString(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_FindLineEnd_enter(__e); }
+    "$>" => { self._s_SkipString_enter(__e); }
     _ => {}
 }
     }
 
-    fn _state_SkipString(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
+    fn _state_FindLineEnd(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_SkipString_enter(__e); }
+    "$>" => { self._s_FindLineEnd_enter(__e); }
     _ => {}
 }
     }
@@ -347,34 +352,11 @@ match __e.message.as_str() {
 }
     }
 
-    fn _s_FindLineEnd_enter(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
-// C-like line end
-let end = self.end;
-let bytes = &self.bytes;
-let mut j = self.pos;
-let mut in_string: u8 = 0;
-while j < end {
-    let b = bytes[j];
-    if b == b'\n' { break; }
-    if in_string != 0 {
-        if b == b'\\' { j += 2; continue; }
-        if b == in_string { in_string = 0; }
-        j += 1;
-        continue;
-    }
-    if b == b';' { break; }
-    if b == b'/' && j + 1 < end && (bytes[j + 1] == b'/' || bytes[j + 1] == b'*') { break; }
-    if b == b'\'' || b == b'"' { in_string = b; }
-    j += 1;
-}
-self.result_pos = j;
-    }
-
     fn _s_SkipString_enter(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
 let i = self.pos;
 let end = self.end;
 let bytes = &self.bytes;
-// Java text block """..."""
+// Java text block """...""" (must check before simple string)
 if i + 2 < end && bytes[i] == b'"' && bytes[i + 1] == b'"' && bytes[i + 2] == b'"' {
     let mut j = i + 3;
     while j + 2 < end {
@@ -389,79 +371,37 @@ if i + 2 < end && bytes[i] == b'"' && bytes[i + 1] == b'"' && bytes[i + 2] == b'
     self.success = 1;
     return
 }
-// Simple string
-let b = bytes[i];
-if b == b'\'' || b == b'"' {
-    let q = b;
-    let mut j = i + 1;
-    while j < end {
-        if bytes[j] == b'\\' {
-            j += 2;
-            continue;
-        }
-        if bytes[j] == q {
-            self.result_pos = j + 1;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
+// Simple string via shared helper
+if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
     self.success = 1;
     return
 }
 self.success = 0;
     }
 
+    fn _s_FindLineEnd_enter(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
+self.result_pos = find_line_end_c_like(&self.bytes, self.pos, self.end);
+    }
+
     fn _s_BalancedParenEnd_enter(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
-// C-like paren matching
-let end = self.end;
-let bytes = &self.bytes;
-let mut i = self.pos;
-if i >= end || bytes[i] != b'(' {
-    self.success = 0;
+if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
     return
-}
-let mut depth: i32 = 0;
-let mut in_string: u8 = 0;
-while i < end {
-    let b = bytes[i];
-    if in_string != 0 {
-        if b == b'\\' { i += 2; continue; }
-        if b == in_string { in_string = 0; }
-        i += 1;
-        continue;
-    }
-    if b == b'\'' || b == b'"' {
-        in_string = b;
-        i += 1;
-    } else if b == b'(' {
-        depth += 1;
-        i += 1;
-    } else if b == b')' {
-        depth -= 1;
-        i += 1;
-        if depth == 0 {
-            self.result_pos = i;
-            self.success = 1;
-            return
-        }
-    } else {
-        i += 1;
-    }
 }
 self.success = 0;
     }
 
-    fn _s_Init_do_skip_comment(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = JavaSyntaxSkipperFsmCompartment::new("SkipComment");
+    fn _s_Init_do_balanced_paren_end(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = JavaSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
 self.__transition(__compartment);
 return;
     }
 
-    fn _s_Init_do_skip_string(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = JavaSyntaxSkipperFsmCompartment::new("SkipString");
+    fn _s_Init_do_skip_comment(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = JavaSyntaxSkipperFsmCompartment::new("SkipComment");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
 self.__transition(__compartment);
 return;
@@ -474,39 +414,21 @@ self.__transition(__compartment);
 return;
     }
 
-    fn _s_Init_do_balanced_paren_end(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = JavaSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
+    fn _s_Init_do_skip_string(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = JavaSyntaxSkipperFsmCompartment::new("SkipString");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
 self.__transition(__compartment);
 return;
     }
 
     fn _s_SkipComment_enter(&mut self, __e: &JavaSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-// Line comment
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-    let mut j = i + 2;
-    while j < end && bytes[j] != b'\n' {
-        j += 1;
-    }
+if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
     self.result_pos = j;
     self.success = 1;
     return
 }
-// Block comment
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-    let mut j = i + 2;
-    while j + 1 < end {
-        if bytes[j] == b'*' && bytes[j + 1] == b'/' {
-            self.result_pos = j + 2;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
+if let Some(j) = skip_block_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
     self.success = 1;
     return
 }

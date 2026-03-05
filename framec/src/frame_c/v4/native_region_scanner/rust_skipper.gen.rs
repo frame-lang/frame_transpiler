@@ -1,6 +1,11 @@
 
 // Rust syntax skipper â Frame-generated state machine.
-// Handles nested block comments, raw strings r#"..."#, and simple strings.
+// Delegates to shared helpers where possible; inlines Rust-specific logic.
+//
+// Helpers used:
+//   skip_line_comment, skip_rust_raw_string, skip_simple_string,
+//   balanced_paren_end_c_like
+// Inline: nested /* */ block comments, find_line_end with raw string awareness
 
 struct RustSyntaxSkipperFsmFrameEvent {
     message: String,
@@ -309,6 +314,13 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
+    fn _state_SkipString(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_SkipString_enter(__e); }
+    _ => {}
+}
+    }
+
     fn _state_SkipComment(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
     "$>" => { self._s_SkipComment_enter(__e); }
@@ -326,9 +338,9 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_SkipString(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+    fn _state_FindLineEnd(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_SkipString_enter(__e); }
+    "$>" => { self._s_FindLineEnd_enter(__e); }
     _ => {}
 }
     }
@@ -340,26 +352,33 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_FindLineEnd(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_FindLineEnd_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _s_SkipComment_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-// Line comment
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-    let mut j = i + 2;
-    while j < end && bytes[j] != b'\n' { j += 1; }
+    fn _s_SkipString_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+// Raw string via shared helper (must check before simple string)
+if let Some(j) = skip_rust_raw_string(&self.bytes, self.pos, self.end) {
     self.result_pos = j;
     self.success = 1;
     return
 }
-// Rust nested block comment: /* ... /* ... */ ... */
+// Simple string via shared helper
+if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
+}
+self.success = 0;
+    }
+
+    fn _s_SkipComment_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+// Line comment via shared helper
+if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
+}
+// Rust nested block comment (different from skip_block_comment — supports nesting)
+let i = self.pos;
+let end = self.end;
+let bytes = &self.bytes;
 if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
     let mut j = i + 2;
     let mut depth: i32 = 1;
@@ -383,8 +402,8 @@ if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
 self.success = 0;
     }
 
-    fn _s_Init_do_skip_string(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = RustSyntaxSkipperFsmCompartment::new("SkipString");
+    fn _s_Init_do_skip_comment(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = RustSyntaxSkipperFsmCompartment::new("SkipComment");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
 self.__transition(__compartment);
 return;
@@ -397,13 +416,6 @@ self.__transition(__compartment);
 return;
     }
 
-    fn _s_Init_do_skip_comment(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = RustSyntaxSkipperFsmCompartment::new("SkipComment");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
-    }
-
     fn _s_Init_do_balanced_paren_end(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
 let mut __compartment = RustSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
@@ -411,93 +423,16 @@ self.__transition(__compartment);
 return;
     }
 
-    fn _s_SkipString_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-// Raw string: r#"..."# (with 0+ hashes)
-if bytes[i] == b'r' {
-    let mut j = i + 1;
-    let mut hashes: usize = 0;
-    while j < end && bytes[j] == b'#' {
-        hashes += 1;
-        j += 1;
-    }
-    if j < end && bytes[j] == b'"' {
-        j += 1; // skip opening "
-        while j < end {
-            if bytes[j] == b'"' {
-                let mut k = j + 1;
-                let mut matched: usize = 0;
-                while matched < hashes && k < end && bytes[k] == b'#' {
-                    matched += 1;
-                    k += 1;
-                }
-                if matched == hashes {
-                    self.result_pos = k;
-                    self.success = 1;
-                    return
-                }
-            }
-            j += 1;
-        }
-        self.result_pos = end;
-        self.success = 1;
-        return
-    }
-}
-// Simple string
-let b = bytes[i];
-if b == b'\'' || b == b'"' {
-    let q = b;
-    let mut j = i + 1;
-    while j < end {
-        if bytes[j] == b'\\' { j += 2; continue; }
-        if bytes[j] == q {
-            self.result_pos = j + 1;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
-    self.success = 1;
-    return
-}
-self.success = 0;
-    }
-
-    fn _s_BalancedParenEnd_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-// Balanced parens, respecting strings (same as C-like)
-let end = self.end;
-let bytes = &self.bytes;
-let mut i = self.pos;
-if i >= end || bytes[i] != b'(' {
-    self.success = 0;
-    return
-}
-let mut depth: i32 = 0;
-let mut in_string: u8 = 0;
-while i < end {
-    let b = bytes[i];
-    if in_string != 0 {
-        if b == b'\\' { i += 2; continue; }
-        if b == in_string { in_string = 0; }
-        i += 1;
-        continue;
-    }
-    if b == b'\'' || b == b'"' { in_string = b; i += 1; }
-    else if b == b'(' { depth += 1; i += 1; }
-    else if b == b')' {
-        depth -= 1; i += 1;
-        if depth == 0 { self.result_pos = i; self.success = 1; return }
-    } else { i += 1; }
-}
-self.success = 0;
+    fn _s_Init_do_skip_string(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = RustSyntaxSkipperFsmCompartment::new("SkipString");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
     }
 
     fn _s_FindLineEnd_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
-// Rust: handle raw strings r#"..."# during line scanning
+// Rust-specific: handle raw strings r#"..."# during line scanning
+// Cannot use find_line_end_c_like because it doesn't know about raw strings
 let end = self.end;
 let bytes = &self.bytes;
 let mut j = self.pos;
@@ -564,5 +499,14 @@ while j < end {
     j += 1;
 }
 self.result_pos = j;
+    }
+
+    fn _s_BalancedParenEnd_enter(&mut self, __e: &RustSyntaxSkipperFsmFrameEvent) {
+if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
+    self.success = 1;
+    return
+}
+self.success = 0;
     }
 }

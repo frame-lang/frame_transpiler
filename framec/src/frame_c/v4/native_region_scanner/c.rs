@@ -17,7 +17,7 @@
 include!("c_skipper.gen.rs");
 
 use super::*;
-use super::unified::SyntaxSkipper;
+use super::unified::*;
 use crate::frame_c::v4::body_closer::c::BodyCloserC;
 use crate::frame_c::v4::body_closer::BodyCloser;
 

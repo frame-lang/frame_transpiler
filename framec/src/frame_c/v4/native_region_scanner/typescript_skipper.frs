@@ -1,7 +1,12 @@
 @@target rust
 
 // TypeScript syntax skipper — Frame-generated state machine.
-// Like C but adds template literals `...${...}...`
+// Delegates to shared helpers where possible; inlines template literal awareness.
+//
+// Helpers used:
+//   skip_line_comment, skip_block_comment, skip_template_literal,
+//   skip_simple_string
+// Inline: find_line_end and balanced_paren_end with template literal awareness
 
 @@system TypeScriptSyntaxSkipperFsm {
     interface:
@@ -20,27 +25,13 @@
 
         $SkipComment {
             $>() {
-                let i = self.pos;
-                let end = self.end;
-                let bytes = &self.bytes;
-                if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-                    let mut j = i + 2;
-                    while j < end && bytes[j] != b'\n' { j += 1; }
+                if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
                     self.result_pos = j;
                     self.success = 1;
                     return
                 }
-                if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-                    let mut j = i + 2;
-                    while j + 1 < end {
-                        if bytes[j] == b'*' && bytes[j + 1] == b'/' {
-                            self.result_pos = j + 2;
-                            self.success = 1;
-                            return
-                        }
-                        j += 1;
-                    }
-                    self.result_pos = end;
+                if let Some(j) = skip_block_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
                     self.success = 1;
                     return
                 }
@@ -50,49 +41,15 @@
 
         $SkipString {
             $>() {
-                let i = self.pos;
-                let end = self.end;
-                let bytes = &self.bytes;
-                // Template literal `...${...}...`
-                if bytes[i] == b'`' {
-                    let mut j = i + 1;
-                    let mut brace_depth: i32 = 0;
-                    while j < end {
-                        if bytes[j] == b'`' && brace_depth == 0 {
-                            self.result_pos = j + 1;
-                            self.success = 1;
-                            return
-                        }
-                        if bytes[j] == b'\\' { j += 2; continue; }
-                        if bytes[j] == b'$' && j + 1 < end && bytes[j + 1] == b'{' {
-                            brace_depth += 1;
-                            j += 2;
-                            continue;
-                        }
-                        if bytes[j] == b'}' && brace_depth > 0 {
-                            brace_depth -= 1;
-                        }
-                        j += 1;
-                    }
-                    self.result_pos = end;
+                // Template literal via shared helper (must check before simple string)
+                if let Some(j) = skip_template_literal(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
                     self.success = 1;
                     return
                 }
-                // Simple string
-                let b = bytes[i];
-                if b == b'\'' || b == b'"' {
-                    let q = b;
-                    let mut j = i + 1;
-                    while j < end {
-                        if bytes[j] == b'\\' { j += 2; continue; }
-                        if bytes[j] == q {
-                            self.result_pos = j + 1;
-                            self.success = 1;
-                            return
-                        }
-                        j += 1;
-                    }
-                    self.result_pos = end;
+                // Simple string via shared helper
+                if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
                     self.success = 1;
                     return
                 }
@@ -102,7 +59,8 @@
 
         $FindLineEnd {
             $>() {
-                // TypeScript: handle template literals during line scanning
+                // TypeScript-specific: handle template literals during line scanning
+                // Cannot use find_line_end_c_like because it doesn't know about backticks
                 let end = self.end;
                 let bytes = &self.bytes;
                 let mut j = self.pos;
@@ -166,7 +124,7 @@
 
         $BalancedParenEnd {
             $>() {
-                // Balanced parens, respecting strings and template literals
+                // TypeScript-specific: balanced parens respecting template literals
                 let end = self.end;
                 let bytes = &self.bytes;
                 let mut i = self.pos;

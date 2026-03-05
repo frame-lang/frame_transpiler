@@ -1,6 +1,11 @@
 
 // TypeScript syntax skipper â Frame-generated state machine.
-// Like C but adds template literals `...${...}...`
+// Delegates to shared helpers where possible; inlines template literal awareness.
+//
+// Helpers used:
+//   skip_line_comment, skip_block_comment, skip_template_literal,
+//   skip_simple_string
+// Inline: find_line_end and balanced_paren_end with template literal awareness
 
 struct TypeScriptSyntaxSkipperFsmFrameEvent {
     message: String,
@@ -316,23 +321,9 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_SkipString(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_SkipString_enter(__e); }
-    _ => {}
-}
-    }
-
     fn _state_SkipComment(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
 match __e.message.as_str() {
     "$>" => { self._s_SkipComment_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_FindLineEnd(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_FindLineEnd_enter(__e); }
     _ => {}
 }
     }
@@ -347,8 +338,22 @@ match __e.message.as_str() {
 }
     }
 
+    fn _state_SkipString(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_SkipString_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_FindLineEnd(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_FindLineEnd_enter(__e); }
+    _ => {}
+}
+    }
+
     fn _s_BalancedParenEnd_enter(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-// Balanced parens, respecting strings and template literals
+// TypeScript-specific: balanced parens respecting template literals
 let end = self.end;
 let bytes = &self.bytes;
 let mut i = self.pos;
@@ -390,78 +395,58 @@ while i < end {
 self.success = 0;
     }
 
-    fn _s_SkipString_enter(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-// Template literal `...${...}...`
-if bytes[i] == b'`' {
-    let mut j = i + 1;
-    let mut brace_depth: i32 = 0;
-    while j < end {
-        if bytes[j] == b'`' && brace_depth == 0 {
-            self.result_pos = j + 1;
-            self.success = 1;
-            return
-        }
-        if bytes[j] == b'\\' { j += 2; continue; }
-        if bytes[j] == b'$' && j + 1 < end && bytes[j + 1] == b'{' {
-            brace_depth += 1;
-            j += 2;
-            continue;
-        }
-        if bytes[j] == b'}' && brace_depth > 0 {
-            brace_depth -= 1;
-        }
-        j += 1;
-    }
-    self.result_pos = end;
+    fn _s_SkipComment_enter(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
     self.success = 1;
     return
 }
-// Simple string
-let b = bytes[i];
-if b == b'\'' || b == b'"' {
-    let q = b;
-    let mut j = i + 1;
-    while j < end {
-        if bytes[j] == b'\\' { j += 2; continue; }
-        if bytes[j] == q {
-            self.result_pos = j + 1;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
+if let Some(j) = skip_block_comment(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
     self.success = 1;
     return
 }
 self.success = 0;
     }
 
-    fn _s_SkipComment_enter(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-let i = self.pos;
-let end = self.end;
-let bytes = &self.bytes;
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-    let mut j = i + 2;
-    while j < end && bytes[j] != b'\n' { j += 1; }
+    fn _s_Init_do_balanced_paren_end(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_do_skip_comment(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("SkipComment");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_do_skip_string(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("SkipString");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_do_find_line_end(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("FindLineEnd");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_SkipString_enter(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
+// Template literal via shared helper (must check before simple string)
+if let Some(j) = skip_template_literal(&self.bytes, self.pos, self.end) {
     self.result_pos = j;
     self.success = 1;
     return
 }
-if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-    let mut j = i + 2;
-    while j + 1 < end {
-        if bytes[j] == b'*' && bytes[j + 1] == b'/' {
-            self.result_pos = j + 2;
-            self.success = 1;
-            return
-        }
-        j += 1;
-    }
-    self.result_pos = end;
+// Simple string via shared helper
+if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+    self.result_pos = j;
     self.success = 1;
     return
 }
@@ -469,7 +454,8 @@ self.success = 0;
     }
 
     fn _s_FindLineEnd_enter(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-// TypeScript: handle template literals during line scanning
+// TypeScript-specific: handle template literals during line scanning
+// Cannot use find_line_end_c_like because it doesn't know about backticks
 let end = self.end;
 let bytes = &self.bytes;
 let mut j = self.pos;
@@ -528,33 +514,5 @@ while j < end {
     j += 1;
 }
 self.result_pos = j;
-    }
-
-    fn _s_Init_do_find_line_end(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("FindLineEnd");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
-    }
-
-    fn _s_Init_do_balanced_paren_end(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("BalancedParenEnd");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
-    }
-
-    fn _s_Init_do_skip_string(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("SkipString");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
-    }
-
-    fn _s_Init_do_skip_comment(&mut self, __e: &TypeScriptSyntaxSkipperFsmFrameEvent) {
-let mut __compartment = TypeScriptSyntaxSkipperFsmCompartment::new("SkipComment");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment);
-return;
     }
 }
