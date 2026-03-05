@@ -49,8 +49,9 @@ impl LanguageBackend for RustBackend {
                 ctx.push_indent();
                 for field in fields {
                     if let Some(ref raw_code) = field.raw_code {
-                        // V4: Native code pass-through
-                        result.push_str(&format!("{}{},\n", ctx.get_indent(), raw_code));
+                        // V4: Native code pass-through (with visibility)
+                        let vis = if matches!(field.visibility, Visibility::Public) { "pub " } else { "" };
+                        result.push_str(&format!("{}{}{},\n", ctx.get_indent(), vis, raw_code));
                     } else {
                         let vis = if matches!(field.visibility, Visibility::Public) { "pub " } else { "" };
                         let type_ann = field.type_annotation.as_ref()

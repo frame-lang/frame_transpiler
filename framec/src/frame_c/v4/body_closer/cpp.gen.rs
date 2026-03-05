@@ -234,9 +234,9 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
-    fn _state_InCharLiteral(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+    fn _state_InString(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_InCharLiteral_enter(__e); }
+    "$>" => { self._s_InString_enter(__e); }
     _ => {}
 }
     }
@@ -244,20 +244,6 @@ match __e.message.as_str() {
     fn _state_InLineComment(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
     "$>" => { self._s_InLineComment_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InBlockComment(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InBlockComment_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InRawString(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InRawString_enter(__e); }
     _ => {}
 }
     }
@@ -276,11 +262,148 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_InString(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+    fn _state_InBlockComment(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_InString_enter(__e); }
+    "$>" => { self._s_InBlockComment_enter(__e); }
     _ => {}
 }
+    }
+
+    fn _state_InCharLiteral(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InCharLiteral_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_InRawString(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InRawString_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _s_InString_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n {
+    if self.bytes[self.pos] == b'\\' {
+        self.pos += 2;
+        continue;
+    }
+    if self.bytes[self.pos] == b'"' {
+        self.pos += 1;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 1;
+self.error_msg = "unterminated string".to_string();
+    }
+
+    fn _s_InLineComment_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n && self.bytes[self.pos] != b'\n' {
+    self.pos += 1;
+}
+let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_scan(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Scanning_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n {
+    let b = self.bytes[self.pos];
+    if b == b'\n' {
+        self.pos += 1;
+    } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'/' {
+        self.pos += 2;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("InLineComment");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
+        self.pos += 2;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("InBlockComment");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    } else if b == b'\'' {
+        self.pos += 1;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("InCharLiteral");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    } else if b == b'"' {
+        self.pos += 1;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("InString");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    } else if b == b'R' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'"' {
+        // C++ raw string R"delim(...)delim"
+        let mut j = self.pos + 2;
+        let mut delim: Vec<u8> = Vec::new();
+        while j < n && self.bytes[j] != b'(' {
+            delim.push(self.bytes[j]);
+            j += 1;
+            if delim.len() > 32 { break; }
+        }
+        if j >= n || self.bytes[j] != b'(' {
+            self.pos += 1;
+            continue;
+        }
+        j += 1;
+        self.raw_delim = delim;
+        self.pos = j;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("InRawString");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    } else if b == b'{' {
+        self.depth += 1;
+        self.pos += 1;
+    } else if b == b'}' {
+        self.depth -= 1;
+        self.pos += 1;
+        if self.depth == 0 {
+            self.result_pos = self.pos - 1;
+            self.error_kind = 0;
+            return
+        }
+    } else {
+        self.pos += 1;
+    }
+}
+self.error_kind = 3;
+self.error_msg = "body not closed".to_string();
+    }
+
+    fn _s_InBlockComment_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos + 1 < n {
+    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
+        self.pos += 2;
+        let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 2;
+self.error_msg = "unterminated comment".to_string();
     }
 
     fn _s_InCharLiteral_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
@@ -294,37 +417,13 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
 self.error_kind = 1;
 self.error_msg = "unterminated char".to_string();
-    }
-
-    fn _s_InLineComment_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
-    self.pos += 1;
-}
-let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_InBlockComment_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos + 1 < n {
-    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
-        self.pos += 2;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
-}
-self.error_kind = 2;
-self.error_msg = "unterminated comment".to_string();
     }
 
     fn _s_InRawString_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
@@ -347,100 +446,11 @@ loop {
             self.pos = k + 1;
             let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         }
     }
     self.pos += 1;
 }
     }
-
-    fn _s_Init_scan(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_Scanning_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n {
-    let b = self.bytes[self.pos];
-    if b == b'\n' {
-        self.pos += 1;
-    } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'/' {
-        self.pos += 2;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("InLineComment");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
-        self.pos += 2;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("InBlockComment");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    } else if b == b'\'' {
-        self.pos += 1;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("InCharLiteral");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    } else if b == b'"' {
-        self.pos += 1;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("InString");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    } else if b == b'R' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'"' {
-        // C++ raw string R"delim(...)delim"
-        let mut j = self.pos + 2;
-        let mut delim: Vec<u8> = Vec::new();
-        while j < n && self.bytes[j] != b'(' {
-            delim.push(self.bytes[j]);
-            j += 1;
-            if delim.len() > 32 { break; }
-        }
-        if j >= n || self.bytes[j] != b'(' {
-            self.pos += 1;
-            continue;
-        }
-        j += 1;
-        self.raw_delim = delim;
-        self.pos = j;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("InRawString");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    } else if b == b'{' {
-        self.depth += 1;
-        self.pos += 1;
-    } else if b == b'}' {
-        self.depth -= 1;
-        self.pos += 1;
-        if self.depth == 0 {
-            self.result_pos = self.pos - 1;
-            self.error_kind = 0;
-            return
-        }
-    } else {
-        self.pos += 1;
-    }
 }
-self.error_kind = 3;
-self.error_msg = "body not closed".to_string();
-    }
-
-    fn _s_InString_enter(&mut self, __e: &CppBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n {
-    if self.bytes[self.pos] == b'\\' {
-        self.pos += 2;
-        continue;
-    }
-    if self.bytes[self.pos] == b'"' {
-        self.pos += 1;
-        let mut __compartment = CppBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
-}
-self.error_kind = 1;
-self.error_msg = "unterminated string".to_string();
-    }
-}
-

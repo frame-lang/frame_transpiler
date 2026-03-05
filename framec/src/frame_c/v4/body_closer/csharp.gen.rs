@@ -244,9 +244,51 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
+    fn _state_Scanning(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_Scanning_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_InLineComment(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InLineComment_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_InPreprocessor(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InPreprocessor_enter(__e); }
+    _ => {}
+}
+    }
+
     fn _state_Init(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
     "scan" => { self._s_Init_scan(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_InCharLiteral(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InCharLiteral_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_InVerbatimString(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InVerbatimString_enter(__e); }
+    _ => {}
+}
+    }
+
+    fn _state_InBlockComment(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "$>" => { self._s_InBlockComment_enter(__e); }
     _ => {}
 }
     }
@@ -265,96 +307,6 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_Scanning(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_Scanning_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InBlockComment(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InBlockComment_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InCharLiteral(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InCharLiteral_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InPreprocessor(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InPreprocessor_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InVerbatimString(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InVerbatimString_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _state_InLineComment(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InLineComment_enter(__e); }
-    _ => {}
-}
-    }
-
-    fn _s_Init_scan(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_InString_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n {
-    if self.bytes[self.pos] == b'\\' {
-        self.pos += 2;
-        continue;
-    }
-    if self.bytes[self.pos] == b'"' {
-        self.pos += 1;
-        let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
-}
-self.error_kind = 1;
-self.error_msg = "unterminated string".to_string();
-    }
-
-    fn _s_InRawString_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-// Raw string: close when we see N consecutive quotes (where N = raw_quotes)
-let n = self.bytes.len();
-while self.pos < n {
-    if self.bytes[self.pos] == b'"' {
-        let mut q: usize = 0;
-        let mut p = self.pos;
-        while p < n && self.bytes[p] == b'"' { q += 1; p += 1; }
-        if q >= self.raw_quotes {
-            self.pos = p;
-            let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
-            __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
-        }
-        self.pos = p;
-    } else {
-        self.pos += 1;
-    }
-}
-self.error_kind = 4;
-self.error_msg = "unterminated raw".to_string();
-    }
-
     fn _s_Scanning_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
 let n = self.bytes.len();
 while self.pos < n {
@@ -365,34 +317,40 @@ while self.pos < n {
         self.pos += 2;
         let mut __compartment = CsBodyCloserFsmCompartment::new("InLineComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
         self.pos += 2;
         let mut __compartment = CsBodyCloserFsmCompartment::new("InBlockComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'#' {
         self.pos += 1;
         let mut __compartment = CsBodyCloserFsmCompartment::new("InPreprocessor");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'\'' {
         self.pos += 1;
         let mut __compartment = CsBodyCloserFsmCompartment::new("InCharLiteral");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'@' {
         // @"verbatim" or @$"verbatim interp"
         if self.pos + 1 < n && self.bytes[self.pos + 1] == b'"' {
             self.pos += 2;
             let mut __compartment = CsBodyCloserFsmCompartment::new("InVerbatimString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         } else if self.pos + 2 < n && self.bytes[self.pos + 1] == b'$' && self.bytes[self.pos + 2] == b'"' {
             self.pos += 3;
             let mut __compartment = CsBodyCloserFsmCompartment::new("InVerbatimString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         } else {
             self.pos += 1;
         }
@@ -411,13 +369,15 @@ while self.pos < n {
             self.pos = k;
             let mut __compartment = CsBodyCloserFsmCompartment::new("InRawString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         } else if j < n && self.bytes[j] == b'"' {
             // $"interpolated"
             self.pos = j + 1;
             let mut __compartment = CsBodyCloserFsmCompartment::new("InString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         } else {
             self.pos += 1;
         }
@@ -425,7 +385,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = CsBodyCloserFsmCompartment::new("InString");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'{' {
         self.depth += 1;
         self.pos += 1;
@@ -445,19 +406,33 @@ self.error_kind = 3;
 self.error_msg = "body not closed".to_string();
     }
 
-    fn _s_InBlockComment_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+    fn _s_InLineComment_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
 let n = self.bytes.len();
-while self.pos + 1 < n {
-    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
-        self.pos += 2;
-        let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
+while self.pos < n && self.bytes[self.pos] != b'\n' {
     self.pos += 1;
 }
-self.error_kind = 2;
-self.error_msg = "unterminated comment".to_string();
+let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_InPreprocessor_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n && self.bytes[self.pos] != b'\n' {
+    self.pos += 1;
+}
+let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_scan(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
     }
 
     fn _s_InCharLiteral_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
@@ -471,22 +446,13 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
 self.error_kind = 1;
 self.error_msg = "unterminated char".to_string();
-    }
-
-    fn _s_InPreprocessor_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
-    self.pos += 1;
-}
-let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
     }
 
     fn _s_InVerbatimString_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
@@ -501,7 +467,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
@@ -509,14 +476,63 @@ self.error_kind = 1;
 self.error_msg = "unterminated verbatim string".to_string();
     }
 
-    fn _s_InLineComment_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+    fn _s_InBlockComment_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
 let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
+while self.pos + 1 < n {
+    if self.bytes[self.pos] == b'*' && self.bytes[self.pos + 1] == b'/' {
+        self.pos += 2;
+        let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
     self.pos += 1;
 }
-let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
+self.error_kind = 2;
+self.error_msg = "unterminated comment".to_string();
+    }
+
+    fn _s_InString_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n {
+    if self.bytes[self.pos] == b'\\' {
+        self.pos += 2;
+        continue;
+    }
+    if self.bytes[self.pos] == b'"' {
+        self.pos += 1;
+        let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 1;
+self.error_msg = "unterminated string".to_string();
+    }
+
+    fn _s_InRawString_enter(&mut self, __e: &CsBodyCloserFsmFrameEvent) {
+// Raw string: close when we see N consecutive quotes (where N = raw_quotes)
+let n = self.bytes.len();
+while self.pos < n {
+    if self.bytes[self.pos] == b'"' {
+        let mut q: usize = 0;
+        let mut p = self.pos;
+        while p < n && self.bytes[p] == b'"' { q += 1; p += 1; }
+        if q >= self.raw_quotes {
+            self.pos = p;
+            let mut __compartment = CsBodyCloserFsmCompartment::new("Scanning");
+            __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+            self.__transition(__compartment);
+            return;
+        }
+        self.pos = p;
+    } else {
+        self.pos += 1;
     }
 }
-
+self.error_kind = 4;
+self.error_msg = "unterminated raw".to_string();
+    }
+}

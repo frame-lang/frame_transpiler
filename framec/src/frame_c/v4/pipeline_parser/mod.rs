@@ -426,7 +426,7 @@ impl<'a> Parser<'a> {
         };
 
         let init = if self.check(&Token::Equals)? {
-            self.advance()?;
+            self.advance()?; // consume `=`
             Some(self.parse_simple_expression()?)
         } else {
             None
@@ -1046,7 +1046,7 @@ impl<'a> Parser<'a> {
         };
 
         let initializer = if self.check(&Token::Equals)? {
-            self.advance()?;
+            self.advance()?; // consume `=`
             Some(self.parse_simple_expression()?)
         } else {
             None
@@ -1144,7 +1144,39 @@ impl<'a> Parser<'a> {
                     "None" | "null" | "nullptr" | "nil" => {
                         Ok(Expression::NativeExpr(name))
                     }
-                    _ => Ok(Expression::Var(name)),
+                    _ => {
+                        // Check for path expression like Vec::new() or String::new()
+                        // :: is lexed as two Colon tokens
+                        if self.check(&Token::Colon)? {
+                            self.advance()?; // consume first :
+                            if self.check(&Token::Colon)? {
+                                self.advance()?; // consume second :
+                                let mut path = name.clone();
+                                path.push_str("::");
+                                // Consume the method/type name
+                                if let Token::Ident(_) = self.peek()? {
+                                    let next = self.advance()?;
+                                    if let Token::Ident(method) = next.token {
+                                        path.push_str(&method);
+                                    }
+                                }
+                                // Consume () if present
+                                if self.check(&Token::LParen)? {
+                                    self.advance()?; // (
+                                    path.push('(');
+                                    if self.check(&Token::RParen)? {
+                                        self.advance()?; // )
+                                        path.push(')');
+                                    }
+                                }
+                                return Ok(Expression::NativeExpr(path));
+                            }
+                            // Single colon — this is a type annotation, not ::
+                            // We already consumed one colon. This shouldn't happen
+                            // for initializer expressions, but handle gracefully.
+                        }
+                        Ok(Expression::Var(name))
+                    }
                 }
             }
             Token::LBracket => {
@@ -1158,7 +1190,6 @@ impl<'a> Parser<'a> {
                         Token::RBracket => { depth -= 1; if depth > 0 { content.push(']'); } }
                         Token::Eof => break,
                         _ => {
-                            // Extract source text for this token
                             let src = self.lexer.source();
                             let s = next.span.start.min(src.len());
                             let e = next.span.end.min(src.len());

@@ -226,9 +226,9 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
-    fn _state_Init(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+    fn _state_Scanning(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "scan" => { self._s_Init_scan(__e); }
+    "$>" => { self._s_Scanning_enter(__e); }
     _ => {}
 }
     }
@@ -240,13 +240,6 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_InLineComment(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
-match __e.message.as_str() {
-    "$>" => { self._s_InLineComment_enter(__e); }
-    _ => {}
-}
-    }
-
     fn _state_InString(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
     "$>" => { self._s_InString_enter(__e); }
@@ -254,62 +247,18 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_Scanning(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+    fn _state_InLineComment(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_Scanning_enter(__e); }
+    "$>" => { self._s_InLineComment_enter(__e); }
     _ => {}
 }
     }
 
-    fn _s_Init_scan(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
-let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_InTripleString_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-let q = self.quote_char;
-while self.pos < n {
-    if self.bytes[self.pos] == q && self.pos + 2 < n && self.bytes[self.pos + 1] == q && self.bytes[self.pos + 2] == q {
-        self.pos += 3;
-        let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
+    fn _state_Init(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+match __e.message.as_str() {
+    "scan" => { self._s_Init_scan(__e); }
+    _ => {}
 }
-self.error_kind = 1;
-self.error_msg = "unterminated string".to_string();
-    }
-
-    fn _s_InLineComment_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
-    self.pos += 1;
-}
-let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
-    }
-
-    fn _s_InString_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n {
-    if self.bytes[self.pos] == b'\\' {
-        self.pos += 2;
-        continue;
-    }
-    if self.bytes[self.pos] == self.quote_char {
-        self.pos += 1;
-        let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
-    self.pos += 1;
-}
-self.error_kind = 1;
-self.error_msg = "unterminated string".to_string();
     }
 
     fn _s_Scanning_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
@@ -322,7 +271,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = PythonBodyCloserFsmCompartment::new("InLineComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'\'' || b == b'"' {
         let q = b;
         if self.pos + 2 < n && self.bytes[self.pos + 1] == q && self.bytes[self.pos + 2] == q {
@@ -330,13 +280,15 @@ while self.pos < n {
             self.pos += 3;
             let mut __compartment = PythonBodyCloserFsmCompartment::new("InTripleString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         } else {
             self.quote_char = q;
             self.pos += 1;
             let mut __compartment = PythonBodyCloserFsmCompartment::new("InString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         }
     } else if b == b'f' || b == b'F' || b == b'r' || b == b'R' || b == b'b' || b == b'B' {
         // String prefixes like f"..", r'..', etc.
@@ -347,13 +299,15 @@ while self.pos < n {
                 self.pos += 4;
                 let mut __compartment = PythonBodyCloserFsmCompartment::new("InTripleString");
                 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-                self.__transition(__compartment); return;
+                self.__transition(__compartment);
+                return;
             } else {
                 self.quote_char = q;
                 self.pos += 2;
                 let mut __compartment = PythonBodyCloserFsmCompartment::new("InString");
                 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-                self.__transition(__compartment); return;
+                self.__transition(__compartment);
+                return;
             }
         } else {
             self.pos += 1;
@@ -376,5 +330,59 @@ while self.pos < n {
 self.error_kind = 3;
 self.error_msg = "body not closed".to_string();
     }
-}
 
+    fn _s_InTripleString_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+let q = self.quote_char;
+while self.pos < n {
+    if self.bytes[self.pos] == q && self.pos + 2 < n && self.bytes[self.pos + 1] == q && self.bytes[self.pos + 2] == q {
+        self.pos += 3;
+        let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 1;
+self.error_msg = "unterminated string".to_string();
+    }
+
+    fn _s_InString_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n {
+    if self.bytes[self.pos] == b'\\' {
+        self.pos += 2;
+        continue;
+    }
+    if self.bytes[self.pos] == self.quote_char {
+        self.pos += 1;
+        let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 1;
+self.error_msg = "unterminated string".to_string();
+    }
+
+    fn _s_InLineComment_enter(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n && self.bytes[self.pos] != b'\n' {
+    self.pos += 1;
+}
+let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+
+    fn _s_Init_scan(&mut self, __e: &PythonBodyCloserFsmFrameEvent) {
+let mut __compartment = PythonBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
+    }
+}

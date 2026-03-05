@@ -236,9 +236,9 @@ while self.__next_compartment.is_some() {
 self._context_stack.pop();
     }
 
-    fn _state_Init(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
+    fn _state_InString(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "scan" => { self._s_Init_scan(__e); }
+    "$>" => { self._s_InString_enter(__e); }
     _ => {}
 }
     }
@@ -250,9 +250,9 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_InLineComment(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
+    fn _state_Init(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_InLineComment_enter(__e); }
+    "scan" => { self._s_Init_scan(__e); }
     _ => {}
 }
     }
@@ -278,17 +278,31 @@ match __e.message.as_str() {
 }
     }
 
-    fn _state_InString(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
+    fn _state_InLineComment(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
 match __e.message.as_str() {
-    "$>" => { self._s_InString_enter(__e); }
+    "$>" => { self._s_InLineComment_enter(__e); }
     _ => {}
 }
     }
 
-    fn _s_Init_scan(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
-let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
-__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
+    fn _s_InString_enter(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
+let n = self.bytes.len();
+while self.pos < n {
+    if self.bytes[self.pos] == b'\\' {
+        self.pos += 2;
+        continue;
+    }
+    if self.bytes[self.pos] == b'"' {
+        self.pos += 1;
+        let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
+        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+        self.__transition(__compartment);
+        return;
+    }
+    self.pos += 1;
+}
+self.error_kind = 1;
+self.error_msg = "unterminated string".to_string();
     }
 
     fn _s_InCharLiteral_enter(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
@@ -302,7 +316,8 @@ while self.pos < n {
         self.pos += 1;
         let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     }
     self.pos += 1;
 }
@@ -310,14 +325,11 @@ self.error_kind = 1;
 self.error_msg = "unterminated char".to_string();
     }
 
-    fn _s_InLineComment_enter(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
-let n = self.bytes.len();
-while self.pos < n && self.bytes[self.pos] != b'\n' {
-    self.pos += 1;
-}
+    fn _s_Init_scan(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
 let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
 __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-self.__transition(__compartment); return;
+self.__transition(__compartment);
+return;
     }
 
     fn _s_Scanning_enter(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
@@ -330,23 +342,27 @@ while self.pos < n {
         self.pos += 2;
         let mut __compartment = RustBodyCloserFsmCompartment::new("InLineComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'/' && self.pos + 1 < n && self.bytes[self.pos + 1] == b'*' {
         self.block_comment_nest = 1;
         self.pos += 2;
         let mut __compartment = RustBodyCloserFsmCompartment::new("InBlockComment");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'\'' {
         self.pos += 1;
         let mut __compartment = RustBodyCloserFsmCompartment::new("InCharLiteral");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'"' {
         self.pos += 1;
         let mut __compartment = RustBodyCloserFsmCompartment::new("InString");
         __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
+        self.__transition(__compartment);
+        return;
     } else if b == b'r' {
         // Rust raw string r#"..."# or just r"..."
         let mut j = self.pos + 1;
@@ -360,7 +376,8 @@ while self.pos < n {
             self.pos = j + 1;
             let mut __compartment = RustBodyCloserFsmCompartment::new("InRawString");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         } else {
             self.pos += 1;
             continue;
@@ -399,7 +416,8 @@ while self.pos + 1 < n {
         if self.block_comment_nest == 0 {
             let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         }
         continue;
     }
@@ -429,30 +447,22 @@ loop {
             self.pos = k;
             let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
             __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-            self.__transition(__compartment); return;
+            self.__transition(__compartment);
+            return;
         }
     }
     self.pos += 1;
 }
     }
 
-    fn _s_InString_enter(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
+    fn _s_InLineComment_enter(&mut self, __e: &RustBodyCloserFsmFrameEvent) {
 let n = self.bytes.len();
-while self.pos < n {
-    if self.bytes[self.pos] == b'\\' {
-        self.pos += 2;
-        continue;
-    }
-    if self.bytes[self.pos] == b'"' {
-        self.pos += 1;
-        let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
-        __compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
-        self.__transition(__compartment); return;
-    }
+while self.pos < n && self.bytes[self.pos] != b'\n' {
     self.pos += 1;
 }
-self.error_kind = 1;
-self.error_msg = "unterminated string".to_string();
+let mut __compartment = RustBodyCloserFsmCompartment::new("Scanning");
+__compartment.parent_compartment = Some(Box::new(self.__compartment.clone()));
+self.__transition(__compartment);
+return;
     }
 }
-
