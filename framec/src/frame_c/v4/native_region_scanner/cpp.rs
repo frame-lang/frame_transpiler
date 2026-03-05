@@ -1,5 +1,23 @@
+// C++ syntax skipper — Frame-generated state machine.
+//
+// Source: cpp_skipper.frs (Frame specification)
+// Generated: cpp_skipper.gen.rs (via framec compile -l rust)
+// This file: glue module wiring generated FSM to SyntaxSkipper trait
+//
+// To regenerate:
+//   ./target/release/framec compile -l rust -o /tmp framec/src/frame_c/v4/native_region_scanner/cpp_skipper.frs
+//   cp /tmp/cpp_skipper.rs framec/src/frame_c/v4/native_region_scanner/cpp_skipper.gen.rs
+
+#![allow(unreachable_patterns)]
+#![allow(unused_mut)]
+#![allow(dead_code)]
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
+
+include!("cpp_skipper.gen.rs");
+
 use super::*;
-use super::unified::*;
+use super::unified::SyntaxSkipper;
 use crate::frame_c::v4::body_closer::cpp::BodyCloserCpp;
 use crate::frame_c::v4::body_closer::BodyCloser;
 
@@ -14,71 +32,44 @@ impl SyntaxSkipper for CppSkipper {
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-        if let Some(j) = skip_line_comment(bytes, i, end) {
-            return Some(j);
-        }
-        skip_block_comment(bytes, i, end)
+        let mut fsm = CppSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = i;
+        fsm.end = end;
+        fsm.do_skip_comment();
+        if fsm.success != 0 { Some(fsm.result_pos) } else { None }
     }
 
     fn skip_string(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-        // Try C++ raw string R"delim(...)delim"
-        if let Some(j) = skip_cpp_raw_string(bytes, i, end) {
-            return Some(j);
-        }
-        skip_simple_string(bytes, i, end)
+        let mut fsm = CppSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = i;
+        fsm.end = end;
+        fsm.do_skip_string();
+        if fsm.success != 0 { Some(fsm.result_pos) } else { None }
     }
 
     fn find_line_end(&self, bytes: &[u8], start: usize, end: usize) -> usize {
-        find_line_end_c_like(bytes, start, end)
+        let mut fsm = CppSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = start;
+        fsm.end = end;
+        fsm.do_find_line_end();
+        fsm.result_pos
     }
 
     fn balanced_paren_end(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-        balanced_paren_end_c_like(bytes, i, end)
+        let mut fsm = CppSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = i;
+        fsm.end = end;
+        fsm.do_balanced_paren_end();
+        if fsm.success != 0 { Some(fsm.result_pos) } else { None }
     }
-}
-
-/// Skip C++ raw string: R"delim(...)delim"
-fn skip_cpp_raw_string(bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-    if i + 1 >= end || bytes[i] != b'R' || bytes[i + 1] != b'"' {
-        return None;
-    }
-
-    // Parse delimiter
-    let mut j = i + 2;
-    let mut delim = Vec::new();
-    while j < end && bytes[j] != b'(' {
-        delim.push(bytes[j]);
-        j += 1;
-        if delim.len() > 32 {
-            return None; // Invalid delimiter
-        }
-    }
-
-    if j >= end || bytes[j] != b'(' {
-        return None;
-    }
-    j += 1; // Skip '('
-
-    // Find closing )delim"
-    while j < end {
-        if bytes[j] == b')' {
-            let mut k = j + 1;
-            let mut m = 0usize;
-            while m < delim.len() && k < end && bytes[k] == delim[m] {
-                k += 1;
-                m += 1;
-            }
-            if m == delim.len() && k < end && bytes[k] == b'"' {
-                return Some(k + 1);
-            }
-        }
-        j += 1;
-    }
-    Some(end) // Unterminated
 }
 
 impl NativeRegionScanner for NativeRegionScannerCpp {
     fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
-        scan_native_regions(&CppSkipper, bytes, open_brace_index)
+        super::unified::scan_native_regions(&CppSkipper, bytes, open_brace_index)
     }
 }
