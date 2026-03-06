@@ -1,0 +1,75 @@
+@@target rust
+
+// ExprScanner — PDA (pushdown automaton) for scanning assignment RHS expressions.
+//
+// Scans from `pos` (after the `=`) to a terminator (`;` or `\n`) at depth 0,
+// respecting nested `()[]{}` and string literals with escape handling.
+//
+// This replaces 3 duplicated inline expression scanners in unified.rs.
+
+@@system ExprScannerFsm {
+    interface:
+        do_scan()
+
+    machine:
+        $Init {
+            do_scan() { -> $Scanning }
+        }
+
+        $Scanning {
+            $>() {
+                let mut i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+                let mut depth: i32 = 0;
+                let mut in_string: Option<u8> = None;
+
+                while i < end {
+                    let b = bytes[i];
+
+                    // Handle string literals
+                    if let Some(q) = in_string {
+                        if b == b'\\' && i + 1 < end {
+                            i += 2;
+                            continue;
+                        }
+                        if b == q {
+                            in_string = None;
+                        }
+                        i += 1;
+                        continue;
+                    }
+
+                    // Enter string literal
+                    if b == b'"' || b == b'\'' {
+                        in_string = Some(b);
+                        i += 1;
+                        continue;
+                    }
+
+                    // Track nesting depth (PDA stack via counter)
+                    match b {
+                        b'(' | b'[' | b'{' => { depth += 1; }
+                        b')' | b']' | b'}' => { depth = (depth - 1).max(0); }
+                        b';' if depth == 0 => {
+                            i += 1; // Include the semicolon
+                            break;
+                        }
+                        b'\n' if depth == 0 => {
+                            break; // Don't include the newline
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+
+                self.result_end = i;
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var result_end: usize = 0
+}

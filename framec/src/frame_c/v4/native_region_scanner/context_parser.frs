@@ -1,0 +1,254 @@
+@@target rust
+
+// ContextParser — FSM for parsing all @@ context constructs.
+//
+// Dispatches on the character after @@ to parse:
+//   @@.param           → ContextParamShorthand (kind=1)
+//   @@:return [= expr] → ContextReturn (kind=2)
+//   @@:event           → ContextEvent (kind=3)
+//   @@:data[key] [= e] → ContextData (kind=4) or ContextDataAssign (kind=5)
+//   @@:params[key]     → ContextParams (kind=6)
+//   @@SystemName()     → TaggedInstantiation (kind=7)
+//   other              → no match (has_result=false)
+//
+// Demonstrates hierarchical composition: $ParseReturn and $ParseData
+// create ExprScannerFsm sub-machines when they detect assignment `=`.
+
+include!("expr_scanner.gen.rs");
+
+@@system ContextParserFsm {
+    interface:
+        do_parse()
+
+    machine:
+        $Init {
+            do_parse() { -> $Dispatching }
+        }
+
+        $Dispatching {
+            $>() {
+                let i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                if i >= end {
+                    self.has_result = false;
+                    -> $Done
+                }
+
+                let b = bytes[i];
+
+                if b == b'.' {
+                    self.pos = i + 1;
+                    -> $ParseParamShorthand
+                } else if b == b':' {
+                    self.pos = i + 1;
+                    -> $DispatchColon
+                } else if b.is_ascii_uppercase() {
+                    // @@SystemName — pos stays at start of name
+                    -> $ParseInstantiation
+                } else {
+                    // Just @@ without . or : or uppercase
+                    self.result_end = i;
+                    self.has_result = false;
+                    -> $Done
+                }
+            }
+        }
+
+        $ParseParamShorthand {
+            $>() {
+                // @@.param — scan identifier after '.'
+                let mut i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+
+                self.result_end = i;
+                self.result_kind = 1; // ContextParamShorthand
+                self.has_result = true;
+                -> $Done
+            }
+        }
+
+        $DispatchColon {
+            $>() {
+                // @@: — dispatch on the keyword after ':'
+                let i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                if i + 5 < end && &bytes[i..i + 6] == b"return" {
+                    self.pos = i + 6;
+                    -> $ParseReturn
+                } else if i + 4 < end && &bytes[i..i + 5] == b"event" {
+                    self.result_end = i + 5;
+                    self.result_kind = 3; // ContextEvent
+                    self.has_result = true;
+                    -> $Done
+                } else if i + 3 < end && &bytes[i..i + 4] == b"data" {
+                    self.pos = i + 4;
+                    -> $ParseData
+                } else if i + 5 < end && &bytes[i..i + 6] == b"params" {
+                    self.pos = i + 6;
+                    -> $ParseParams
+                } else {
+                    // Unknown @@: variant
+                    self.result_end = i;
+                    self.has_result = false;
+                    -> $Done
+                }
+            }
+        }
+
+        $ParseReturn {
+            $>() {
+                // @@:return — check for assignment, optionally create ExprScanner PDA
+                let mut i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                // Skip whitespace
+                while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') {
+                    i += 1;
+                }
+
+                if i < end && bytes[i] == b'=' && (i + 1 >= end || bytes[i + 1] != b'=') {
+                    // @@:return = <expr> — create ExprScanner sub-machine
+                    i += 1; // Skip '='
+                    let mut expr = ExprScannerFsm::new();
+                    expr.bytes = bytes.to_vec();
+                    expr.pos = i;
+                    expr.end = end;
+                    expr.do_scan();
+                    i = expr.result_end;
+                    // expr is destroyed here (state manager pattern)
+                }
+
+                self.result_end = i;
+                self.result_kind = 2; // ContextReturn
+                self.has_result = true;
+                -> $Done
+            }
+        }
+
+        $ParseData {
+            $>() {
+                // @@:data[key] or @@:data[key] = expr
+                let mut i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                // Scan [key]
+                if i < end && bytes[i] == b'[' {
+                    while i < end && bytes[i] != b']' {
+                        i += 1;
+                    }
+                    if i < end {
+                        i += 1; // Skip ']'
+                    }
+                }
+
+                // Check for assignment
+                let mut j = i;
+                while j < end && (bytes[j] == b' ' || bytes[j] == b'\t') {
+                    j += 1;
+                }
+
+                if j < end && bytes[j] == b'=' && (j + 1 >= end || bytes[j + 1] != b'=') {
+                    // @@:data[key] = expr — create ExprScanner sub-machine
+                    j += 1; // Skip '='
+                    let mut expr = ExprScannerFsm::new();
+                    expr.bytes = bytes.to_vec();
+                    expr.pos = j;
+                    expr.end = end;
+                    expr.do_scan();
+                    self.result_end = expr.result_end;
+                    // expr is destroyed here (state manager pattern)
+                    self.result_kind = 5; // ContextDataAssign
+                } else {
+                    self.result_end = i;
+                    self.result_kind = 4; // ContextData
+                }
+
+                self.has_result = true;
+                -> $Done
+            }
+        }
+
+        $ParseParams {
+            $>() {
+                // @@:params[key]
+                let mut i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                if i < end && bytes[i] == b'[' {
+                    while i < end && bytes[i] != b']' {
+                        i += 1;
+                    }
+                    if i < end {
+                        i += 1; // Skip ']'
+                    }
+                }
+
+                self.result_end = i;
+                self.result_kind = 6; // ContextParams
+                self.has_result = true;
+                -> $Done
+            }
+        }
+
+        $ParseInstantiation {
+            $>() {
+                // @@SystemName() — scan name, find balanced parens
+                let mut i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                // Scan identifier
+                while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+
+                // Must be followed by (
+                if i < end && bytes[i] == b'(' {
+                    // Use the pre-computed paren_end if available
+                    if self.paren_end > 0 {
+                        i = self.paren_end;
+                        self.result_end = i;
+                        self.result_kind = 7; // TaggedInstantiation
+                        self.has_result = true;
+                    } else {
+                        // No paren_end provided — caller must handle
+                        self.result_end = i;
+                        self.has_result = false;
+                    }
+                } else {
+                    // @@SomeName without () — treat as native
+                    self.result_end = i;
+                    self.has_result = false;
+                }
+
+                -> $Done
+            }
+        }
+
+        $Done {
+            $>() {
+                // Terminal state — results are in domain vars
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var result_end: usize = 0
+        var result_kind: usize = 0
+        var has_result: bool = false
+        var paren_end: usize = 0
+}
