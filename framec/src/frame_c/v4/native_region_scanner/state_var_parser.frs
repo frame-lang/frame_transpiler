@@ -1,0 +1,89 @@
+@@target rust
+
+// StateVarParser — FSM for parsing $.varName (read) and $.varName = expr (assignment).
+//
+// Demonstrates hierarchical composition: $ScanExpr creates an ExprScannerFsm
+// sub-machine when it detects an assignment.
+
+include!("expr_scanner.gen.rs");
+
+@@system StateVarParserFsm {
+    interface:
+        do_parse()
+
+    machine:
+        $Init {
+            do_parse() { -> $ScanIdent }
+        }
+
+        $ScanIdent {
+            $>() {
+                // Skip "$." prefix and scan identifier
+                let mut i = self.pos + 2; // Skip "$."
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+
+                self.ident_end = i;
+                -> $CheckAssign
+            }
+        }
+
+        $CheckAssign {
+            $>() {
+                // Lookahead: skip whitespace, check for = (but not ==)
+                let mut j = self.ident_end;
+                let end = self.end;
+                let bytes = &self.bytes;
+
+                while j < end && (bytes[j] == b' ' || bytes[j] == b'\t') {
+                    j += 1;
+                }
+
+                if j < end && bytes[j] == b'=' && (j + 1 >= end || bytes[j + 1] != b'=') {
+                    // Assignment detected
+                    j += 1; // Skip '='
+                    self.pos = j;
+                    self.is_assignment = true;
+                    -> $ScanExpr
+                } else {
+                    // Read-only access
+                    self.result_end = self.ident_end;
+                    self.is_assignment = false;
+                    -> $Done
+                }
+            }
+        }
+
+        $ScanExpr {
+            $>() {
+                // Create ExprScanner sub-machine (state manager pattern)
+                let bytes = &self.bytes;
+                let mut expr = ExprScannerFsm::new();
+                expr.bytes = bytes.to_vec();
+                expr.pos = self.pos;
+                expr.end = self.end;
+                expr.do_scan();
+                self.result_end = expr.result_end;
+                // expr is destroyed here
+                -> $Done
+            }
+        }
+
+        $Done {
+            $>() {
+                // Terminal state — results in domain vars
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var ident_end: usize = 0
+        var result_end: usize = 0
+        var is_assignment: bool = false
+}

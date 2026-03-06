@@ -2,14 +2,15 @@
 
 Cross-tool communication document for AI assistants working on the Frame transpiler.
 
-## Current State (v0.96.7, build 73)
+## Current State (v0.96.8, build 74)
 
 ### What Just Happened
-- **Phase 4 OutlineScanner refactoring COMPLETE**: Eliminated ~80% code duplication by merging `scan()` and `scan_collect()` into a single `scan_internal()` method. Both public methods are now thin wrappers.
-- **`close_body()` dispatch helper added to `body_closer/mod.rs`**: Single polymorphic dispatch function replaces all 21+ inline 7-arm match blocks across the codebase.
-- **Bugs fixed**: (1) `scan_collect()` now tracks `body_scopes` (prevents misinterpreting inner statements as headers), (2) consistent `owner_id` construction using `name_start..name_end`, (3) consistent `kind` logic using `is_global_fn` flag.
-- **`system_param_semantics.rs`**: 30-line `close_system()` function replaced with single `close_body()` call.
-- **Line reduction**: `outline_scanner.rs` 637 → 425 lines (−212 lines, 33% reduction).
+- **Phase 5 NativeRegionScanner hierarchical decomposition COMPLETE**: Decomposed inline parsing logic into 3 Frame sub-machines using the "state manager" pattern (create on entry, use, destroy on exit).
+- **ExprScanner (PDA)**: Pushdown automaton for scanning assignment RHS expressions. Replaces 3× duplicated inline expression scanners. Tracks nesting depth for `()[]{}`, handles string literals with escapes. Terminates at `;` or `\n` at depth 0.
+- **ContextParser (FSM)**: Parses all `@@` context constructs (`@@.param`, `@@:return`, `@@:event`, `@@:data`, `@@:params`, `@@SystemName()`). Hierarchically composes with ExprScanner for assignment expressions.
+- **StateVarParser (FSM)**: Parses `$.varName` read access and `$.varName = expr` assignments. Hierarchically composes with ExprScanner for assignment expressions.
+- **Hierarchical composition**: ContextParser and StateVarParser include ExprScanner via `include!("expr_scanner.gen.rs")`, creating sub-machine instances within state handlers — demonstrating the state manager pattern.
+- **Line changes**: `unified.rs` 812 → 655 lines (−157). New Frame specs: 418 lines (75 + 254 + 89).
 - **547/547 tests passing**: Python 146/146, TypeScript 128/128, Rust 132/132, C 141/141.
 - **Zero compiler warnings**: Clean `cargo build --release`.
 
@@ -30,7 +31,7 @@ Pipeline: Segmenter → Lexer → Parser → Arcanum → Validator → Codegen �
 | **BodyClosers** | 5-10 per language | 7 languages | Best candidate | ✅ DONE |
 | **SyntaxSkippers** | 3-4 per language | 7 languages | Best candidate | ✅ DONE (refactored to call helpers) |
 | **OutlineScanner** | 5 sections + scope stacks | 1 | Refactored | ✅ DONE (refactored, not dogfooded) |
-| **NativeRegionScanner** | 2 states + context | 1 (unified) | Good candidate | 📋 Planned |
+| **NativeRegionScanner** | 2 states + context | 1 (unified) | Good candidate | ✅ DONE (3 sub-machines) |
 | **ImportScanner** | 2 (Init→Scanning) | 7 languages | Best candidate | ✅ DONE |
 | **Lexer** | 2 modes | 1 | Questionable | ❓ Evaluate |
 | **PragmaScanner** | 2 states | 1 | Low value | ⏸️ Deferred |
@@ -89,9 +90,24 @@ Refactored the OutlineScanner to eliminate duplication and the 21× BodyCloser d
 - Replaced 30-line `close_system()` in `system_param_semantics.rs` with single `close_body()` call
 - Line reduction: 637 → 425 lines (−212, 33%)
 
-### Phase 5: NativeRegionScanner
+### Phase 5: NativeRegionScanner ✅ COMPLETE (Hierarchical Decomposition)
 
-Single unified scanner with 2 states + context. The core "oceans model" scanner that finds Frame islands in native code. Already has per-language SyntaxSkippers dogfooded (Phase 2).
+Decomposed the NativeRegionScanner's inline parsing logic into 3 Frame sub-machines using the **state manager pattern** — create sub-machine on detection, parse, collect results, let it drop.
+
+**Sub-machines created:**
+
+| Machine | Type | .frs spec | Lines | Purpose |
+|---------|------|-----------|-------|---------|
+| ExprScanner | PDA | expr_scanner.frs | 75 | Scan RHS expressions (replaces 3× duplication) |
+| ContextParser | FSM | context_parser.frs | 254 | Parse all `@@` constructs (7 variants) |
+| StateVarParser | FSM | state_var_parser.frs | 89 | Parse `$.varName` access and assignment |
+
+**Hierarchical composition:** ContextParser and StateVarParser both `include!("expr_scanner.gen.rs")` and create `ExprScannerFsm` instances within state handlers when they detect assignment expressions.
+
+**Key design decisions:**
+- Frame can't use Rust enums as domain vars → numeric discriminants mapped back to `FrameSegmentKind` by caller
+- `@@SystemName()` needs SyntaxSkipper trait → `balanced_paren_end` pre-computed by caller, passed as domain var
+- Each sub-machine is a separate Frame system, composed via native Rust code (Frame doesn't support multi-system composition natively)
 
 ### Deferred / Skip
 
@@ -125,6 +141,6 @@ cd framepiler_test_env/tests && FRAMEC=../../target/release/framec ./run_tests.s
 - **Worktree + submodule**: The `framepiler_test_env/` directory is a git submodule that is NOT checked out in worktrees. Use the main repo's test infrastructure with `FRAMEC=<worktree>/target/release/framec` pointing to the worktree binary.
 
 ## What's Next
-- **Phase 5: NativeRegionScanner** — Convert core scanning to Frame system
 - Additional language backend improvements as needed
 - Phase 15 (GraphViz backend) from V4 plan when dogfooding is complete
+- Evaluate remaining candidates (Lexer, PragmaScanner) if warranted
