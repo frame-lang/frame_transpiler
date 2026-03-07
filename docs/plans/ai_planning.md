@@ -2,14 +2,10 @@
 
 Cross-tool communication document for AI assistants working on the Frame transpiler.
 
-## Current State (v0.96.9, build 75)
+## Current State (v0.96.10, build 76)
 
 ### What Just Happened
-- **Rust backend state vars moved to compartment**: Fixed fundamental architectural divergence where Rust stored state vars as `self._sv_*` struct fields instead of on the compartment (like Python/TS/C). State vars now live in a typed `StateContext` enum on `compartment.state_context`.
-- **Push/pop fixed**: Push uses `mem::replace` (no clone) to move compartment to stack. Pop goes through `__transition()` → kernel, correctly sending `"<$"` exit and `"$>"` enter (was bypassing kernel, sending wrong exit message `"$<"`).
-- **HSM state var access fixed**: Added `__sv_comp` compartment chain navigation for Rust state var reads/writes, matching the pattern in Python/TS/C. Child states correctly access parent state vars by walking `parent_compartment` chain.
-- **Serialization updated**: Save/restore uses `state_context` directly from compartment instead of syncing `_sv_*` fields.
-- **Test runner PATH fix**: Replaced one-off cargo PATH fix with comprehensive PATH init block covering `/usr/local/bin`, `/opt/homebrew/bin`, `$HOME/.cargo/bin` in both `run_tests.sh` and `run_single_test.sh`.
+- **Multi-system single-file support**: Multiple `@@system` blocks in one file can now reference each other via `@@SystemName()`. The compiler pipeline was changed from single-pass (each system gets isolated arcanum) to two-pass (parse all systems first, build shared arcanum, then codegen each). This enables hierarchical system composition natively in Frame.
 - **547/547 tests passing**: Python 146/146, TypeScript 128/128, Rust 132/132, C 141/141.
 - **Zero compiler warnings**: Clean `cargo build --release`.
 
@@ -140,6 +136,6 @@ cd framepiler_test_env/tests && FRAMEC=../../target/release/framec ./run_tests.s
 - **Worktree + submodule**: The `framepiler_test_env/` directory is a git submodule that is NOT checked out in worktrees. Use the main repo's test infrastructure with `FRAMEC=<worktree>/target/release/framec` pointing to the worktree binary.
 
 ## What's Next
-- Additional language backend improvements as needed
+- **@@import cross-file system resolution** (deferred): Native Frame syntax for importing systems from other files (`@@import ExprScannerFsm from "expr_scanner"`). Currently, cross-file composition uses native imports (e.g., Rust `include!()`, Python `from x import Y`). The multi-system single-file approach covers the immediate need; cross-file resolution adds transpiler-level validation but isn't essential since native compilers catch bad references.
 - Phase 15 (GraphViz backend) from V4 plan when dogfooding is complete
 - Evaluate remaining candidates (Lexer, PragmaScanner) if warranted
