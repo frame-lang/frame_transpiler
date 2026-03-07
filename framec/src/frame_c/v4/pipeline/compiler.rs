@@ -377,7 +377,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_native_only_input_passes_through() {
         // Input with no @@system blocks is pure native code — passes through verbatim
         let source = b"this is just native code\nno systems here\n";
