@@ -2,15 +2,14 @@
 
 Cross-tool communication document for AI assistants working on the Frame transpiler.
 
-## Current State (v0.96.8, build 74)
+## Current State (v0.96.9, build 75)
 
 ### What Just Happened
-- **Phase 5 NativeRegionScanner hierarchical decomposition COMPLETE**: Decomposed inline parsing logic into 3 Frame sub-machines using the "state manager" pattern (create on entry, use, destroy on exit).
-- **ExprScanner (PDA)**: Pushdown automaton for scanning assignment RHS expressions. Replaces 3× duplicated inline expression scanners. Tracks nesting depth for `()[]{}`, handles string literals with escapes. Terminates at `;` or `\n` at depth 0.
-- **ContextParser (FSM)**: Parses all `@@` context constructs (`@@.param`, `@@:return`, `@@:event`, `@@:data`, `@@:params`, `@@SystemName()`). Hierarchically composes with ExprScanner for assignment expressions.
-- **StateVarParser (FSM)**: Parses `$.varName` read access and `$.varName = expr` assignments. Hierarchically composes with ExprScanner for assignment expressions.
-- **Hierarchical composition**: ContextParser and StateVarParser include ExprScanner via `include!("expr_scanner.gen.rs")`, creating sub-machine instances within state handlers — demonstrating the state manager pattern.
-- **Line changes**: `unified.rs` 812 → 655 lines (−157). New Frame specs: 418 lines (75 + 254 + 89).
+- **Rust backend state vars moved to compartment**: Fixed fundamental architectural divergence where Rust stored state vars as `self._sv_*` struct fields instead of on the compartment (like Python/TS/C). State vars now live in a typed `StateContext` enum on `compartment.state_context`.
+- **Push/pop fixed**: Push uses `mem::replace` (no clone) to move compartment to stack. Pop goes through `__transition()` → kernel, correctly sending `"<$"` exit and `"$>"` enter (was bypassing kernel, sending wrong exit message `"$<"`).
+- **HSM state var access fixed**: Added `__sv_comp` compartment chain navigation for Rust state var reads/writes, matching the pattern in Python/TS/C. Child states correctly access parent state vars by walking `parent_compartment` chain.
+- **Serialization updated**: Save/restore uses `state_context` directly from compartment instead of syncing `_sv_*` fields.
+- **Test runner PATH fix**: Replaced one-off cargo PATH fix with comprehensive PATH init block covering `/usr/local/bin`, `/opt/homebrew/bin`, `$HOME/.cargo/bin` in both `run_tests.sh` and `run_single_test.sh`.
 - **547/547 tests passing**: Python 146/146, TypeScript 128/128, Rust 132/132, C 141/141.
 - **Zero compiler warnings**: Clean `cargo build --release`.
 
@@ -137,7 +136,7 @@ cd framepiler_test_env/tests && FRAMEC=../../target/release/framec ./run_tests.s
 
 ## Test Infrastructure Notes
 
-- **PATH**: `run_tests.sh` auto-detects `$HOME/.cargo/bin` for Rust tests when `cargo` isn't already in PATH (non-login shells, CI).
+- **PATH**: Both `run_tests.sh` and `run_single_test.sh` have a PATH init block that adds `$HOME/.cargo/bin`, `/usr/local/bin`, `/opt/homebrew/bin` for non-login shells (CI, Claude Code). This covers cargo, node/npx, python3, gcc.
 - **Worktree + submodule**: The `framepiler_test_env/` directory is a git submodule that is NOT checked out in worktrees. Use the main repo's test infrastructure with `FRAMEC=<worktree>/target/release/framec` pointing to the worktree binary.
 
 ## What's Next

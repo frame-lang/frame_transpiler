@@ -75,7 +75,7 @@ system SystemName {
 - For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
-- **Version**: v0.96.8 (branch `v4_pure`)
+- **Version**: v0.96.9 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
 - **V4 Test Status**: Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
 - **Type System**: Frame has no type system — types are opaque strings passed through verbatim as `Type::Custom(String)`
