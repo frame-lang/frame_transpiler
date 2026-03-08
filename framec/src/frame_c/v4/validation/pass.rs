@@ -96,6 +96,7 @@ mod tests {
     use super::*;
     use crate::frame_c::v4::frame_ast::Span;
 
+    #[allow(dead_code)]
     struct TestPass;
 
     impl ValidationPass for TestPass {

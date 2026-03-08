@@ -6,7 +6,6 @@ use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
 
-
 pub struct Cli {
     stdin_flag: bool,
     path: Option<PathBuf>,

@@ -263,6 +263,9 @@ pub enum Statement {
 pub struct TransitionAst {
     pub target: String,
     pub args: Vec<Expression>,
+    /// Optional user-provided label (e.g., -> "Path A" $State).
+    /// When present, replaces event name on GraphViz diagram edges.
+    pub label: Option<String>,
     pub span: Span,
     /// Source indentation level (for proper code generation)
     pub indent: usize,
@@ -659,6 +662,7 @@ mod tests {
         let transition = TransitionAst {
             target: "Green".to_string(),
             args: vec![],
+            label: None,
             span: Span::new(10, 20),
             indent: 8,
         };

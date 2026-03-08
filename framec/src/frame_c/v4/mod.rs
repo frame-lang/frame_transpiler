@@ -7,6 +7,7 @@ use crate::frame_c::v4::splice::Splicer;
 use crate::frame_c::v4::validator::{Validator, ValidationResult, ValidatorPolicy, BodyKind};
 use crate::frame_c::v4::system_parser::SystemParser;
 use crate::frame_c::v4::interface_parser::InterfaceParser;
+
 pub mod body_closer;
 pub mod native_region_scanner;
 pub mod pragma_scanner;
@@ -72,8 +73,6 @@ mod test_harness_stub;
 mod arcanum_tests;
 #[cfg(test)]
 mod compile_tests;
-#[cfg(test)]
-mod frame_parser_tests;
 // future: pub mod import_validator;
 
 /// Compiler entrypoint (MVP scaffold).

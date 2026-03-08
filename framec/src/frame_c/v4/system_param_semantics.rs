@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::frame_c::v4::arcanum::Arcanum;
-use crate::frame_c::v4::ast::{Span, StateDecl};
+use crate::frame_c::v4::ast::StateDecl;
 use crate::frame_c::visitors::TargetLanguage;
 // Choose the first declared state for a system via Arcanum spans.
 pub(crate) fn first_state_for_system<'a>(arc: &'a Arcanum, sys_name: &str) -> Option<&'a StateDecl> {
@@ -49,22 +49,6 @@ pub(crate) fn header_param_names(hdr: &str) -> Vec<String> {
     names
 }
 
-/// Extract parameter names from a `$State(...)` header using the state's span.
-/// This reads the header line starting at `span.start` up to the end of line
-/// and then delegates to `header_param_names`.
-#[allow(dead_code)]
-pub(crate) fn state_header_param_names(bytes: &[u8], span: &Span) -> Vec<String> {
-    let n = bytes.len();
-    if span.start >= n {
-        return Vec::new();
-    }
-    let mut line_end = span.start;
-    while line_end < n && bytes[line_end] != b'\n' {
-        line_end += 1;
-    }
-    let hdr = String::from_utf8_lossy(&bytes[span.start..line_end]).to_string();
-    header_param_names(&hdr)
-}
 
 // Collect domain variable names per system by scanning each `domain:` block.
 pub(crate) fn collect_domain_vars_per_system(

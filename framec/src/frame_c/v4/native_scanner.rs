@@ -105,6 +105,7 @@ impl NativeScanner for PythonScanner {
                             exit_args: Vec::new(),
                             enter_args: Vec::new(),
                             state_args,
+                            label: None,
                             span: RegionSpan { start: trans_start, end: i },
                         },
                         span: RegionSpan { start: trans_start, end: i },

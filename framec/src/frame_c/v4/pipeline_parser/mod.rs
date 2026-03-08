@@ -621,16 +621,34 @@ impl<'a> Parser<'a> {
                 }
 
                 Token::Arrow => {
-                    // Transition: -> $State or -> pop$
+                    // Transition: -> [label?] $State or -> pop$ or -> => $State
                     let next = self.lexer.next_token().map_err(ParseError::from)?;
                     match next.token {
                         Token::StateRef(target) => {
                             statements.push(Statement::Transition(TransitionAst {
                                 target,
                                 args: vec![],
+                                label: None,
                                 span: Span::new(tok.span.start, next.span.end),
                                 indent: 0,
                             }));
+                        }
+                        Token::StringLit(label_text) => {
+                            // -> "label" $State — transition with label
+                            let target_tok = self.lexer.next_token()
+                                .map_err(ParseError::from)?;
+                            if let Token::StateRef(target) = target_tok.token {
+                                statements.push(Statement::Transition(TransitionAst {
+                                    target,
+                                    args: vec![],
+                                    label: Some(label_text),
+                                    span: Span::new(
+                                        tok.span.start,
+                                        target_tok.span.end,
+                                    ),
+                                    indent: 0,
+                                }));
+                            }
                         }
                         Token::FatArrow => {
                             // -> => $State (transition forward)
@@ -656,20 +674,41 @@ impl<'a> Parser<'a> {
                             }));
                         }
                         Token::NativeCode(args) => {
-                            // -> (args) $State — args is native code for enter params
-                            let target_tok = self.lexer.next_token()
+                            // -> (args) $State or -> (args) "label" $State
+                            let after_args = self.lexer.next_token()
                                 .map_err(ParseError::from)?;
-                            if let Token::StateRef(target) = target_tok.token {
-                                // Store args as NativeExpr
-                                statements.push(Statement::Transition(TransitionAst {
-                                    target,
-                                    args: vec![Expression::NativeExpr(args)],
-                                    span: Span::new(
-                                        tok.span.start,
-                                        target_tok.span.end,
-                                    ),
-                                    indent: 0,
-                                }));
+                            match after_args.token {
+                                Token::StateRef(target) => {
+                                    // -> (args) $State — enter args, no label
+                                    statements.push(Statement::Transition(TransitionAst {
+                                        target,
+                                        args: vec![Expression::NativeExpr(args)],
+                                        label: None,
+                                        span: Span::new(
+                                            tok.span.start,
+                                            after_args.span.end,
+                                        ),
+                                        indent: 0,
+                                    }));
+                                }
+                                Token::StringLit(label_text) => {
+                                    // -> (args) "label" $State — enter args + label
+                                    let target_tok = self.lexer.next_token()
+                                        .map_err(ParseError::from)?;
+                                    if let Token::StateRef(target) = target_tok.token {
+                                        statements.push(Statement::Transition(TransitionAst {
+                                            target,
+                                            args: vec![Expression::NativeExpr(args)],
+                                            label: Some(label_text),
+                                            span: Span::new(
+                                                tok.span.start,
+                                                target_tok.span.end,
+                                            ),
+                                            indent: 0,
+                                        }));
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                         _ => {}

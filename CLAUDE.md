@@ -78,6 +78,7 @@ system SystemName {
 - **Version**: v0.96.11 (branch `main`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
 - **V4 Test Status**: Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
+- **Unit Tests**: 207 pass, 0 fail, 2 ignored — zero warnings
 - **Type System**: Frame has no type system — types are opaque strings passed through verbatim as `Type::Custom(String)`
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
@@ -176,7 +177,7 @@ Output: Complete target language file
 - `framec/src/frame_c/v4/arcanum.rs` - Stage 3: symbol table
 - `framec/src/frame_c/v4/frame_validator.rs` - Stage 4: validation
 - `framec/src/frame_c/v4/codegen/system_codegen.rs` - Stage 5: CodegenNode IR
-- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust,c}.rs` - Stage 6: emit code
+- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust,c,cpp,csharp,java}.rs` - Stage 6: emit code
 - `framec/src/frame_c/v4/assembler/` - Stage 7: output assembly
 - `framec/src/frame_c/v4/pipeline/compiler.rs` - Orchestrates all stages
 

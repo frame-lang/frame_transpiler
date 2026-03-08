@@ -156,7 +156,7 @@ fn extract_transitions_from_statements(
                     source: source_state.to_string(),
                     target: TransitionTarget::State(t.target.clone()),
                     event: event.to_string(),
-                    label: None,
+                    label: t.label.clone(),
                     kind: TransitionKind::Transition,
                     guard: guard.map(|s| s.to_string()),
                 });
@@ -365,6 +365,7 @@ mod tests {
                             statements: vec![Statement::Transition(TransitionAst {
                                 target: "B".to_string(),
                                 args: vec![],
+                                label: None,
                                 span: span(),
                                 indent: 0,
                             })],
@@ -479,6 +480,7 @@ mod tests {
                                 then_branch: Box::new(Statement::Transition(TransitionAst {
                                     target: "Good".to_string(),
                                     args: vec![],
+                                    label: None,
                                     span: span(),
                                     indent: 0,
                                 })),
@@ -486,6 +488,7 @@ mod tests {
                                     TransitionAst {
                                         target: "Bad".to_string(),
                                         args: vec![],
+                                        label: None,
                                         span: span(),
                                         indent: 0,
                                     },

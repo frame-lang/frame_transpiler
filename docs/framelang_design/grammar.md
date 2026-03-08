@@ -1894,6 +1894,34 @@ state_params: expr_list
 label: STRING
 ```
 
+#### Transition Label
+
+The optional `label` is a string literal that names the transition. When present, the label replaces the event handler name on GraphViz diagram edges and is available for runtime introspection. Labels do not affect transition behavior.
+
+**Position:** The label appears between the enter args (if any) and the `$State` target:
+
+```frame
+// Simple transition with label
+-> "initialize" $Ready
+
+// Label with enter args and state params
+-> (config) "setup" $Active(timeout)
+
+// Label with exit args, enter args, and state params (full form)
+(cleanup) -> (config) "reconfigure" $Active(timeout)
+
+// Labels are especially useful for distinguishing multiple transitions in one handler
+choose(option: str) {
+    if option == "a" {
+        -> "Path A" $StateA
+    } else {
+        -> "Path B" $StateB
+    }
+}
+```
+
+> **Implementation note:** Transition labels are defined in this grammar but are **not yet implemented** in the V4 pipeline parser (`TransitionAst` lacks a `label` field). This is a known gap.
+
 ### Enter and Exit Events
 
 #### Enter Event Handler
@@ -2488,7 +2516,10 @@ return_stmt: 'return' expr?  // v0.38: Fixed to parse lambda expressions
 return_assign_stmt: 'return' '=' expr
 system_return_stmt: '@@:return' '=' expr
 parent_dispatch_stmt: '=>' '$^'
-transition_stmt: '->' '$' IDENTIFIER
+transition_stmt: ('(' exit_args ')')? '->' ('(' enter_args ')')? label? '$' IDENTIFIER ('(' state_params ')')?
+               | '->' '=>' ('(' enter_args ')')? label? '$' IDENTIFIER ('(' state_params ')')?
+               | '->' 'pop$'
+label: STRING
 state_stack_op: '$$[' '+' ']' | '$$[' '-' ']'
 block_stmt: '{' stmt* '}'
 break_stmt: 'break'

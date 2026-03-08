@@ -8,8 +8,8 @@
 
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::frame_ast::{
-    SystemAst, StateAst, HandlerAst, HandlerBody, MachineAst,
-    ActionAst, OperationAst, Type, EventParam,
+    SystemAst, MachineAst,
+    ActionAst, OperationAst, Type,
     Expression, Literal, BinaryOp, UnaryOp, StateVarAst,
     InterfaceMethod, MethodParam, Span,
 };
@@ -1883,7 +1883,6 @@ if self.__compartment.forward_event.is_none() {{
 }
 
 
-
 /// Get default initialization value for a type
 fn state_var_init_value(var_type: &Type, lang: TargetLanguage) -> String {
     match var_type {
@@ -1993,7 +1992,6 @@ fn generate_c_router_dispatch(system: &SystemAst) -> String {
 
     code
 }
-
 
 
 /// Generate interface wrapper methods
@@ -3183,153 +3181,6 @@ fn normalize_indentation(text: &str) -> String {
         .join("\n")
 }
 
-
-/// Generate state handler methods (legacy - kept for reference)
-///
-/// Uses the splicer to preserve native code and splice in generated Frame code
-#[allow(dead_code)]
-fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> Vec<CodegenNode> {
-    let mut methods = Vec::new();
-
-    for state in &machine.states {
-        // Main state handler
-        for handler in &state.handlers {
-            methods.push(generate_handler(state, handler, syntax, source, lang));
-        }
-
-        // Enter handler
-        if let Some(ref enter) = state.enter {
-            methods.push(generate_enter_exit_handler(
-                &format!("_s_{}_enter", state.name),
-                &enter.params,
-                &enter.body,
-                source,
-                lang,
-            ));
-        }
-
-        // Exit handler
-        if let Some(ref exit) = state.exit {
-            methods.push(generate_enter_exit_handler(
-                &format!("_s_{}_exit", state.name),
-                &exit.params,
-                &exit.body,
-                source,
-                lang,
-            ));
-        }
-    }
-
-    methods
-}
-
-/// Generate a single handler method using the splicer
-///
-/// Scans the handler body to find Frame segments, generates code for them,
-/// then splices the generated code back into the original native code.
-fn generate_handler(state: &StateAst, handler: &HandlerAst, _syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> CodegenNode {
-    let params: Vec<Param> = handler.params.iter().map(|p| {
-        let type_str = type_to_string(&p.param_type);
-        Param::new(&p.name).with_type(&type_str)
-    }).collect();
-
-    // Use splicer to combine native code + generated Frame code
-    let body_code = splice_handler_body(&handler.body, source, lang);
-
-    CodegenNode::Method {
-        name: format!("_s_{}_{}", state.name, handler.event),
-        params,
-        return_type: None,
-        body: vec![CodegenNode::NativeBlock {
-            code: body_code,
-            span: Some(handler.body.span.clone()),
-        }],
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Generate enter/exit handler method using the splicer
-fn generate_enter_exit_handler(name: &str, params: &[EventParam], body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> CodegenNode {
-    let body_code = splice_handler_body(body, source, lang);
-
-    // Convert EventParams to Params
-    let method_params: Vec<Param> = params.iter().map(|p| {
-        let type_str = type_to_string(&p.param_type);
-        Param::new(&p.name).with_type(&type_str)
-    }).collect();
-
-    CodegenNode::Method {
-        name: name.to_string(),
-        params: method_params,
-        return_type: None,
-        body: vec![CodegenNode::NativeBlock {
-            code: body_code,
-            span: Some(body.span.clone()),
-        }],
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Splice handler body: preserve native code, replace Frame segments with generated code
-#[allow(dead_code)]
-fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> String {
-    // Get the body bytes from source
-    let body_bytes = &source[body.span.start..body.span.end];
-
-    // Find the opening brace
-    let open_brace = body_bytes.iter().position(|&b| b == b'{');
-    if open_brace.is_none() {
-        return String::new();
-    }
-    let _inner_start = open_brace.unwrap() + 1;
-
-    // Scan for Frame segments within the body
-    let mut scanner = get_native_scanner(lang);
-    let scan_result = match scanner.scan(body_bytes, open_brace.unwrap()) {
-        Ok(r) => r,
-        Err(_) => return String::new(),
-    };
-
-    // Legacy path: use empty context (no HSM forward support)
-    let ctx = HandlerContext::default();
-
-    // Generate expansions for each Frame segment
-    let mut expansions = Vec::new();
-    for region in &scan_result.regions {
-        if let Region::FrameSegment { span, kind, indent } = region {
-            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, &ctx);
-            expansions.push(expansion);
-        }
-    }
-
-    // Use splicer to combine native + generated Frame code
-    let splicer = Splicer;
-    let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
-
-    // Strip only the outer braces, preserve internal whitespace structure
-    let text = &spliced.text;
-
-    // Find opening brace
-    let open = text.find('{');
-    // Find closing brace (last one)
-    let close = text.rfind('}');
-
-    match (open, close) {
-        (Some(o), Some(c)) if o < c => {
-            // Get content between braces
-            let inner = &text[o + 1..c];
-            // Trim only the first newline after { and trailing whitespace before }
-            inner.trim_start_matches('\n').trim_end().to_string()
-        }
-        _ => text.to_string()
-    }
-}
 
 /// Generate code expansion for a Frame segment
 ///

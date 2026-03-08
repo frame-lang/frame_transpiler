@@ -440,6 +440,7 @@ mod tests {
         assert!(output.code.contains("this is just native code"));
     }
 
+    #[test]
     fn test_compile_parse_error() {
         // Invalid syntax inside @@system should produce an error
         let source = b"@@system Test { not valid section syntax }";

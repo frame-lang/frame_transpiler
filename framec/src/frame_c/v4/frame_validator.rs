@@ -788,12 +788,14 @@ mod tests {
                 Statement::Transition(TransitionAst {
                     target: "Other".to_string(),
                     args: vec![],
+                    label: None,
                     span: Span::new(10, 20),
                     indent: 0,
                 }),
                 Statement::Transition(TransitionAst {
                     target: "Final".to_string(),
                     args: vec![],
+                    label: None,
                     span: Span::new(30, 40),
                     indent: 0,
                 }),

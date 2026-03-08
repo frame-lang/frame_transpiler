@@ -43,7 +43,7 @@ impl FrameStatementParser {
     }
 
     fn parse_transition(&self, line: &[u8], span: RegionSpan) -> Result<MirItem, ParseError> {
-        // Expect: (exit_args)? -> (enter_args)? [$label?] $State(state_params?)
+        // Expect: (exit_args)? -> (enter_args)? [label?] $State(state_params?)
         let n = line.len();
         let mut i=0usize;
         while i<n && line[i].is_ascii_whitespace() { i+=1; }
@@ -66,25 +66,40 @@ impl FrameStatementParser {
             i = next;
             while i<n && line[i].is_ascii_whitespace() { i+=1; }
         }
-        // Check for pop-transition: -> $$[-]
-        if i+5<=n && &line[i..i+5] == b"pop$" {
+        // Check for pop-transition: -> pop$
+        if i+4<=n && &line[i..i+4] == b"pop$" {
             // Pop-transition - target comes from stack at runtime
             return Ok(MirItem::Transition{
                 target: "pop$".to_string(),
                 exit_args: exit_args,
                 enter_args: enter_args,
                 state_args: vec![],
+                label: None,
                 span
             });
         }
 
-        // Optional label: read an identifier if present, but ignore it for now
-        if i<n && (line[i].is_ascii_alphabetic() || line[i]==b'_') {
+        // Optional label: string literal "..." or identifier
+        let mut label: Option<String> = None;
+        if i<n && line[i]==b'"' {
+            // String label: -> "Path A" $State
+            let quote_start = i;
+            i += 1; // skip opening quote
+            while i<n && line[i]!=b'"' { i+=1; }
+            if i<n {
+                label = Some(String::from_utf8_lossy(&line[quote_start+1..i]).to_string());
+                i += 1; // skip closing quote
+                while i<n && line[i].is_ascii_whitespace() { i+=1; }
+            }
+        } else if i<n && (line[i].is_ascii_alphabetic() || line[i]==b'_') {
+            // Identifier label: -> myLabel $State
+            let j_start = i;
             let mut j=i+1; while j<n && (line[j].is_ascii_alphanumeric() || line[j]==b'_') { j+=1; }
-            // Only treat as label if next non-space isn't '$'
+            // Only treat as label if next non-space is '$'
             let mut k=j; while k<n && line[k].is_ascii_whitespace() { k+=1; }
-            if k<n && line[k]!=b'$' {
-                i = k; // skip label
+            if k<n && line[k]==b'$' {
+                label = Some(String::from_utf8_lossy(&line[j_start..j]).to_string());
+                i = k; // advance past label to '$'
             }
         }
         // '$' State
@@ -103,7 +118,7 @@ impl FrameStatementParser {
         }
         while i<n && line[i].is_ascii_whitespace() { i+=1; }
         if i<n { return Err(ParseError::err(ParseErrorKind::TrailingTokens, "unexpected trailing tokens after Frame statement")); }
-        Ok(MirItem::Transition{ target, exit_args, enter_args, state_args, span })
+        Ok(MirItem::Transition{ target, exit_args, enter_args, state_args, label, span })
     }
 
     fn parse_transition_forward(&self, line: &[u8], span: RegionSpan) -> Result<MirItem, ParseError> {

@@ -32,6 +32,7 @@ pub struct FrameParser {
     persist_library: Option<String>,
 }
 
+#[allow(dead_code)]
 impl FrameParser {
     /// Create a new Frame parser
     pub fn new(source: &[u8], target: TargetLanguage) -> Self {
@@ -789,6 +790,25 @@ impl FrameParser {
     }
     
     /// Parse an identifier
+    /// Parse a string literal (e.g., "Path A") and return its content (without quotes).
+    fn parse_string_literal(&mut self) -> Result<String, ParseError> {
+        if self.cursor >= self.source.len() || self.source[self.cursor] != b'"' {
+            return Err(ParseError::Expected("string literal".to_string()));
+        }
+        self.cursor += 1; // skip opening quote
+        let start = self.cursor;
+        while self.cursor < self.source.len() && self.source[self.cursor] != b'"' {
+            self.cursor += 1;
+        }
+        if self.cursor >= self.source.len() {
+            return Err(ParseError::Expected("closing quote".to_string()));
+        }
+        let content = String::from_utf8_lossy(&self.source[start..self.cursor]).to_string();
+        self.cursor += 1; // skip closing quote
+        self.skip_whitespace();
+        Ok(content)
+    }
+
     fn parse_identifier(&mut self) -> Result<String, ParseError> {
         let start = self.cursor;
 
@@ -1676,11 +1696,13 @@ impl FrameParser {
 
         match kind {
             FrameSegmentKind::Transition => {
-                // Parse transition: -> $State(args) or (exit_args) -> (enter_args) $State(state_args)
+                // Parse transition: -> $State(args) or (exit_args) -> (enter_args) "label"? $State(state_args)
                 let (target, args) = self.parse_transition_from_string(&content)?;
+                // TODO: extract label from content string when parse_transition_from_string supports it
                 Ok(Statement::Transition(TransitionAst {
                     target,
                     args,
+                    label: None,
                     span: Span::new(span.start, span.end),
                     indent,
                 }))
