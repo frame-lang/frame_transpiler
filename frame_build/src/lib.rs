@@ -274,7 +274,7 @@ impl FrameBuild {
                     target_output_path.set_extension(target.file_extension());
 
                     let content_clone = file_content.clone();
-                    let path_clone = input_path_str.clone();
+                    let _path_clone = input_path_str.clone();
                     let framec_result = std::panic::catch_unwind(move || {
                         if content_clone.contains("@target ") {
                             framec::frame_c::v4::compile_module(&content_clone, target)

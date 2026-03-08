@@ -377,7 +377,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_native_only_input_passes_through() {
         // Input with no @@system blocks is pure native code — passes through verbatim
         let source = b"this is just native code\nno systems here\n";
@@ -389,6 +388,7 @@ mod tests {
         assert!(output.code.contains("this is just native code"));
     }
 
+    #[test]
     fn test_compile_parse_error() {
         // Invalid syntax inside @@system should produce an error
         let source = b"@@system Test { not valid section syntax }";

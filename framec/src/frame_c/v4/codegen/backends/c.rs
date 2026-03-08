@@ -309,7 +309,7 @@ impl LanguageBackend for CBackend {
                 result
             }
 
-            CodegenNode::For { var, iterable, body } => {
+            CodegenNode::For { var, iterable, body: _ } => {
                 // C doesn't have for-each, generate a comment
                 let mut result = format!("{}/* for {} in {} */\n", ctx.get_indent(), var, self.emit(iterable, ctx));
                 result.push_str(&format!("{}/* TODO: implement iteration */", ctx.get_indent()));

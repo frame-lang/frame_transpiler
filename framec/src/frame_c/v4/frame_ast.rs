@@ -7,8 +7,6 @@
 //! This is the SINGLE unified AST for Frame V4. The old `ast.rs` module has been
 //! merged into this file to eliminate the dual-AST problem.
 
-use std::collections::{HashMap, HashSet};
-use crate::frame_c::v4::native_region_scanner::{Region, RegionSpan};
 
 /// Span represents a source location in the original Frame code
 #[derive(Debug, Clone, PartialEq)]
@@ -268,6 +266,9 @@ pub enum Statement {
 pub struct TransitionAst {
     pub target: String,
     pub args: Vec<Expression>,
+    /// Optional user-provided label (e.g., -> "Path A" $State).
+    /// When present, replaces event name on GraphViz diagram edges.
+    pub label: Option<String>,
     pub span: Span,
     /// Source indentation level (for proper code generation)
     pub indent: usize,
@@ -663,6 +664,7 @@ mod tests {
         let transition = TransitionAst {
             target: "Green".to_string(),
             args: vec![],
+            label: None,
             span: Span::new(10, 20),
             indent: 8,
         };

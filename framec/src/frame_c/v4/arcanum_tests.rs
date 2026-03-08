@@ -2,7 +2,6 @@
 mod tests {
     use super::super::arcanum::*;
     use super::super::ast::*;
-    use std::collections::{HashMap, HashSet};
 
     fn create_test_arcanum() -> Arcanum {
         let mut arc = Arcanum::new();

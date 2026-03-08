@@ -5,7 +5,6 @@ use clap::{Arg, Command};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 pub struct Cli {
     stdin_flag: bool,
@@ -327,8 +326,8 @@ pub fn run_with(args: Cli) {
             exec_curated,
             parallel,
             timeout,
-            report_format,
-            output,
+            report_format: _,
+            output: _,
             metadata_filter,
         } => {
             // Minimal Rust-based V3 test entry point:

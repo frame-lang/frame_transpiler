@@ -330,7 +330,9 @@ Transitions to a target state. Invokes exit handler on current state, then enter
 **Grammar:**
 
 ```
-( <exit_params> )? -> ( => )? ( <enter_params> )? $<TargetState> ( <state_params> )?
+( <exit_params> )? -> ( => )? ( <enter_params> )? <label>? $<TargetState> ( <state_params> )?
+
+label: STRING   // e.g., "Path A"
 ```
 
 **Forms:**
@@ -342,9 +344,34 @@ Transitions to a target state. Invokes exit handler on current state, then enter
 | `-> (args) $State` | Transition with enter args |
 | `(args) -> $State` | Transition with exit args |
 | `(exit) -> (enter) $State(state)` | Full form, all positions |
+| `-> "label" $State` | Transition with label |
+| `(exit) -> (enter) "label" $State(state)` | Full form with label |
 | `-> => $State` | Transition with event forwarding |
 | `(exit) -> => (enter) $State(state)` | Forwarding with all positions |
 | `-> pop$` | Transition to popped state from stack |
+
+**Transition labels:** An optional string literal between the enter args and the `$State` target. Labels are semantic annotations that name the transition — they appear on edges in GraphViz diagram output instead of the event handler name, and are available for runtime introspection. Labels do not affect transition behavior.
+
+```frame
+// Without label: edge shows "choose" in GraphViz output
+choose() {
+    -> $Active
+}
+
+// With label: edge shows "Path A" instead of "choose"
+choose() {
+    if x > 0 {
+        -> "Path A" $Active
+    } else {
+        -> "Path B" $Idle
+    }
+}
+
+// Labels work with all transition forms
+(exit_val) -> (enter_val) "initialize" $Ready(config)
+```
+
+> **Implementation note:** Transition labels are defined in the language grammar but are **not yet implemented** in the V4 pipeline parser. The `TransitionAst` struct needs a `label: Option<String>` field, and the parser needs to recognize `Token::StringLit` after the arrow/enter-args position. This is tracked as a known gap.
 
 **Event forwarding** (`-> =>`): The current event is stashed on the target state's compartment. After the enter handler fires, the forwarded event is dispatched to the target state. This is a transition variant, not a separate statement.
 
@@ -861,6 +888,7 @@ free(json);
 | Token | Meaning |
 |-------|---------|
 | `->` | Transition operator |
+| `-> "label"` | Transition with label (label replaces event name in diagrams) |
 | `=>` | Forward operator |
 | `-> =>` | Transition with event forwarding |
 | `-> pop$` | Transition to popped state |

@@ -26,7 +26,7 @@ impl LanguageBackend for CSharpBackend {
                 result
             }
 
-            CodegenNode::Import { module, items, alias } => format!("using {};", module),
+            CodegenNode::Import { module, items: _, alias: _ } => format!("using {};", module),
 
             CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
                 let mut result = String::new();
@@ -68,7 +68,7 @@ impl LanguageBackend for CSharpBackend {
                 result
             }
 
-            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators } => {
+            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators: _ } => {
                 let vis = self.emit_visibility(*visibility);
                 let static_kw = if *is_static { "static " } else { "" };
                 let async_kw = if *is_async { "async " } else { "" };
@@ -104,7 +104,7 @@ impl LanguageBackend for CSharpBackend {
                 result
             }
 
-            CodegenNode::VarDecl { name, type_annotation, init, is_const } => {
+            CodegenNode::VarDecl { name, type_annotation, init, is_const: _ } => {
                 let type_str = type_annotation.as_ref().unwrap_or(&"var".to_string()).clone();
                 if let Some(init_expr) = init {
                     format!("{}{} {} = {}", ctx.get_indent(), type_str, name, self.emit(init_expr, ctx))

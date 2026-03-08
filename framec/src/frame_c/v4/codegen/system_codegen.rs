@@ -8,8 +8,8 @@
 
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::frame_ast::{
-    SystemAst, StateAst, HandlerAst, HandlerBody, Statement, MachineAst,
-    ActionAst, OperationAst, Type, LoopKind, EventParam,
+    SystemAst, MachineAst,
+    ActionAst, OperationAst, Type,
     Expression, Literal, BinaryOp, UnaryOp, StateVarAst,
     InterfaceMethod, MethodParam, Span,
 };
@@ -32,13 +32,8 @@ use super::backend::get_backend;
 #[derive(Clone, Default)]
 struct HandlerContext {
     pub system_name: String,
-    pub state_name: String,
     pub event_name: String,
     pub parent_state: Option<String>,
-    /// True if the system has states with state variables (for Rust compartment-based push/pop)
-    pub has_state_vars: bool,
-    /// Map of state names to their parent state (for HSM child state transitions)
-    pub state_parents: std::collections::HashMap<String, String>,
     /// Set of defined system names in the module (for @@System() validation)
     pub defined_systems: std::collections::HashSet<String>,
     /// True if we're in a state handler that has __sv_comp available for HSM state var access
@@ -1477,7 +1472,7 @@ this.__kernel(__frame_event);"#,
 ///
 /// For Python/TypeScript: Proper Frame runtime with __kernel, __router, __transition
 /// For Rust: Simplified implementation (proper runtime in future task)
-fn generate_frame_machinery(system: &SystemAst, syntax: &super::backend::ClassSyntax, lang: TargetLanguage) -> Vec<CodegenNode> {
+fn generate_frame_machinery(system: &SystemAst, _syntax: &super::backend::ClassSyntax, lang: TargetLanguage) -> Vec<CodegenNode> {
     let mut methods = Vec::new();
     let compartment_class = format!("{}Compartment", system.name);
     let event_class = format!("{}FrameEvent", system.name);
@@ -1859,7 +1854,7 @@ free(self);"#,
     // For Rust: Generate _state_stack_push() and _state_stack_pop() methods
     // These handle typed compartment save/restore for state variable preservation
     // Only generate when there are states with state variables
-    let has_state_vars = system.machine.as_ref()
+    let _has_state_vars = system.machine.as_ref()
         .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
         .unwrap_or(false);
     // Generate stack push/pop methods for Rust when there's a machine
@@ -1976,218 +1971,6 @@ fn generate_rust_state_stack_pop(system: &SystemAst) -> CodegenNode {
     }
 }
 
-/// Generate enter event dispatcher
-/// Uses language-specific dynamic dispatch pattern
-/// Also initializes state variables for the target state
-fn generate_enter_dispatcher(system: &SystemAst, lang: TargetLanguage) -> CodegenNode {
-    // Check if any states have enter handlers
-    let has_enter_handlers = system.machine.as_ref()
-        .map(|m| m.states.iter().any(|s| s.enter.is_some()))
-        .unwrap_or(false);
-
-    // Check if any states have state variables
-    let has_state_vars = system.machine.as_ref()
-        .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
-        .unwrap_or(false);
-
-    // Generate state variable initialization code
-    let state_var_init = if has_state_vars {
-        generate_state_var_init(system, lang)
-    } else {
-        String::new()
-    };
-
-    // Language-specific params for varargs
-    let params = match lang {
-        TargetLanguage::Python3 => vec![Param::new("*args")],
-        TargetLanguage::TypeScript => vec![Param::new("...args").with_type("any[]")],
-        _ => vec![],
-    };
-
-    let body = if !has_enter_handlers && !has_state_vars {
-        vec![CodegenNode::comment("No enter handlers")]
-    } else {
-        match lang {
-            TargetLanguage::Python3 => {
-                let init_code = if !state_var_init.is_empty() {
-                    format!("{}\n", state_var_init)
-                } else {
-                    String::new()
-                };
-                let handler_code = if has_enter_handlers {
-                    "handler_name = f\"_s_{self._compartment.state}_enter\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)"
-                } else {
-                    ""
-                };
-                vec![CodegenNode::NativeBlock {
-                    code: format!("{}{}", init_code, handler_code),
-                    span: None,
-                }]
-            }
-            TargetLanguage::TypeScript => {
-                let init_code = if !state_var_init.is_empty() {
-                    format!("{}\n", state_var_init)
-                } else {
-                    String::new()
-                };
-                let handler_code = if has_enter_handlers {
-                    "const handler_name = `_s_${this._compartment.state}_enter`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}"
-                } else {
-                    ""
-                };
-                vec![CodegenNode::NativeBlock {
-                    code: format!("{}{}", init_code, handler_code),
-                    span: None,
-                }]
-            }
-            TargetLanguage::Rust => {
-                // Generate match-based dispatch for Rust with state var init
-                vec![CodegenNode::NativeBlock {
-                    code: generate_rust_enter_dispatch_with_vars(system),
-                    span: None,
-                }]
-            }
-            _ => {
-                vec![CodegenNode::comment("Enter dispatch needed for this language")]
-            }
-        }
-    };
-
-    CodegenNode::Method {
-        name: "_enter".to_string(),
-        params,
-        return_type: None,
-        body,
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Generate exit event dispatcher
-/// Uses language-specific dynamic dispatch pattern
-fn generate_exit_dispatcher(system: &SystemAst, lang: TargetLanguage) -> CodegenNode {
-    // Check if any states have exit handlers
-    let has_exit_handlers = system.machine.as_ref()
-        .map(|m| m.states.iter().any(|s| s.exit.is_some()))
-        .unwrap_or(false);
-
-    // Language-specific params for varargs
-    let params = match lang {
-        TargetLanguage::Python3 => vec![Param::new("*args")],
-        TargetLanguage::TypeScript => vec![Param::new("...args").with_type("any[]")],
-        _ => vec![],
-    };
-
-    let body = if !has_exit_handlers {
-        vec![CodegenNode::comment("No exit handlers")]
-    } else {
-        match lang {
-            TargetLanguage::Python3 => {
-                vec![CodegenNode::NativeBlock {
-                    code: "handler_name = f\"_s_{self._compartment.state}_exit\"\nhandler = getattr(self, handler_name, None)\nif handler:\n    handler(*args)".to_string(),
-                    span: None,
-                }]
-            }
-            TargetLanguage::TypeScript => {
-                vec![CodegenNode::NativeBlock {
-                    code: "const handler_name = `_s_${this._compartment.state}_exit`;\nconst handler = (this as any)[handler_name];\nif (handler) {\n    handler.call(this, ...args);\n}".to_string(),
-                    span: None,
-                }]
-            }
-            TargetLanguage::Rust => {
-                // Generate match-based dispatch for Rust
-                vec![CodegenNode::NativeBlock {
-                    code: generate_rust_enter_exit_dispatch(system, "exit"),
-                    span: None,
-                }]
-            }
-            _ => {
-                vec![CodegenNode::comment("Exit dispatch needed for this language")]
-            }
-        }
-    };
-
-    CodegenNode::Method {
-        name: "_exit".to_string(),
-        params,
-        return_type: None,
-        body,
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Generate state variable initialization code for Python/TypeScript
-/// Initializes state variables in compartment.state_vars
-fn generate_state_var_init(system: &SystemAst, lang: TargetLanguage) -> String {
-    let mut code = String::new();
-    let self_ref = match lang {
-        TargetLanguage::Python3 => "self",
-        _ => "this",
-    };
-
-    if let Some(ref machine) = system.machine {
-        // Build a switch/if-else chain based on current state
-        let mut first = true;
-        for state in &machine.states {
-            if state.state_vars.is_empty() {
-                continue;
-            }
-
-            // Python/TypeScript: use _compartment.state (no _state field)
-            let condition = if first {
-                format!("if {}._compartment.state == \"{}\":", self_ref, state.name)
-            } else {
-                format!("elif {}._compartment.state == \"{}\":", self_ref, state.name)
-            };
-            first = false;
-
-            match lang {
-                TargetLanguage::Python3 => {
-                    code.push_str(&format!("{}\n", condition));
-                    for var in &state.state_vars {
-                        // Use explicit initializer if provided, otherwise fall back to type default
-                        let init_val = if let Some(ref init) = var.init {
-                            expression_to_string(init, lang)
-                        } else {
-                            state_var_init_value(&var.var_type, lang)
-                        };
-                        // Initialize in compartment.state_vars (Phase 14.6 - no longer using _state_context)
-                        code.push_str(&format!("    {}._compartment.state_vars[\"{}\"] = {}\n", self_ref, var.name, init_val));
-                    }
-                }
-                TargetLanguage::TypeScript => {
-                    let ts_condition = if code.is_empty() {
-                        format!("if ({}._compartment.state === \"{}\") {{\n", self_ref, state.name)
-                    } else {
-                        format!("}} else if ({}._compartment.state === \"{}\") {{\n", self_ref, state.name)
-                    };
-                    code.push_str(&ts_condition);
-                    for var in &state.state_vars {
-                        let init_val = if let Some(ref init) = var.init {
-                            expression_to_string(init, lang)
-                        } else {
-                            state_var_init_value(&var.var_type, lang)
-                        };
-                        // Initialize in compartment.state_vars (Phase 14.6 - no longer using _state_context)
-                        code.push_str(&format!("    {}._compartment.state_vars[\"{}\"] = {};\n", self_ref, var.name, init_val));
-                    }
-                }
-                _ => {}
-            }
-        }
-        // Close TypeScript braces
-        if matches!(lang, TargetLanguage::TypeScript) && !code.is_empty() {
-            code.push_str("}");
-        }
-    }
-
-    code
-}
 
 /// Get default initialization value for a type
 fn state_var_init_value(var_type: &Type, lang: TargetLanguage) -> String {
@@ -2307,76 +2090,6 @@ fn generate_c_router_dispatch(system: &SystemAst) -> String {
     code
 }
 
-/// Generate Rust enter dispatch with state variable initialization
-/// Initializes _sv_ fields for the target state
-fn generate_rust_enter_dispatch_with_vars(system: &SystemAst) -> String {
-    let mut match_code = String::new();
-    match_code.push_str("match self._state.as_str() {\n");
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            let has_enter = state.enter.is_some();
-            let has_vars = !state.state_vars.is_empty();
-
-            if !has_enter && !has_vars {
-                continue;
-            }
-
-            match_code.push_str(&format!("    \"{}\" => {{\n", state.name));
-
-            // Initialize _sv_ fields for this state
-            for var in &state.state_vars {
-                let init_val = if let Some(ref init) = var.init {
-                    expression_to_string(init, TargetLanguage::Rust)
-                } else {
-                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
-                };
-                match_code.push_str(&format!(
-                    "        self._sv_{} = {};\n",
-                    var.name, init_val
-                ));
-            }
-
-            // Call enter handler if exists
-            if has_enter {
-                match_code.push_str(&format!("        self._s_{}_enter();\n", state.name));
-            }
-
-            match_code.push_str("    }\n");
-        }
-    }
-
-    match_code.push_str("    _ => {}\n");
-    match_code.push_str("}");
-    match_code
-}
-
-/// Generate Rust match-based dispatch for enter/exit handlers
-fn generate_rust_enter_exit_dispatch(system: &SystemAst, handler_type: &str) -> String {
-    let mut match_code = String::new();
-    match_code.push_str("match self._state.as_str() {\n");
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            // Check if this state has the handler type
-            let has_handler = if handler_type == "enter" {
-                state.enter.is_some()
-            } else {
-                state.exit.is_some()
-            };
-
-            if has_handler {
-                let handler_name = format!("_s_{}_{}", state.name, handler_type);
-                match_code.push_str(&format!("            \"{}\" => {{ self.{}(); }}\n", state.name, handler_name));
-            }
-        }
-    }
-
-    match_code.push_str("            _ => {}\n");
-    match_code.push_str("        }");
-    match_code
-}
-
 /// Generate interface wrapper methods
 ///
 /// For Python/TypeScript: Create FrameEvent and call __kernel
@@ -2439,7 +2152,7 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
             Param::new(&p.name).with_type(&type_str)
         }).collect();
 
-        let args: Vec<CodegenNode> = method.params.iter()
+        let _args: Vec<CodegenNode> = method.params.iter()
             .map(|p| CodegenNode::ident(&p.name))
             .collect();
 
@@ -2771,6 +2484,7 @@ this._context_stack.pop();"#,
 /// Generate Rust match-based dispatch for interface methods with return values
 /// Used when kernel pattern can't easily return values
 /// Creates a FrameEvent and passes it to handlers (which now require __e)
+#[allow(dead_code)]
 fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[CodegenNode], has_return: bool) -> CodegenNode {
     let event_class = format!("{}FrameEvent", system.name);
 
@@ -2778,7 +2492,7 @@ fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[Cod
     let mut match_code = String::new();
 
     // Convert args to comma-separated parameter names
-    let args_str = if args.is_empty() {
+    let _args_str = if args.is_empty() {
         String::new()
     } else {
         let arg_names: Vec<String> = args.iter().map(|arg| {
@@ -2972,7 +2686,7 @@ fn generate_state_method(
     state_vars: &[StateVarAst],
     source: &[u8],
     lang: TargetLanguage,
-    has_state_vars: bool,
+    _has_state_vars: bool,
     default_forward: bool,
     defined_systems: &std::collections::HashSet<String>,
 ) -> CodegenNode {
@@ -2984,11 +2698,8 @@ fn generate_state_method(
     // use_sv_comp is true when this state has state vars - we'll navigate to correct compartment
     let ctx = HandlerContext {
         system_name: _system_name.to_string(),
-        state_name: state_name.to_string(),
         event_name: String::new(), // Will be set per-handler
         parent_state: parent_state.map(|s| s.to_string()),
-        has_state_vars,
-        state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
         defined_systems: defined_systems.clone(),
         use_sv_comp: !state_vars.is_empty(),
     };
@@ -3035,7 +2746,7 @@ fn generate_state_method(
 
 /// Generate Python state dispatch code (if/elif chain on __e._message)
 fn generate_python_state_dispatch(
-    system_name: &str,
+    _system_name: &str,
     state_name: &str,
     handlers: &std::collections::HashMap<String, HandlerEntry>,
     state_vars: &[StateVarAst],
@@ -3045,7 +2756,7 @@ fn generate_python_state_dispatch(
 ) -> String {
     let mut code = String::new();
     let mut first = true;
-    let mut has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
+    let has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
 
     // HSM Compartment Navigation: When this handler accesses state vars, we need to ensure
     // we're accessing the correct compartment. If this handler was invoked via forwarding
@@ -3173,7 +2884,7 @@ while __sv_comp is not None and __sv_comp.state != "{}":
 
 /// Generate TypeScript state dispatch code (if/else chain on __e._message)
 fn generate_typescript_state_dispatch(
-    system_name: &str,
+    _system_name: &str,
     state_name: &str,
     handlers: &std::collections::HashMap<String, HandlerEntry>,
     state_vars: &[StateVarAst],
@@ -3587,7 +3298,7 @@ fn generate_handler_from_arcanum(
     handler: &HandlerEntry,
     source: &[u8],
     lang: TargetLanguage,
-    has_state_vars: bool,
+    _has_state_vars: bool,
     defined_systems: &std::collections::HashSet<String>,
 ) -> CodegenNode {
     // Build params from handler's parameter symbols
@@ -3625,11 +3336,8 @@ fn generate_handler_from_arcanum(
     // Build context for HSM forwarding
     let ctx = HandlerContext {
         system_name: system_name.to_string(),
-        state_name: state_name.to_string(),
         event_name: handler.event.clone(),
         parent_state: parent_state.map(|s| s.to_string()),
-        has_state_vars,
-        state_parents: std::collections::HashMap::new(), // TODO: populate for child state transitions
         defined_systems: defined_systems.clone(),
         use_sv_comp: false, // Handler-specific methods don't have __sv_comp preamble
     };
@@ -3738,173 +3446,6 @@ fn normalize_indentation(text: &str) -> String {
         .join("\n")
 }
 
-/// Strip trailing semicolon from the last line of code
-/// Used for Rust handlers with return types where the last expression is the return value
-fn strip_trailing_semicolon(code: &str) -> String {
-    let mut lines: Vec<&str> = code.lines().collect();
-    if lines.is_empty() {
-        return code.to_string();
-    }
-
-    // Find the last non-empty line
-    let last_idx = lines.iter().rposition(|l| !l.trim().is_empty());
-    if let Some(idx) = last_idx {
-        // Strip trailing semicolon from the last line
-        let last_line = lines[idx].trim_end();
-        if last_line.ends_with(';') {
-            lines[idx] = &last_line[..last_line.len()-1];
-        }
-    }
-
-    lines.join("\n")
-}
-
-/// Generate state handler methods (legacy - kept for reference)
-///
-/// Uses the splicer to preserve native code and splice in generated Frame code
-#[allow(dead_code)]
-fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> Vec<CodegenNode> {
-    let mut methods = Vec::new();
-
-    for state in &machine.states {
-        // Main state handler
-        for handler in &state.handlers {
-            methods.push(generate_handler(state, handler, syntax, source, lang));
-        }
-
-        // Enter handler
-        if let Some(ref enter) = state.enter {
-            methods.push(generate_enter_exit_handler(
-                &format!("_s_{}_enter", state.name),
-                &enter.params,
-                &enter.body,
-                source,
-                lang,
-            ));
-        }
-
-        // Exit handler
-        if let Some(ref exit) = state.exit {
-            methods.push(generate_enter_exit_handler(
-                &format!("_s_{}_exit", state.name),
-                &exit.params,
-                &exit.body,
-                source,
-                lang,
-            ));
-        }
-    }
-
-    methods
-}
-
-/// Generate a single handler method using the splicer
-///
-/// Scans the handler body to find Frame segments, generates code for them,
-/// then splices the generated code back into the original native code.
-fn generate_handler(state: &StateAst, handler: &HandlerAst, syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> CodegenNode {
-    let params: Vec<Param> = handler.params.iter().map(|p| {
-        let type_str = type_to_string(&p.param_type);
-        Param::new(&p.name).with_type(&type_str)
-    }).collect();
-
-    // Use splicer to combine native code + generated Frame code
-    let body_code = splice_handler_body(&handler.body, source, lang);
-
-    CodegenNode::Method {
-        name: format!("_s_{}_{}", state.name, handler.event),
-        params,
-        return_type: None,
-        body: vec![CodegenNode::NativeBlock {
-            code: body_code,
-            span: Some(handler.body.span.clone()),
-        }],
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Generate enter/exit handler method using the splicer
-fn generate_enter_exit_handler(name: &str, params: &[EventParam], body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> CodegenNode {
-    let body_code = splice_handler_body(body, source, lang);
-
-    // Convert EventParams to Params
-    let method_params: Vec<Param> = params.iter().map(|p| {
-        let type_str = type_to_string(&p.param_type);
-        Param::new(&p.name).with_type(&type_str)
-    }).collect();
-
-    CodegenNode::Method {
-        name: name.to_string(),
-        params: method_params,
-        return_type: None,
-        body: vec![CodegenNode::NativeBlock {
-            code: body_code,
-            span: Some(body.span.clone()),
-        }],
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Splice handler body: preserve native code, replace Frame segments with generated code
-#[allow(dead_code)]
-fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> String {
-    // Get the body bytes from source
-    let body_bytes = &source[body.span.start..body.span.end];
-
-    // Find the opening brace
-    let open_brace = body_bytes.iter().position(|&b| b == b'{');
-    if open_brace.is_none() {
-        return String::new();
-    }
-    let inner_start = open_brace.unwrap() + 1;
-
-    // Scan for Frame segments within the body
-    let mut scanner = get_native_scanner(lang);
-    let scan_result = match scanner.scan(body_bytes, open_brace.unwrap()) {
-        Ok(r) => r,
-        Err(_) => return String::new(),
-    };
-
-    // Legacy path: use empty context (no HSM forward support)
-    let ctx = HandlerContext::default();
-
-    // Generate expansions for each Frame segment
-    let mut expansions = Vec::new();
-    for region in &scan_result.regions {
-        if let Region::FrameSegment { span, kind, indent } = region {
-            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, &ctx);
-            expansions.push(expansion);
-        }
-    }
-
-    // Use splicer to combine native + generated Frame code
-    let splicer = Splicer;
-    let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
-
-    // Strip only the outer braces, preserve internal whitespace structure
-    let text = &spliced.text;
-
-    // Find opening brace
-    let open = text.find('{');
-    // Find closing brace (last one)
-    let close = text.rfind('}');
-
-    match (open, close) {
-        (Some(o), Some(c)) if o < c => {
-            // Get content between braces
-            let inner = &text[o + 1..c];
-            // Trim only the first newline after { and trailing whitespace before }
-            inner.trim_start_matches('\n').trim_end().to_string()
-        }
-        _ => text.to_string()
-    }
-}
 
 /// Generate code expansion for a Frame segment
 ///
@@ -3960,7 +3501,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 
                 // Get compartment class name from ctx.state_name (extract system name)
                 // For now, use a generic name - it will be replaced when we have system context
-                let compartment_class = format!("{}Compartment", ctx.system_name);
+                let _compartment_class = format!("{}Compartment", ctx.system_name);
 
                 match lang {
                     TargetLanguage::Python3 => {
@@ -4947,7 +4488,7 @@ fn get_native_scanner(lang: TargetLanguage) -> Box<dyn NativeRegionScanner> {
 /// Generate action method
 ///
 /// Extracts native code from source using the body span
-fn generate_action(action: &ActionAst, syntax: &super::backend::ClassSyntax, source: &[u8]) -> CodegenNode {
+fn generate_action(action: &ActionAst, _syntax: &super::backend::ClassSyntax, source: &[u8]) -> CodegenNode {
     let params: Vec<Param> = action.params.iter().map(|p| {
         let type_str = type_to_string(&p.param_type);
         Param::new(&p.name).with_type(&type_str)
@@ -4974,7 +4515,7 @@ fn generate_action(action: &ActionAst, syntax: &super::backend::ClassSyntax, sou
 /// Generate operation method
 ///
 /// Extracts native code from source using the body span
-fn generate_operation(operation: &OperationAst, syntax: &super::backend::ClassSyntax, source: &[u8]) -> CodegenNode {
+fn generate_operation(operation: &OperationAst, _syntax: &super::backend::ClassSyntax, source: &[u8]) -> CodegenNode {
     let params: Vec<Param> = operation.params.iter().map(|p| {
         let type_str = type_to_string(&p.param_type);
         Param::new(&p.name).with_type(&type_str)
@@ -5518,96 +5059,6 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
     methods
 }
 
-/// Convert Frame AST statements to CodegenNode
-fn convert_statements(stmts: &[Statement]) -> Vec<CodegenNode> {
-    stmts.iter().map(convert_statement).collect()
-}
-
-/// Convert a single Frame AST statement to CodegenNode
-fn convert_statement(stmt: &Statement) -> CodegenNode {
-    match stmt {
-        Statement::Transition(trans) => {
-            CodegenNode::Transition {
-                target_state: trans.target.clone(),
-                exit_args: vec![],  // TODO: parse from args
-                enter_args: trans.args.iter().map(convert_expression).collect(),
-                state_args: vec![],
-                indent: trans.indent,
-            }
-        }
-        Statement::Forward(forward) => {
-            // Check if forwarding to parent (event == "^")
-            let to_parent = forward.event == "^";
-            CodegenNode::Forward { to_parent, indent: forward.indent }
-        }
-        Statement::TransitionForward(tf) => {
-            // Transition-forward: transition to state then dispatch event
-            // The actual expansion happens in generate_frame_expansion
-            // This converts to a transition followed by forward
-            CodegenNode::Transition {
-                target_state: tf.target.clone(),
-                exit_args: vec![],
-                enter_args: vec![],
-                state_args: vec![],
-                indent: tf.indent,
-            }
-        }
-        Statement::StackPush(push) => {
-            CodegenNode::StackPush { indent: push.indent }
-        }
-        Statement::StackPop(pop) => {
-            CodegenNode::StackPop { indent: pop.indent }
-        }
-        Statement::Return(ret) => {
-            CodegenNode::ret(ret.value.as_ref().map(convert_expression))
-        }
-        Statement::Continue(_) => {
-            CodegenNode::Continue
-        }
-        // Note: Statement::Native no longer exists - native code is handled by splicer
-        Statement::If(if_ast) => {
-            let then_block = vec![convert_statement(&if_ast.then_branch)];
-            let else_block = if_ast.else_branch.as_ref()
-                .map(|e| vec![convert_statement(e)]);
-            CodegenNode::If {
-                condition: Box::new(convert_expression(&if_ast.condition)),
-                then_block,
-                else_block,
-            }
-        }
-        Statement::Loop(loop_ast) => {
-            match &loop_ast.kind {
-                LoopKind::While(cond) => {
-                    CodegenNode::While {
-                        condition: Box::new(convert_expression(cond)),
-                        body: vec![convert_statement(&loop_ast.body)],
-                    }
-                }
-                LoopKind::For(var, iterable) => {
-                    CodegenNode::For {
-                        var: var.clone(),
-                        iterable: Box::new(convert_expression(iterable)),
-                        body: vec![convert_statement(&loop_ast.body)],
-                    }
-                }
-                LoopKind::Loop => {
-                    // Loop forever with true condition
-                    CodegenNode::While {
-                        condition: Box::new(CodegenNode::bool(true)),
-                        body: vec![convert_statement(&loop_ast.body)],
-                    }
-                }
-            }
-        }
-        Statement::Expression(expr_ast) => {
-            CodegenNode::ExprStmt(Box::new(convert_expression(&expr_ast.expr)))
-        }
-        Statement::NativeCode(code) => {
-            // V4 pipeline: native code stored directly in AST, emit as raw code
-            CodegenNode::NativeBlock { code: code.clone(), span: None }
-        }
-    }
-}
 
 /// Convert Type enum to string representation
 fn type_to_string(t: &Type) -> String {

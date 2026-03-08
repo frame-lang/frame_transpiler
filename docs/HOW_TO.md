@@ -44,50 +44,65 @@ V4 is a **pure preprocessor** for `@@system` blocks. All native code passes thro
 - **`@@system` blocks are islands** - expanded to target language classes
 - Frame statements inside handlers (`->`, `=> $^`, `push$`, `pop$`, `$.var`) are expanded to method calls
 
-### V4 Pipeline
+### V4 Pipeline (8 Stages)
 ```
-Source file with @@target and @@system blocks
+Source file (.fpy/.fts/.frs/.fc) with @@target and @@system blocks
     ↓
-FrameParser (frame_parser.rs)
-    - Skip @@target, @@run-expect pragmas
-    - Skip native preamble (imports, functions)
-    - Parse @@system into FrameAst
+Stage 0: Segmenter (segmenter/)
+    - Split source into Native / Pragma / System segments
+    - Identify @@target, @@persist pragmas
+    - Locate @@system block boundaries
     ↓
-Arcanum (arcanum.rs)
-    - Build symbol table from AST
+Stage 1: Lexer (lexer/)
+    - Tokenize each system body into Frame token stream
+    ↓
+Stage 2: Pipeline Parser (pipeline_parser/)
+    - Parse tokens into SystemAst
+    - Builds state machine, interface, domain, actions, operations
+    ↓
+Stage 3: Arcanum (arcanum.rs)
+    - Build symbol table from SystemAst
     - Track states, handlers, interface methods, domain vars
     ↓
-FrameValidator (frame_validator.rs)
+Stage 4: Validator (frame_validator.rs)
     - Validate transitions target existing states
     - Check state parameter arity
+    - Verify section ordering
     ↓
-SystemCodegen (system_codegen.rs)
-    - Generate CodegenNode AST for class structure
-    - Extract handler bodies with native region scanner
+Stage 5: Codegen (codegen/system_codegen.rs)
+    - Generate CodegenNode IR from SystemAst + Arcanum
+    - Extract handler bodies via native region scanner
     - Expand Frame statements (-> becomes _transition())
     ↓
-Language Backend (backends/{python,typescript,rust}.rs)
-    - Convert CodegenNode to target language text
-    - Convert types (str→string, int→number for TS)
+Stage 6: Backend Emitter (codegen/backends/*.rs)
+    - Convert CodegenNode IR to target language text
+    - Language-specific type mapping and formatting
     ↓
-Compiler (pipeline/compiler.rs)
-    - Prepend native prolog (imports, helpers)
-    - Add runtime imports
-    - Append generated class
-    - Append native epilog (test harness)
+Stage 7: Assembler (assembler/)
+    - Stitch native prolog + generated class + native epilog
+    - Expand tagged instantiations
+    - Produce final output file
 ```
 
 ### V4 Key Files
 | File | Purpose |
 |------|---------|
-| `framec/src/frame_c/v4/frame_parser.rs` | Parse `@@system` blocks into FrameAst |
-| `framec/src/frame_c/v4/arcanum.rs` | Build symbol table from AST |
-| `framec/src/frame_c/v4/frame_validator.rs` | Validate AST (E402, E403, E405) |
-| `framec/src/frame_c/v4/codegen/system_codegen.rs` | Generate CodegenNode from AST |
-| `framec/src/frame_c/v4/codegen/backends/python.rs` | Python code emitter |
-| `framec/src/frame_c/v4/codegen/backends/typescript.rs` | TypeScript code emitter |
-| `framec/src/frame_c/v4/codegen/backends/rust.rs` | Rust code emitter |
-| `framec/src/frame_c/v4/pipeline/compiler.rs` | Main compilation pipeline |
+| `framec/src/frame_c/v4/segmenter/` | Stage 0: Source segmentation |
+| `framec/src/frame_c/v4/lexer/` | Stage 1: Tokenization |
+| `framec/src/frame_c/v4/pipeline_parser/` | Stage 2: Parse tokens into SystemAst |
+| `framec/src/frame_c/v4/arcanum.rs` | Stage 3: Build symbol table from AST |
+| `framec/src/frame_c/v4/frame_validator.rs` | Stage 4: Validate AST (E4xx errors) |
+| `framec/src/frame_c/v4/codegen/system_codegen.rs` | Stage 5: Generate CodegenNode IR |
+| `framec/src/frame_c/v4/codegen/backends/python.rs` | Stage 6: Python emitter |
+| `framec/src/frame_c/v4/codegen/backends/typescript.rs` | Stage 6: TypeScript emitter |
+| `framec/src/frame_c/v4/codegen/backends/rust.rs` | Stage 6: Rust emitter |
+| `framec/src/frame_c/v4/codegen/backends/c.rs` | Stage 6: C emitter |
+| `framec/src/frame_c/v4/codegen/backends/cpp.rs` | Stage 6: C++ emitter |
+| `framec/src/frame_c/v4/codegen/backends/java.rs` | Stage 6: Java emitter |
+| `framec/src/frame_c/v4/codegen/backends/csharp.rs` | Stage 6: C# emitter |
+| `framec/src/frame_c/v4/assembler/` | Stage 7: Output assembly |
+| `framec/src/frame_c/v4/pipeline/compiler.rs` | Orchestrates all stages |
+| `framec/src/frame_c/v4/frame_parser.rs` | Legacy parser (used by `--validation-only` mode) |
 
 ### V4 Syntax Example
 ```frame
@@ -666,19 +681,39 @@ Scope and expectations
 - **Generated TypeScript**: `framec_tests/generated/typescript/`
 - **Test Runner**: `framec_tests/runner/frame_test_runner.py`
 
-### Source Code Structure
+### Source Code Structure (V4)
 ```
-framec/src/frame_c/
-├── scanner.rs           # Tokenization
-├── parser.rs           # Recursive descent parser
-├── ast.rs              # AST node definitions
-├── compiler.rs         # Main compilation orchestration
-├── symbol_table.rs     # Symbol resolution
-├── visitors/           # Code generators
-│   ├── python_visitor_v2.rs
-│   ├── typescript_visitor.rs
-│   └── graphviz_visitor.rs
-└── utils.rs           # Utility functions
+framec/src/frame_c/v4/
+├── segmenter/              # Stage 0: Source segmentation
+│   └── mod.rs
+├── lexer/                  # Stage 1: Tokenization
+│   └── mod.rs
+├── pipeline_parser/        # Stage 2: Token → SystemAst
+│   └── mod.rs
+├── arcanum.rs              # Stage 3: Symbol table builder
+├── frame_validator.rs      # Stage 4: Validation
+├── codegen/                # Stage 5-6: Code generation
+│   ├── system_codegen.rs   # SystemAst → CodegenNode IR
+│   ├── backend.rs          # Backend trait + registry
+│   └── backends/           # Language-specific emitters
+│       ├── python.rs
+│       ├── typescript.rs
+│       ├── rust.rs
+│       ├── c.rs
+│       ├── cpp.rs
+│       ├── csharp.rs
+│       └── java.rs
+├── assembler/              # Stage 7: Output assembly
+│   └── mod.rs
+├── pipeline/               # Pipeline orchestration
+│   ├── compiler.rs         # Main entry point
+│   └── config.rs           # Pipeline configuration
+├── frame_ast.rs            # AST node definitions
+├── frame_parser.rs         # Legacy parser (validation-only mode)
+├── frame_statement_parser.rs # Frame statement expansion
+├── native_region_scanner/  # Native code scanning
+│   └── unified.rs
+└── mod.rs                  # Module declarations + utilities
 ```
 
 ### Shared Runtime Packages

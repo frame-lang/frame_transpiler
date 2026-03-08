@@ -50,7 +50,7 @@ impl LanguageBackend for PythonBackend {
                 }
             }
 
-            CodegenNode::Class { name, fields, methods, base_classes, is_abstract, .. } => {
+            CodegenNode::Class { name, fields, methods, base_classes, is_abstract: _, .. } => {
                 let mut result = String::new();
 
                 // Class declaration
@@ -104,7 +104,7 @@ impl LanguageBackend for PythonBackend {
 
             // ===== Methods =====
 
-            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators } => {
+            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility: _, decorators } => {
                 let mut result = String::new();
 
                 // Decorators
@@ -212,7 +212,7 @@ impl LanguageBackend for PythonBackend {
 
             // ===== Statements =====
 
-            CodegenNode::VarDecl { name, type_annotation, init, is_const } => {
+            CodegenNode::VarDecl { name, type_annotation: _, init, is_const: _ } => {
                 let indent = ctx.get_indent();
                 if let Some(init_expr) = init {
                     let init_str = self.emit(init_expr, ctx);

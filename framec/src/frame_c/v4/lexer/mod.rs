@@ -152,8 +152,6 @@ pub struct Lexer<'a> {
     end: usize,           // end of system body
     native_end: usize,    // end of current native block (NativeAware mode only)
     mode: LexerMode,
-    #[allow(dead_code)]
-    lang: TargetLanguage,
     skipper: Box<dyn SyntaxSkipper>,
     pending: VecDeque<Spanned>,
 }
@@ -172,7 +170,6 @@ impl<'a> Lexer<'a> {
             end: body_span.end,
             native_end: 0,
             mode: LexerMode::Structural,
-            lang,
             skipper,
             pending: VecDeque::new(),
         }
@@ -1152,16 +1149,6 @@ impl<'a> Lexer<'a> {
             key
         } else {
             String::new()
-        }
-    }
-
-    /// Advance cursor to end of current line (consuming any trailing content).
-    fn advance_to_line_end(&mut self, end: usize) {
-        let line_end = self.skipper.find_line_end(self.source, self.cursor, end);
-        self.cursor = line_end;
-        // Skip newline character
-        if self.cursor < end && self.source[self.cursor] == b'\n' {
-            self.cursor += 1;
         }
     }
 

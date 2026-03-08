@@ -151,7 +151,7 @@ impl StructuralPass {
         if let Some(machine) = &system.machine {
             let mut seen = std::collections::HashMap::new();
             for state in &machine.states {
-                if let Some(first_span) = seen.get(&state.name) {
+                if let Some(_first_span) = seen.get(&state.name) {
                     issues.push(
                         ValidationIssue::error(
                             "E116",

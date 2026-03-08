@@ -75,9 +75,10 @@ system SystemName {
 - For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
-- **Version**: v0.96.0 (branch `v4_pure`)
+- **Version**: v0.96.10 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
-- **V4 Test Status**: Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
+- **V4 Test Status**: Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
+- **Unit Tests**: 208 pass, 0 fail, 2 ignored — zero warnings
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 
@@ -88,11 +89,11 @@ system SystemName {
 📖 **READ**: [`framepiler_test_env/tests/README.md`](framepiler_test_env/tests/README.md) - Complete test documentation
 
 **Test Counts:**
-- Python: 144 tests (.fpy)
-- TypeScript: 126 tests (.fts)
-- Rust: 130 tests (.frs)
-- C: 139 tests (.fc)
-- **Total: 539 test files**
+- Python: 146 tests (.fpy)
+- TypeScript: 128 tests (.fts)
+- Rust: 132 tests (.frs)
+- C: 141 tests (.fc)
+- **Total: 547 test files**
 
 **Test Output Directories:**
 - `framepiler_test_env/output/python/tests/` - Python generated output
@@ -103,7 +104,7 @@ system SystemName {
 ### V4 Test Runner (UNIFIED)
 ```bash
 cd framepiler_test_env/tests
-./run_tests.sh              # Run ALL tests (144 py + 126 ts + 130 rs + 139 c)
+./run_tests.sh              # Run ALL tests (146 py + 128 ts + 132 rs + 141 c)
 ./run_tests.sh --python     # Run only Python
 ./run_tests.sh --category primary  # Run only primary category
 ./run_tests.sh --help       # Show all options
@@ -174,7 +175,7 @@ Output: Complete target language file
 - `framec/src/frame_c/v4/arcanum.rs` - Stage 3: symbol table
 - `framec/src/frame_c/v4/frame_validator.rs` - Stage 4: validation
 - `framec/src/frame_c/v4/codegen/system_codegen.rs` - Stage 5: CodegenNode IR
-- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust,c}.rs` - Stage 6: emit code
+- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust,c,cpp,csharp,java}.rs` - Stage 6: emit code
 - `framec/src/frame_c/v4/assembler/` - Stage 7: output assembly
 - `framec/src/frame_c/v4/pipeline/compiler.rs` - Orchestrates all stages
 

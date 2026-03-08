@@ -3,12 +3,14 @@ use crate::frame_c::v4::native_region_scanner::RegionSpan;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MirItem {
     // Transition with full argument buckets
-    // Syntax (Frame): (exit_args)? -> (enter_args)? $State(state_params?)
+    // Syntax (Frame): (exit_args)? -> (enter_args)? label? $State(state_params?)
     Transition {
         target: String,
         exit_args: Vec<String>,
         enter_args: Vec<String>,
         state_args: Vec<String>,
+        /// Optional user-provided label (e.g., -> "Path A" $State)
+        label: Option<String>,
         span: RegionSpan,
     },
     Forward { span: RegionSpan },

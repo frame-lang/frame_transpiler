@@ -6,7 +6,6 @@ use super::outline_scanner::OutlineScanner;
 use super::outline_scanner::OutlineItem;
 use super::import_scanner::{ImportScanner, ImportScanResult};
 use super::import_scanner::python::ImportScannerPy;
-use super::import_scanner::typescript::ImportScannerTs;
 use super::import_scanner::csharp::ImportScannerCs;
 use super::import_scanner::c::ImportScannerC;
 use super::import_scanner::cpp::ImportScannerCpp;
