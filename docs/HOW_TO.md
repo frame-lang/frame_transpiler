@@ -1,0 +1,1239 @@
+# Frame Transpiler - Complete Development Guide
+
+**🚨 MANDATORY READING FOR ALL AI SESSIONS 🚨**
+
+This document captures every process, tool, and workflow used in the Frame Transpiler project. All AI assistants working on this project MUST read and follow these guidelines.
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [V4 Architecture (Current)](#v4-architecture-current)
+3. [V3 Architecture (Legacy)](#v3-architecture-legacy---reference-only)
+4. [Development Environment](#development-environment)
+5. [Testing Framework](#testing-framework)
+6. [Version Management](#version-management)
+7. [Code Patterns](#code-patterns)
+8. [Bug Fixing Process](#bug-fixing-process)
+9. [File Organization](#file-organization)
+10. [Common Commands](#common-commands)
+11. [Critical Rules](#critical-rules)
+
+## Project Overview
+
+Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, Rust, etc.).
+
+### Current Status
+- **Version**: v0.96.0
+- **Branch**: `v4_pure` (V4 pipeline development)
+- **Active Work**: V4 pure preprocessor architecture
+- **Active Languages**: Python 3, TypeScript, Rust, C
+- **V4 Test Status**: Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
+- **Shared Test Environment**: Active - using `framepiler_test_env`
+- **LLVM**: on indefinite hold
+
+### V4 vs V3
+- **V4** (CURRENT - active development): Pure preprocessor for `@@system` blocks. Native code passes through verbatim.
+- **V3** (LEGACY - reference only): Full module compilation with MIR assembly and splicer. No longer under active development.
+
+## V4 Architecture (Current)
+
+V4 is a **pure preprocessor** for `@@system` blocks. All native code passes through verbatim.
+
+### "Oceans Model"
+- **Native code is the ocean** - imports, helper functions, test harnesses pass through unchanged
+- **`@@system` blocks are islands** - expanded to target language classes
+- Frame statements inside handlers (`->`, `=> $^`, `push$`, `pop$`, `$.var`) are expanded to method calls
+
+### V4 Pipeline (8 Stages)
+```
+Source file (.fpy/.fts/.frs/.fc) with @@target and @@system blocks
+    ↓
+Stage 0: Segmenter (segmenter/)
+    - Split source into Native / Pragma / System segments
+    - Identify @@target, @@persist pragmas
+    - Locate @@system block boundaries
+    ↓
+Stage 1: Lexer (lexer/)
+    - Tokenize each system body into Frame token stream
+    ↓
+Stage 2: Pipeline Parser (pipeline_parser/)
+    - Parse tokens into SystemAst
+    - Builds state machine, interface, domain, actions, operations
+    ↓
+Stage 3: Arcanum (arcanum.rs)
+    - Build symbol table from SystemAst
+    - Track states, handlers, interface methods, domain vars
+    ↓
+Stage 4: Validator (frame_validator.rs)
+    - Validate transitions target existing states
+    - Check state parameter arity
+    - Verify section ordering
+    ↓
+Stage 5: Codegen (codegen/system_codegen.rs)
+    - Generate CodegenNode IR from SystemAst + Arcanum
+    - Extract handler bodies via native region scanner
+    - Expand Frame statements (-> becomes _transition())
+    ↓
+Stage 6: Backend Emitter (codegen/backends/*.rs)
+    - Convert CodegenNode IR to target language text
+    - Language-specific type mapping and formatting
+    ↓
+Stage 7: Assembler (assembler/)
+    - Stitch native prolog + generated class + native epilog
+    - Expand tagged instantiations
+    - Produce final output file
+```
+
+### V4 Key Files
+| File | Purpose |
+|------|---------|
+| `framec/src/frame_c/v4/segmenter/` | Stage 0: Source segmentation |
+| `framec/src/frame_c/v4/lexer/` | Stage 1: Tokenization |
+| `framec/src/frame_c/v4/pipeline_parser/` | Stage 2: Parse tokens into SystemAst |
+| `framec/src/frame_c/v4/arcanum.rs` | Stage 3: Build symbol table from AST |
+| `framec/src/frame_c/v4/frame_validator.rs` | Stage 4: Validate AST (E4xx errors) |
+| `framec/src/frame_c/v4/codegen/system_codegen.rs` | Stage 5: Generate CodegenNode IR |
+| `framec/src/frame_c/v4/codegen/backends/python.rs` | Stage 6: Python emitter |
+| `framec/src/frame_c/v4/codegen/backends/typescript.rs` | Stage 6: TypeScript emitter |
+| `framec/src/frame_c/v4/codegen/backends/rust.rs` | Stage 6: Rust emitter |
+| `framec/src/frame_c/v4/codegen/backends/c.rs` | Stage 6: C emitter |
+| `framec/src/frame_c/v4/codegen/backends/cpp.rs` | Stage 6: C++ emitter |
+| `framec/src/frame_c/v4/codegen/backends/java.rs` | Stage 6: Java emitter |
+| `framec/src/frame_c/v4/codegen/backends/csharp.rs` | Stage 6: C# emitter |
+| `framec/src/frame_c/v4/assembler/` | Stage 7: Output assembly |
+| `framec/src/frame_c/v4/pipeline/compiler.rs` | Orchestrates all stages |
+| `framec/src/frame_c/v4/frame_parser.rs` | Legacy parser (used by `--validation-only` mode) |
+
+### V4 Syntax Example
+```frame
+@@target python_3
+
+import math  # Native import - passed through
+
+def helper(x):  # Native function - passed through
+    return x * 2
+
+@@system Calculator {
+    interface:
+        compute(value: int): int
+
+    machine:
+        $Ready {
+            compute(value: int): int {
+                # Native code in handler
+                result = helper(value)
+                print(f"Result: {result}")
+                return result
+            }
+        }
+
+    domain:
+        var total = 0
+}
+
+def main():  # Native test harness - passed through
+    c = Calculator()
+    print(c.compute(5))
+
+if __name__ == '__main__':
+    main()
+```
+
+### V4 Testing
+```bash
+# Run all V4 tests
+cd framepiler_test_env/tests
+./run_tests.sh
+
+# Output location
+ls /tmp/v4_prt_tests/  # Generated .py, .ts, .rs files
+
+# Manual single-file test
+./target/release/framec path/to/test.frm -l python_3 > out.py
+python3 out.py
+```
+
+## V3 Architecture (DEPRECATED)
+
+> **⚠️ V3 is deprecated.** All new development uses the V4 pipeline with `@@system` syntax.
+> V3 documentation has been archived under `docs/framepiler_design/_architecture_v3/` (note the `_` prefix).
+> Do not read these files unless explicitly instructed.
+
+## Development Environment
+
+### Required Tools
+- **Rust**: Latest stable version (builds all crates)
+- **Python 3**: For test execution, validation, and build helpers  
+  - Test runner: `framec_tests/runner/frame_test_runner.py`  
+  - Source‑map validators and integration scripts under `tools/`  
+  - Release + bootstrap tools:
+    - `tools/publish_framec_release.py` (publishes `framec` to `boot/framec/framec` and the shared test env)
+    - `tools/gen_v3_machines_rs.py` (regenerates Rust sources from Stage‑14+ FRM machines using the bootstrap compiler)
+- **Node.js + TypeScript**: For TypeScript target validation
+- **Git**: Version control
+
+### Build Commands
+```bash
+# Debug build
+cargo build
+
+# Release build
+cargo build --release
+
+# Clean rebuild
+cargo clean && cargo build --release
+
+# Update dependencies
+cargo update
+```
+
+## Testing Framework
+
+📖 **For detailed test infrastructure documentation, see [Test Infrastructure Guide](./test_infrastructure.md)**
+
+### Test Organization
+
+**V4 Tests (Current Development):**
+```
+framepiler_test_env/tests/common/primary/
+├── 01_minimal.fpy/.fts/.frs    # Minimal system, no handlers
+├── 02_interface.fpy/.fts/.frs  # Interface methods with return values
+├── 03_transition.fpy/.fts/.frs # State transitions
+├── ...                          # 36 tests total
+├── 38_context_data.fpy/.fts/.frs
+└── run_tests.sh                 # Test runner script
+```
+
+**Run V4 tests:**
+```bash
+cd framepiler_test_env/tests/common/primary
+./run_tests.sh              # All 36 tests × 3 languages
+# Output: framepiler_test_env/output/{python,typescript,rust}/tests/
+```
+
+**V3 Tests (LEGACY - Shared Environment):**
+```
+framepiler_test_env/common/test-frames/v3/
+├── data_types/positive/        # Data type operations and collections
+├── imports/positive/           # Import statement validation
+├── operators/positive/         # Arithmetic, comparison, logical operators
+├── scoping/positive/           # Variable and function scoping
+├── systems/positive/           # State machine systems and transitions
+├── capabilities/               # System parameters, state parameters
+├── persistence/positive/       # State persistence and snapshots
+└── async/positive/             # Async/await functionality
+```
+> **NOTE**: V3 tests are legacy. New tests should be added to V4 (`v4/prt/`).
+
+**Legacy Local Structure (Secondary):**
+```
+framec_tests/
+├── common/tests/           # Legacy shared tests (opt-in)
+├── language_specific/
+│   ├── python/
+│   ├── typescript/
+│   ├── csharp/
+│   ├── c/
+│   ├── cpp/
+│   ├── java/
+│   └── rust/
+│       ├── v3_prolog/{positive,negative}/
+│       ├── v3_imports/{positive,negative}/
+│       ├── v3_outline/{positive,negative}/
+│       └── v3_demos/
+├── generated/{python,typescript}/
+├── runner/                 # Test runner (frame_test_runner.py)
+└── configs/
+```
+
+**Environment Selection:**
+- Set `FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env` to use shared environment
+- Unset or leave empty to use local `framec_tests` structure
+- Shared environment is preferred for new development
+
+### Shared Environment Workflow
+
+The shared test environment (`framepiler_test_env`) is the preferred approach for isolated transpiler and debugger team development.
+
+**Setup:**
+```bash
+# Clone and set up shared environment
+git clone <framepiler_test_env_repo> /path/to/framepiler_test_env
+
+# Export environment variable for persistent use
+export FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env
+
+# Or set for individual commands
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_data_types
+```
+
+**Directory Structure:**
+- Test fixtures: `common/test-frames/v3/{category}/positive/*.frm`
+- Generated output: Uses temp directories per test run
+- Documentation: `common/test-frames/INDEX.json`, `MIGRATION_INFO.md`
+
+**Benefits:**
+- Isolated from main transpiler repository changes
+- Consistent test environment across team members  
+- No interference with ongoing transpiler development
+- Simplified test fixture organization
+- Cross-language test parity tracking
+
+### Running Tests
+
+Build vs Validate/Run semantics
+- Build: transpile fixtures only. The runner calls framec and writes spliced/demo output.
+- Validate/Run: actually execute generated programs (where supported) or perform native parsing (strict mode). Execution is opt‑in and provided via small per‑language harnesses for facade strict tests.
+
+Facade strict execution (v3_facade_smoke)
+- TypeScript: requires native parser feature `native-ts` (SWC) to be compiled and `--validate-native`; runner extracts wrapper calls, builds a tiny TS program with no‑op wrappers, compiles (tsc) and runs (node).
+- Python: runner extracts wrapper calls and executes them with no‑op wrappers in `if __name__ == '__main__'`.
+- Rust: runner extracts wrapper calls, rewrites `__frame_transition("State", ...)` to `__frame_transition("State")`, compiles with `rustc`, and runs.
+- C/C++: runner extracts wrapper calls, compiles a TU with no‑op wrappers using `clang`/`gcc` or `clang++`/`g++`, and runs.
+- Java/C#: runner attempts to compile/run a tiny main (javac/java, csc/mcs+mono). If toolchain is missing, execution is cleanly skipped for those fixtures.
+
+Enable strict native parsing (Stage 07 facades)
+- Strict/native parsing is runtime-optional and feature-gated. Build with the desired adapters and run the facade smoke tests; the runner will add `--validate-native` automatically for `v3_facade_smoke`.
+  - TypeScript (SWC): `cargo build --release --features native-ts`
+  - Rust (syn): `cargo build --release --features native-rs`
+  - C (Tree-sitter): `cargo build --release --features native-c`
+  - C++ (Tree-sitter): `cargo build --release --features native-cpp`
+  - Java (Tree-sitter): `cargo build --release --features native-java`
+  - C# (Tree-sitter): `cargo build --release --features native-csharp`
+  - Python (Tree-sitter): `cargo build --release --features native-py`
+- Example run (all languages; facade strict):
+  `python3 framec_tests/runner/frame_test_runner.py --languages python typescript csharp c cpp java rust --categories v3_facade_smoke --framec ./target/release/framec -v`
+
+
+**V3 Rust Test Harness (Recommended - Shared Environment):**
+```bash
+# Test specific categories using Rust harness with shared environment
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- python v3_data_types
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- typescript v3_imports  
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- rust v3_operators
+
+# Execution mode (runs transpiled code)
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --bin v3_rs_test_runner -- --exec-smoke typescript v3_systems
+
+# Generate test reports (JSON, JUnit XML, TAP, Human-readable)
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env cargo run --release --bin v3_rs_test_runner -- \
+  python v3_core ./target/release/framec \
+  --report-format junit --report-file test-results.xml
+
+# Human-readable report to console
+FRAMEPILER_TEST_ENV=/path/to/framepiler_test_env ./target/release/v3_rs_test_runner \
+  typescript v3_systems ./target/release/framec --report-format human
+```
+
+**Docker Test Infrastructure (Pure Rust - Shared Environment):**
+```bash
+# Build the Docker test runner (one-time setup)
+cd framepiler_test_env/framepiler/docker
+./build.sh
+
+# Run tests in Docker containers
+./run_tests.sh python v3_data_types
+./run_tests.sh typescript v3_operators --verbose
+./run_tests.sh rust v3_systems --json
+
+# Direct binary usage
+./target/release/frame-docker-runner python_3 v3_data_types --framec ../../../target/release/framec
+./target/release/frame-docker-runner typescript v3_imports --json --verbose
+
+# Docker images required (build with build_images.sh):
+# - frame-transpiler-python:latest
+# - frame-transpiler-typescript:latest  
+# - frame-transpiler-rust:latest
+```
+
+**Legacy Python Runner (Still Supported):**
+```bash
+# Prolog/Imports/Outline/Demos for all languages
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript csharp c cpp java rust \
+  --categories v3_prolog v3_imports v3_outline v3_demos \
+  --framec ./target/release/framec --transpile-only -v
+
+# LLVM on hold
+> LLVM backend work is paused. Do not run or maintain LLVM smoke tests. The backend and runtime remain in the tree but are not an active target for development.
+
+# Language-specific categories (legacy/common still supported via --include-common)
+python3 framec_tests/runner/frame_test_runner.py --languages python --categories v3_outline --framec ./target/release/framec --transpile-only
+
+# Verbose output with batch TypeScript compilation
+python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --verbose
+
+# Transpile-only mode (no execution)
+python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --transpile-only
+
+# Validator-verified runs (default)
+# The runner validates every fixture after transpilation using framec's validator.
+# To adjust or disable validation:
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript \
+  --framec ./target/release/framec \
+  --validation-level structural \
+  --validation-format human
+
+# Disable validation explicitly if needed
+python3 framec_tests/runner/frame_test_runner.py --no-validate --languages python --framec ./target/release/framec
+```
+
+**Single File Testing (transpile):**
+```bash
+# Python target
+./target/release/framec -l python_3 path/to/test.frm
+
+# TypeScript target
+./target/release/framec -l typescript path/to/test.frm
+```
+
+### Project Builds (manifest-driven)
+
+- `framec compile-project -l <lang> -o <out_dir> [--recursive]`: compile all `@target` modules under a directory (or `paths.modules` from `frame.toml`) into a stable layout under `<out_dir>/build/<lang>/...`, mirroring the source tree. Python/TypeScript runtimes are copied once per project into the lang-specific build root.
+- `framec project -l <lang> -o <out_dir>`: wrapper that locates `frame.toml` (or `.framerc.toml`) in the cwd/parents and delegates to `compile-project` using the configured module/source paths. Falls back to the current directory when no manifest is found.
+- Project requirements:
+  - `frame.toml` must specify `[project.entry]`.
+  - `paths.modules` or `build.source_dirs` must exist; missing paths fail fast with clear errors.
+  - Single-target projects only: all modules must declare `@target` matching the requested target; mixed targets error.
+
+### Rust-Based V3 Test Harness (`framec test`, Stage 18/19)
+
+In addition to the Python runner, there is a Rust-based V3 test harness
+exposed via the `framec` CLI. It exercises validation and execution for
+language-specific V3 categories using the shared harness library
+(`framec::frame_c::v3::test_harness_rs`) without going through
+`framec_tests/runner/frame_test_runner.py`. Python remains the reference
+for other suites, but for V3 categories the Rust path is now a
+first-class option.
+
+CLI entry:
+- `framec` binary (built from `framec/src/main.rs` + `framec/src/frame_c/cli.rs`).
+
+Usage (validation-only):
+- General form:
+  ```bash
+  cargo run -p framec --bin framec -- \
+    test --language <python_3|typescript|rust> --category <v3_category>
+  ```
+- Examples:
+  ```bash
+  # Validate Python v3_core fixtures
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_core
+
+  # Validate TypeScript v3_systems fixtures
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_systems
+
+  # Validate Rust v3_persistence fixtures
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_persistence
+  ```
+
+Compare-with-Python mode (validation):
+- `framec test` can run the Python runner for the same slice and compare
+  outcomes:
+  ```bash
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_core --compare-python
+
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_control_flow --compare-python
+
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_systems --compare-python
+  ```
+- Semantics:
+  - The Rust harness discovers `.frm` files under
+    `framec_tests/language_specific/<language>/<category>/` (with
+    `<language>` normalized to `python`, `typescript`, or `rust`).
+  - For each file, it calls:
+    ```bash
+    framec compile --language <language> --validation-only <file>
+    ```
+  - Fixtures without `@expect:` metadata are treated as **positive**:
+    validation must succeed for the test to pass.
+  - Fixtures with `@expect:` metadata are treated as **negative**:
+    validation must fail and all listed error codes must appear in the
+    validation output (`# @expect: E301`, `// @expect: E200 E300`, etc.).
+  - With `--compare-python`, the CLI also runs the Python runner in
+    `--transpile-only --no-run` mode for the same slice and reports
+    whether both paths succeeded.
+
+Exec-smoke mode:
+- For V3 exec-smoke fixtures (`v3_exec_smoke`), `framec test` can run
+  the execution harness instead of validation:
+  ```bash
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_exec_smoke --exec-smoke
+
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_exec_smoke --exec-smoke
+
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_exec_smoke --exec-smoke
+  ```
+- Semantics:
+  - Py/TS/Rust exec-smoke harnesses compile fixtures with `FRAME_EMIT_EXEC=1`
+    and run the resulting programs, applying the same marker checks as
+    the Python runner (`TRANSITION:`, `FORWARD:PARENT`,
+    `STACK:PUSH`/`STACK:POP`, etc.).
+
+Exec-curated mode:
+- For curated exec categories (`v3_core`, `v3_control_flow`, `v3_systems`,
+  `v3_persistence`), `framec test` can run the curated exec harness:
+  ```bash
+  cargo run -p framec --bin framec -- \
+    test --language python_3 --category v3_core --exec-curated
+
+  cargo run -p framec --bin framec -- \
+    test --language typescript --category v3_core --exec-curated
+
+  cargo run -p framec --bin framec -- \
+    test --language rust --category v3_core --exec-curated
+  ```
+- Semantics:
+  - Uses FRAME_EMIT_EXEC wrappers (for core/control_flow/systems) or the
+    module’s own `main()` for persistence.
+  - Interprets `@run-expect` and `@run-exact` metadata in fixtures to
+    decide pass/fail; fixtures without run expectations are SKIPped but
+    counted as passed (aligned with the Python runner).
+
+Scope (as of v0.86.69):
+- Validation + compare-python:
+  - V3 categories:
+    - `v3_core`, `v3_control_flow`, `v3_systems`,
+      `v3_persistence`, `v3_systems_runtime` for
+      python/typescript/rust.
+- Exec-smoke:
+  - `v3_exec_smoke` for python/typescript/rust.
+- Exec-curated:
+  - `v3_core` for python/typescript/rust (other curated categories are
+    available via `v3_rs_test_runner` and will be folded into `framec test`
+    over time).
+
+Rust-native snapshot shape:
+- Binary: `v3_rs_snapshot_shape` (built with `cargo build -p framec`)
+- Usage:
+  ```bash
+  cargo run -p framec --bin v3_rs_snapshot_shape
+  ```
+- Behavior:
+  - Constructs the canonical `SystemSnapshot` JSON for a TrafficLight system
+    (as described in the Stage 15 doc).
+  - Uses `frame_persistence_rs::SystemSnapshot` to validate Rust-side
+    parse/encode/compare semantics.
+  - Invokes the Python and TypeScript persistence helpers via subprocesses
+    (`frame_persistence_py`, `frame_persistence_ts`) and asserts that all
+    three targets agree on the DTO shape. This is the Rust-native
+    counterpart to `tools/test_cross_language_snapshot_shape.py`.
+
+# GraphViz target
+./target/release/framec -l graphviz path/to/test.frm
+```
+
+### Test Categories
+
+**Language-Specific Tests (primary):**
+- **language_specific_python**: Python-specific features and external APIs
+- **language_specific_typescript**: TypeScript-specific features and external APIs
+
+**External API Test Structure:**
+- Language-specific external API tests demonstrate proper Frame integration with:
+  - File I/O operations (Python: `os.path`, `open()`; TypeScript: `fs` module)
+  - Process control (Python: `subprocess`; TypeScript: `child_process`)
+  - Network operations (Python: `socket`; TypeScript: `net`)
+  - Platform-specific libraries and frameworks
+
+## Version Management
+
+### Single Source of Truth
+- Root `Cargo.toml` contains `[workspace.package]` and is the authoritative version.
+- Member crates (`framec`, `frame_build`, `runtime/llvm`) inherit that value via `version.workspace = true`; no per-crate edits are required.
+- Build-time constants use `env!("FRAME_VERSION")`, which the build script maps directly to `CARGO_PKG_VERSION`.
+
+### Semantic Versioning Rules
+- **Bug fixes**: Increment patch version (0.85.1 → 0.85.2)
+- **Minor features**: Increment minor version (0.85.x → 0.86.0)
+- **Major changes**: Only the project owner declares major version bumps
+
+### Version Update Process
+```bash
+# 1. Edit the workspace version in Cargo.toml
+# 2. Sync auxiliary metadata (version.toml)
+./scripts/sync-versions.sh
+
+# 3. Rebuild to pick up the new version
+cargo build --release -p framec
+
+# 4. Publish the release binary for bootstrapping + shared env
+python3 tools/publish_framec_release.py
+
+# 5. Verify version in output
+./target/release/framec --version
+./target/release/framec -l python_3 test.frm | head -3  # Check header comment
+```
+
+## Executable V3 (Python/TypeScript)
+
+For quick end‑to‑end verification, the V3 demo can emit a minimal, standalone program for Python and TypeScript that executes the spliced handler bodies with real transition/forward/stack glue.
+
+- Emit and run a standalone Python script:
+```bash
+FRAME_EMIT_EXEC=1 ./target/release/framec compile -l python_3 framec_tests/language_specific/python/v3_exec_smoke/positive/transition_basic.frm > out.py
+python3 out.py
+```
+
+- Emit and run a standalone TypeScript program:
+```bash
+FRAME_EMIT_EXEC=1 ./target/release/framec compile -l typescript framec_tests/language_specific/typescript/v3_exec_smoke/positive/transition_basic.frm > out.ts
+tsc out.ts && node out.js
+```
+
+Notes:
+- This mode inlines a tiny runtime shell (FrameEvent/FrameCompartment and a minimal machine) and calls a generated handler once. It is intended for smoke‑level verification of production glue and does not replace full codegen.
+- Use `FRAME_EMIT_BODY_ONLY=1` to emit only spliced handler body text (useful for harness execution or debugging).
+
+## Executable V3 (All Languages — Smoke)
+
+The `v3_exec_smoke` category runs tiny, standalone programs to verify that the spliced handler bodies compile and execute end‑to‑end. This is intentionally minimal and hermetic and does not replace full codegen.
+
+- Run exec smoke for all supported languages:
+```bash
+python3 framec_tests/runner/frame_test_runner.py \
+  --languages python typescript csharp c cpp java rust \
+  --categories v3_exec_smoke \
+  --framec ./target/release/framec -v
+```
+
+What happens per language
+- Python/TypeScript: framec emits a minimal executable wrapper (FRAME_EMIT_EXEC) with real production glue; the runner executes the resulting program (python3 / node+tsc).
+- Rust/C/C++/Java/C#: framec emits a minimal main() wrapper and splices bodies; the runner compiles/executes via system toolchains when present:
+  - C/C++: clang/gcc or clang++/g++ (skips cleanly if unavailable)
+  - Java: javac + java (skips cleanly if missing)
+  - C#: csc or mcs (+mono) (skips run if only mcs without mono)
+
+Scope and expectations
+- These are “smoke” checks: they verify compilation and that the tiny main() runs. Non‑Py/TS expanders currently emit comment‑only markers for Frame statements; code executes successfully but doesn’t perform runtime behavior. Python/TS use real glue.
+- Keep exec runs limited to v3_exec_smoke to avoid toolchain noise in broader suites. Transpile‑only + validation remain the default for all other categories.
+
+## Code Patterns
+
+### Going Native (Bodies + Frame Statements)
+- Actions/operations: native‑only; use `system.return` for return assignment.
+- Event handlers: native bodies with SOL‑anchored Frame statements interleaved (MixedBody); MIR glue emits deterministic returns and transitions.
+- No inline `#[target: …]` annotations in source (scanner errors); per-target segmentation handles native islands.
+
+### Validation
+- Structural rules include transitions_terminal: terminal Frame statements must be last in a handler body.
+- No built-in native policy enforcement in V3: native bodies are owned by the target language. Optional native facades validate wrapper lines only when enabled.
+- Negative patterns exist for malformed Frame statement heads/args and outline errors.
+
+### Validation & Policies
+- Runner invokes V3 validation by default (structural); `--validation-level` is tolerated for compatibility.
+- Negative fixtures (directories named `negative/`) are expected failures and counted as passing when validation/transpile fails.
+
+```rust
+// Two-pass parsing architecture
+// Pass 1: Build symbol table (is_building_symbol_table = true)
+// Pass 2: Semantic analysis (is_building_symbol_table = false)
+```
+
+## Bug Fixing Process
+
+### 1. Reproduction
+- Create minimal test case in `framec_tests/common/tests/regression/`
+- Use descriptive naming: `test_bug[NUMBER]_[description].frm`
+- Document expected vs actual behavior
+
+### 2. Root Cause Analysis
+- Use `FRAME_TRANSPILER_DEBUG=1` for verbose debugging
+- Check scanner vs parser issues
+- Verify token synchronization in parser loops
+
+### 3. Implementation
+- Fix the core issue (never implement workarounds)
+- Update all affected visitors if AST changes
+- Maintain backward compatibility
+
+### 4. Validation
+- Ensure regression test passes
+- Run full test suite (must maintain 100% success rate)
+- Test across all target languages
+- Update version number appropriately
+
+### 5. Documentation
+- Update relevant documentation
+- Add comments explaining the fix
+- Update CLAUDE.md if process changes
+
+## File Organization
+
+### Critical Files to Never Edit
+- Generated test files in `framec_tests/generated/`
+- Legacy documentation (keep for reference only)
+- Main project test files (use proper test framework)
+
+### Test File Locations
+- **Frame Specifications**: `framec_tests/common/tests/[category]/`
+- **Generated Python**: `framec_tests/generated/python/`
+- **Generated TypeScript**: `framec_tests/generated/typescript/`
+- **Test Runner**: `framec_tests/runner/frame_test_runner.py`
+
+### Source Code Structure (V4)
+```
+framec/src/frame_c/v4/
+├── segmenter/              # Stage 0: Source segmentation
+│   └── mod.rs
+├── lexer/                  # Stage 1: Tokenization
+│   └── mod.rs
+├── pipeline_parser/        # Stage 2: Token → SystemAst
+│   └── mod.rs
+├── arcanum.rs              # Stage 3: Symbol table builder
+├── frame_validator.rs      # Stage 4: Validation
+├── codegen/                # Stage 5-6: Code generation
+│   ├── system_codegen.rs   # SystemAst → CodegenNode IR
+│   ├── backend.rs          # Backend trait + registry
+│   └── backends/           # Language-specific emitters
+│       ├── python.rs
+│       ├── typescript.rs
+│       ├── rust.rs
+│       ├── c.rs
+│       ├── cpp.rs
+│       ├── csharp.rs
+│       └── java.rs
+├── assembler/              # Stage 7: Output assembly
+│   └── mod.rs
+├── pipeline/               # Pipeline orchestration
+│   ├── compiler.rs         # Main entry point
+│   └── config.rs           # Pipeline configuration
+├── frame_ast.rs            # AST node definitions
+├── frame_parser.rs         # Legacy parser (validation-only mode)
+├── frame_statement_parser.rs # Frame statement expansion
+├── native_region_scanner/  # Native code scanning
+│   └── unified.rs
+└── mod.rs                  # Module declarations + utilities
+```
+
+### Shared Runtime Packages
+- `frame_runtime_py/`: Python runtime primitives (`FrameEvent`, `FrameCompartment`, helpers). Generated Python files import this module; both the CLI and `frame_build` emit the package automatically alongside output artifacts (single-file builds embed a minimal fallback for convenience).
+- `frame_runtime_ts/`: TypeScript runtime bundle (`FrameRuntime`, `FrameCollections`, `FrameDict`, etc.). Multi-file TypeScript builds emit `import { … } from "./frame_runtime_ts"` statements, and the CLI/`frame_build` drop `frame_runtime_ts/index.ts` next to generated `.ts` files. Standalone runs still embed the runtime when `generate_runtime_classes` is enabled.
+
+## Common Commands
+
+### Command Line Help
+```bash
+# View all available command line options and parameters
+./target/release/framec --help
+
+# Get help for specific subcommands
+./target/release/framec build --help
+./target/release/framec init --help
+```
+
+**Important CLI Options:**
+- `-l, --language <LANG>`: Specify target language (python_3, typescript, graphviz, llvm). When a Frame file includes an `@target <lang>` declaration, the CLI uses that value automatically and will error if `-l` requests a different target.
+- `-m, --multifile`: Enable multi-file project compilation
+- `--debug-output`: Generate JSON with transpiled code and source map
+- `--validate-syntax`: Enable comprehensive syntax validation
+- `-V, --version`: Print version information
+- `framec fid import --config <FILE>`: Generate cached `.fid` (Frame Interface Definition) files from native modules (see below). Add `--allow-missing` if the importer should log but not fail when expected symbols are absent.
+
+#### FID Generator (`framec fid import`)
+
+See configuration docs: `docs/framelang_design/config/` (project `frame.toml` and FID settings), and the manifest format in `docs/framelang_design/frame_interface_definition/native_imports_and_fid.md`.
+
+Prerequisites for TypeScript targets:
+- Install Node toolchain and add devDependencies (pin versions in package.json):
+  - `npm i -D typedoc typescript @types/node`
+- The importer prefers a local binary (`npm exec typedoc`) when available. You can also override with `TYPEDOC_BIN=/path/to/typedoc`.
+
+Node toolchain example (recommended pins)
+
+```json
+{
+  "private": true,
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "typedoc": "^0.25.9",
+    "@types/node": "^20.12.7"
+  },
+  "scripts": {
+    "fid:import:node": "../../target/release/framec fid import --config fid_manifest.json"
+  }
+}
+```
+Place this under `examples/fid/node/` (already included in the repo). Then:
+
+```bash
+cd examples/fid/node
+npm ci
+npm run fid:import:node
+```
+
+This generates `.fid` files under `examples/fid/node/.frame/cache/fid/typescript/` and a `fid.lock.json` next to the manifest.
+
+Frame ships an opt-in command for converting native modules (TypeDoc JSON, Python introspection, etc.) into `.fid` headers. Specs keep their native import statements; the generator produces the metadata the compiler consumes. A config file lists one or more sources:
+
+```json
+{
+  "sources": [
+    {
+      "@target": "typescript",
+      "resources": [
+        {
+          "file": {
+            "uri": "node_modules/@types/node/dist/net.d.ts",
+            "modules": [ { "module": "net", "import": ["Socket.*"] } ]
+          }
+        }
+      ]
+    },
+    {
+      "@target": "python",
+      "resources": [
+        {
+          "file": {
+            "uri": "stdlib:asyncio",
+            "modules": [ { "module": "asyncio", "import": ["open_connection", "StreamReader.*", "StreamWriter.*"] } ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `@target`: which Frame backend will consume the declarations (selects the importer/tooling).
+- `resources`: list of source metadata entries. File resources list a `uri` and the native modules to include; selectors support wildcards like `Name.*`.
+
+Generated headers are cached under `.frame/cache/fid/<target>` next to the project that executed the command (e.g. `.frame/cache/fid/typescript/typescript__node__net.fid`). The compiler walks up the directory tree looking for those directories and also checks paths listed in `FRAME_FID_PATH` (use `{target}` as a placeholder to share one cache across targets). Delete a target directory or re-run `framec fid import` whenever the underlying runtime changes; otherwise the compiler will surface an error such as:
+
+```
+Native helper '<name>' is imported for this target but no declaration was loaded. Run `framec fid import` for the active target and retry.
+```
+
+Keep `.fid` files out of source control—they are build artefacts. Treat them like a virtualenv: regenerate after upgrading a dependency, add the cache path to `.gitignore`, and rely on the CLI to refresh it when needed.
+
+Example invocations (`framec fid import ...` is the canonical form):
+
+```bash
+# Generate .fid headers, failing on missing symbols
+cargo run -p framec -- fid import --config path/to/fid_manifest.json --force
+
+# Allow incomplete coverage (useful during incremental runtime work)
+cargo run -p framec -- fid import --config path/to/fid_manifest.json --force --allow-missing
+```
+
+CI Guidance: set `FRAME_DECL_GEN=check` (planned hook) to exercise the generator in “dry run” mode during builds and verify that cached fixtures stay current without writing files.
+
+### Development Workflow
+```bash
+# Start development session
+cd /Users/marktruluck/projects/frame_transpiler
+
+# Check current status
+git status
+./target/release/framec --version
+
+# Run quick test
+./target/release/framec -l python_3 test_file.frm
+
+# Full test validation
+python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec
+
+# Debug compilation
+FRAME_TRANSPILER_DEBUG=1 ./target/release/framec -l python_3 test_file.frm
+
+# Multi-file compilation
+./target/release/framec -m entry_file.frm -l python_3
+```
+
+### Debugging Commands
+```bash
+# Enable debug output
+export FRAME_TRANSPILER_DEBUG=1
+
+# AST output to file
+export FRAME_AST_OUTPUT=/tmp/ast.json
+
+# Scanner vs Parser issue diagnosis
+FRAME_TRANSPILER_DEBUG=1 ./target/release/framec -l python_3 problem_file.frm
+
+# Test specific pattern
+python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec | grep PATTERN
+```
+
+### Performance Testing
+```bash
+# Time compilation
+time ./target/release/framec -l python_3 large_file.frm
+
+# Memory usage
+/usr/bin/time -v ./target/release/framec -l python_3 large_file.frm
+
+# Test runner with timing
+python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec --verbose
+```
+
+### TypeScript-Specific Debugging
+```bash
+# Debug TypeScript visitor issues
+FRAME_TRANSPILER_DEBUG=1 ./target/release/framec -l typescript test.frm
+
+# Test TypeScript compilation without execution
+python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec --transpile-only
+
+# Debug call chain processing
+FRAME_TRANSPILER_DEBUG=1 ./target/release/framec -l typescript dict_test.frm | grep "call chain"
+
+# Compile and run TypeScript manually
+./target/release/framec -l typescript test.frm > test.ts
+npx tsc --target es2020 --module commonjs test.ts
+node test.js
+```
+
+## AST Debugging and Printing
+
+### AST Serialization
+Frame provides comprehensive AST debugging through JSON serialization:
+
+```bash
+# Generate AST JSON output (requires debug mode)
+FRAME_TRANSPILER_DEBUG=1 FRAME_AST_OUTPUT=/tmp/ast.json ./target/release/framec -l python_3 your_file.frm
+
+# Note: FRAME_TRANSPILER_DEBUG=1 is REQUIRED for AST output to be generated
+# The language parameter (-l) can be any valid target, as AST generation happens before visitor stage
+```
+
+### AST Printing Coverage (v0.86.0+)
+Enhanced AST-to-string printing for debugging expression types:
+
+#### **Supported Expression Types** ✅
+- **Core expressions**: Variables, literals, binary/unary operations, calls
+- **Collections**: Lists, dicts, sets, tuples
+- **System constructs**: System instantiation (`MySystem()`), action calls (`actionName()`)  
+- **Modern Python**: List/dict/set comprehensions, walrus operator (`:=`), await expressions
+- **Frame-specific**: Enum access (`MyEnum.VALUE`), state transitions (`-> $State`), self references
+- **Advanced features**: Unpacking (`*args`, `**kwargs`), star expressions
+
+#### **Usage in Development**
+```rust
+// Debugging expressions in visitor code
+let mut debug_output = String::new();
+expr.accept_to_string(visitor, &mut debug_output);
+eprintln!("DEBUG: Expression = {}", debug_output);
+```
+
+#### **Coverage Statistics**
+- **Total expression types**: ~30
+- **Implemented printing**: ~70% (improved from 40%)
+- **Critical debugging constructs**: 100% coverage
+
+### AST Structure Analysis
+Use the generated JSON for:
+- **System structure**: Interface methods, states, actions
+- **Expression analysis**: Call chains, assignments, literals
+- **Line mapping**: Source-to-generated code correlation
+- **Symbol resolution**: Variable and method references
+
+### Debugging Workflow
+1. **Enable AST output**: Set `FRAME_AST_OUTPUT` environment variable
+2. **Compile with debug**: Use `FRAME_TRANSPILER_DEBUG=1` for verbose output
+3. **Analyze structure**: Inspect generated JSON for AST node relationships
+4. **Trace expressions**: Use printing methods for detailed expression debugging
+
+## Critical Rules
+
+### 🚨 NEVER DO
+1. **Never commit changes without explicit permission**
+2. **Never create test files in the root project directory**
+3. **Never manually edit generated files**
+4. **Never update git config**
+5. **Never use workarounds instead of fixing root causes**
+6. **Never break backward compatibility without approval**
+7. **Never skip the comprehensive test suite**
+
+### ✅ ALWAYS DO
+1. **Always use the official test framework** (`frame_test_runner.py`)
+2. **Always test across multiple target languages**
+3. **Always update version numbers for releases**
+4. **Always run the full test suite before claiming completion**
+5. **Always create regression tests for bug fixes**
+6. **Always document significant changes**
+7. **Always follow semantic versioning rules**
+
+### 🎯 Process Requirements
+1. **Test files**: Must be in `framec_tests/common/tests/[category]/`
+2. **Generated output**: Goes in `framec_tests/generated/[language]/`
+3. **Bug fixes**: Require regression tests with descriptive names
+4. **Version updates**: Must update ALL version files together
+5. **Test validation**: Must achieve 100% success rate before release
+
+## External API Testing Strategy
+
+### Language-Specific Approach
+Frame supports importing and using external libraries/modules generically, with each visitor generating target-appropriate code from the AST. This means:
+
+1. **No Cross-Language API Mapping**: Frame doesn't map `subprocess.spawn()` to `child_process.spawn()` - instead, Frame code should use target-appropriate APIs
+2. **Import Support**: Frame syntax supports importing modules/libraries generically: `import fs`, `import os.path`
+3. **Generic Method Calls**: Frame supports calling methods generically: `module.method(params)`
+4. **Visitor Responsibility**: Each visitor generates correct target code from the generic AST representation
+
+### External API Test Structure
+```
+framec_tests/language_specific/
+├── python/external_apis/
+│   ├── test_file_io.frm        # Python: os.path, open(), f.read()
+│   ├── test_process.frm        # Python: subprocess.run()
+│   └── test_network.frm        # Python: socket module
+└── typescript/external_apis/
+    ├── test_file_io.frm        # TypeScript: fs.existsSync(), fs.readFileSync()
+    ├── test_process.frm        # TypeScript: child_process.spawn()
+    └── test_network.frm        # TypeScript: net.createServer()
+```
+
+### Creating External API Tests
+1. **Target-Specific APIs**: Write Frame code using the appropriate APIs for each target language
+2. **Semantic Equivalence**: Tests should have identical functionality but use language-appropriate syntax
+3. **Import Handling**: Use Frame's generic import syntax: `import module_name`
+4. **Validation**: Both tests should produce identical output demonstrating equivalent functionality
+
+### Example: File I/O
+**Python Version** (`test_file_io.frm`):
+```frame
+import os.path
+
+system FileIOTest {
+    actions:
+        testFileOperations() {
+            var exists = os.path.exists("test.txt")
+            var f = open("test.txt", "r")
+            var content = f.read()
+            f.close()
+        }
+}
+```
+
+**TypeScript Version** (`test_file_io.frm`):
+```frame
+import fs
+
+system FileIOTest {
+    actions:
+        testFileOperations() {
+            var exists = fs.existsSync("test.txt")
+            var content = fs.readFileSync("test.txt", "utf8")
+        }
+}
+```
+
+## Target Language Specifics
+
+### Python (Primary Target)
+- Uses PythonVisitorV2 with CodeBuilder architecture
+- Supports async/await, comprehensions, decorators
+- Full Python 3.x feature compatibility
+- State machines generate clean, readable Python classes
+
+### TypeScript (Secondary Target)
+- Full type annotations and interfaces
+- Supports async/await, generics, decorators
+- Generates ES2020+ compatible code
+- Integration with Node.js runtime and `@types/node`
+- **Performance Features:**
+  - Batch compilation for improved speed (reduces 0.9s per file to ~1s total)
+  - Shared runtime module to avoid duplicate identifier issues
+  - Local vs global TypeScript compiler detection
+  - Intelligent compilation caching and error recovery
+- **Dependencies**: Requires Node.js and TypeScript (`npm install typescript @types/node`)
+- **Recent Improvements (v0.86.71)**:
+  - **FIXED**: Import handling for Python-style imports in Frame files
+  - **FIXED**: Python-to-TypeScript import conversion with proper comments
+  - **FIXED**: Function generation (`fn main()`) in TypeScript output
+  - **FIXED**: Module partitioner using Python scanner for TypeScript since Frame uses Python-style imports
+  - **ENHANCED**: Shared test environment support via `FRAMEPILER_TEST_ENV`
+  - **RESULT**: Achieved TypeScript test pass rate of 87.5% (35/40 tests) in shared environment
+  - **REMAINING**: 5 import validation tests fail with E110 errors due to validation expecting TypeScript-style imports
+
+### GraphViz (Visualization)
+- Generates DOT format for state diagrams
+- Multi-system support with clear separation
+- Hierarchical state machine visualization
+- Debug and documentation purposes
+
+## Async/Await Capabilities (v0.86.15)
+
+Frame provides unified async/await functionality across target languages using embedded runtime libraries.
+
+### TypeScript Async Support
+- **FrameAsync Runtime**: Embedded async operations library
+- **HTTP Operations**: `FrameAsync.httpGet()`, `FrameAsync.httpPost()`
+- **Concurrency**: `FrameAsync.parallel()`, `FrameAsync.sequence()`, `FrameAsync.race()`
+- **Timing**: `FrameAsync.sleep()`, `FrameAsync.timeout()`
+
+### Frame Async Syntax
+```frame
+module AsyncCapabilities {
+    async fn httpGet(url) {
+        var response = await fetch(url)
+        return response
+    }
+    
+    async fn parallel(tasks) {
+        var results = []
+        for task in tasks {
+            var result = await task
+            results.append(result)
+        }
+        return results
+    }
+}
+```
+
+### Generated TypeScript
+```typescript
+export namespace AsyncCapabilities {
+    export async function httpGet(url: any): Promise<any> {
+        let response = await fetch(url);
+        return response;
+    }
+    
+    export async function parallel(tasks: any): Promise<any> {
+        let results = [];
+        for (const task of tasks) {
+            let result = await task;
+            results.push(result);
+        }
+        return results;
+    }
+}
+```
+
+### Runtime Architecture
+- **FrameRuntime (Language Semantics)**
+  - Generated automatically for every target.
+  - Owns state-machine scheduling, Frame collections, truthiness helpers, and other core language mechanics.
+  - Users should not call `FrameRuntime` directly; the visitors insert these helpers as needed.
+- **FID + Native Modules (Capabilities)**
+  - Frame Interface Definitions (FID) declare capability surfaces (networking, filesystem, process control, timers, etc.).
+  - Implementations live in native code inside MixedBody regions for each target (e.g., Python, TypeScript).
+  - FID replaces the historical FSL abstraction; prefer native imports and MixedBody over pseudo-standard libraries.
+  - See also: docs/framelang_design/native_imports_and_fid.md
+- **Separation of Concerns**
+  - Keep language behavior in the runtime; keep capabilities in FID + native modules.
+  - When adding a capability, define it in FID and implement it natively per target.
+
+## Error Patterns and Solutions
+
+### Common Parser Issues
+1. **Token synchronization**: Use `check()` instead of `match_token()` in loops
+2. **Context loss**: Ensure proper error recovery in complex blocks
+3. **Unicode handling**: Scanner must handle multi-byte characters properly
+
+### Common Test Issues
+1. **File not found**: Check absolute paths and working directory
+2. **Version mismatch**: Ensure all version files are synchronized
+3. **Permission errors**: Check file permissions and ownership
+
+### Performance Issues
+1. **Large files**: Parser must handle 900+ line files efficiently
+2. **Memory usage**: Avoid unnecessary AST node duplication
+3. **Compilation speed**: Optimize visitor patterns for speed
+
+## Additional Resources
+
+### Documentation
+- `CLAUDE.md`: Project instructions for AI assistants
+- `CLAUDE.local.md`: Private project instructions
+- `docs/`: Technical documentation and guides
+- `README.md`: Project overview and quick start
+
+### Configuration Files
+- `Cargo.toml`: Rust package configuration
+- `version.toml`: Centralized version management
+- `clippy.toml`: Rust linting configuration
+- `.gitignore`: Version control exclusions
+
+---
+
+**Last Updated**: 2026-02-14
+**Version**: v0.87.2
+**Status**: V4 pipeline operational · Python 9/9, Rust 9/9, TypeScript 2/9 · Shared test environment active
+
+**Remember**: This document is the single source of truth for Frame Transpiler development processes. When in doubt, refer to this guide.
+# V3 Python Transpiler Function Body Issue (PARTIALLY FIXED)
+
+## Problem (Fixed)
+The V3 Python transpiler was not transpiling module-level function bodies. It was copying the raw Frame syntax directly into the Python output, resulting in invalid Python code.
+
+## Solution Implemented (December 15, 2024)
+Created `PythonTranspilerV3` module that converts Frame syntax to Python:
+- Transpiles var declarations to Python assignments
+- Converts if/else/elif statements with proper Python syntax
+- Handles for and while loops
+- Converts Frame operators (&&, ||, !) to Python (and, or, not)
+- Removes Frame-specific syntax like braces
+
+## Example
+Input Frame code:
+```frame
+@target python_3
+module TestModule {
+    fn main() {
+        var x = 10
+        if x == 10 {
+            print("SUCCESS")
+        }
+    }
+}
+```
+
+Current output (INVALID Python):
+```python
+def main():
+    var x = 10
+    if x == 10 {
+        print("SUCCESS")
+    }
+```
+
+Expected output (VALID Python):
+```python
+def main():
+    x = 10
+    if x == 10:
+        print("SUCCESS")
+```
+
+## Root Cause
+In `framec/src/frame_c/v3/mod.rs` lines 1205-1231, function bodies are being copied verbatim with only indentation adjustments. There's no actual transpilation happening.
+
+## Results After Fix
+- **Scoping tests**: 25.8% → 66.7% pass rate (6/9 passing)
+- **Core tests**: 49.2% → 62.1% pass rate (108/174 passing)
+- **Data types**: 39.4% → 39.1% (18/46 - more tests discovered)
+- **Overall Python**: Expected to improve from 52.1% to ~70%+ when fully tested
+
+## Solution Required
+Need to implement a proper Frame-to-Python transpiler for expression and statement bodies, similar to what exists for handler bodies. This would include:
+1. Converting `var x = value` to `x = value`
+2. Converting `if condition { }` to `if condition:`
+3. Converting `} else {` to `else:`
+4. Converting Frame operators to Python operators
+5. Handling Frame-specific constructs like transitions, state variables, etc.
+
+## Workaround
+For now, users must write native Python code in function bodies using native blocks:
+```frame
+fn main() {
+    #{
+    x = 10
+    if x == 10:
+        print("SUCCESS")
+    #}
+}
+```
+---
+

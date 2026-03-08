@@ -1,0 +1,1164 @@
+Frame V3 Full Suite Results (transpile-only)
+Generated: 2025-11-11 03:06:04 UTC
+Command: framec_tests/runner/frame_test_runner.py --languages python typescript csharp c cpp java rust --categories v3_prolog v3_imports v3_outline v3_closers v3_mir v3_mapping v3_expansion v3_validator v3_core v3_control_flow v3_data_types v3_operators v3_scoping v3_systems --framec ./target/release/framec --transpile-only -v
+--- BEGIN OUTPUT ---
+
+Discovered 470 tests in 90 categories
+Testing languages: python, typescript, csharp, c, cpp, java, rust
+
+
+language_specific_c_v3_closers: 3 tests
+  ✓ unterminated_block_comment (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_block_comment.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedComment, message: \"unterminated c
+  ✓ unterminated_string (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated string\" 
+  ✓ strings_and_comments_with_brace (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_control_flow: 3 tests
+  ✓ transition_not_terminal (c) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ if_chain_forward (c) [POSITIVE]: 0.01s
+  ✓ while_forward (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_core: 6 tests
+  ✓ forward_invalid_head (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_core/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, me
+  ✓ missing_dollar (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_core/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, message:
+  ✓ transition_unbalanced_args (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_core/negative/transition_unbalanced_args.frm: validation: Parse error: ParseErrorV3 { kind: Unbalance
+  ✓ forward_parent (c) [POSITIVE]: 0.01s
+  ✓ stack_ops (c) [POSITIVE]: 0.01s
+  ✓ transition_basic (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_data_types: 1 tests
+  ✓ ints_strings (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_expansion: 2 tests
+  ✓ else_if_chain (c) [POSITIVE]: 0.01s
+  ✓ else_if_else_chain (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_imports: 2 tests
+  ✓ unterminated_include (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated C #include
+
+  ✓ basic_imports (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_mapping: 1 tests
+  ✓ basic_map (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_mir: 29 tests
+  ✓ forward_invalid_head (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mes
+  ✓ forward_trailing_tokens (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ missing_dollar (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, message: 
+  ✓ native_after_terminal (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messa
+  ✓ trailing_tokens (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, message:
+  ✓ transition_block_comment_across_then_native (c) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_inline_semicolon_native (c) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kind: Invali
+  ✓ transition_unknown_state (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ unbalanced_parens (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_mir/negative/unbalanced_parens.frm: validation: Parse error: ParseErrorV3 { kind: UnbalancedArgs, mes
+  ✓ forward_block_comment_across_lines (c) [POSITIVE]: 0.01s
+  ✓ forward_block_comment_across_then_native (c) [POSITIVE]: 0.01s
+  ✓ forward_inline_block_comment (c) [POSITIVE]: 0.01s
+  ✓ forward_inline_line_comment (c) [POSITIVE]: 0.01s
+  ✓ forward_inline_mixed_comments (c) [POSITIVE]: 0.02s
+  ✓ forward_inline_semicolon (c) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon_multi (c) [POSITIVE]: 0.01s
+  ✓ forward_parent (c) [POSITIVE]: 0.01s
+  ✓ forward_trailing_whitespace (c) [POSITIVE]: 0.01s
+  ✓ inside_string_tokens_ignored (c) [POSITIVE]: 0.01s
+  ✓ not_at_sol_forward (c) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (c) [POSITIVE]: 0.01s
+  ✓ not_at_sol_transition (c) [POSITIVE]: 0.01s
+  ✓ stack_ops (c) [POSITIVE]: 0.01s
+  ✓ transition_args (c) [POSITIVE]: 0.01s
+  ✓ transition_inline_block_comment (c) [POSITIVE]: 0.02s
+  ✓ transition_inline_line_comment (c) [POSITIVE]: 0.02s
+  ✓ transition_inline_semicolon_comment (c) [POSITIVE]: 0.02s
+
+language_specific_c_v3_operators: 1 tests
+  ✓ comparisons (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_outline: 5 tests
+  ✓ header_outside_section (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artifact heade
+  ✓ state_missing_brace (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_prolog: 4 tests
+  ✓ not_first_token (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+prolog err
+  ✓ test_prolog_missing (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespace
+prolog
+  ✓ target_ok (c) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_scoping: 1 tests
+  ✓ block_scope (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_systems: 3 tests
+  ✓ frame_in_actions (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/c/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module artifact hea
+  ✓ multiple_handlers (c) [POSITIVE]: 0.01s
+
+language_specific_c_v3_validator: 4 tests
+  ✓ action_has_frame (c) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (c) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (c) [POSITIVE]: 0.01s
+  ✓ terminal_last_transition (c) [POSITIVE]: 0.02s
+
+language_specific_cpp_v3_closers: 3 tests
+  ✓ unterminated_block_comment (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_block_comment.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedComment, message: \"unterminated c
+  ✓ unterminated_string (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated string\" 
+  ✓ strings_and_comments_with_brace (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_control_flow: 2 tests
+  ✓ transition_not_terminal (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ if_else_forward (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_core: 5 tests
+  ✓ forward_invalid_head (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_core/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ missing_dollar (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_core/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messag
+  ✓ transition_unbalanced_args (cpp) [NEGATIVE]: 0.02s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_core/negative/transition_unbalanced_args.frm: validation: Parse error: ParseErrorV3 { kind: Unbalan
+  ✓ forward_parent (cpp) [POSITIVE]: 0.01s
+  ✓ transition_basic (cpp) [POSITIVE]: 0.02s
+
+language_specific_cpp_v3_data_types: 1 tests
+  ✓ ints_strings (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_expansion: 3 tests
+  ✓ else_if_chain (cpp) [POSITIVE]: 0.01s
+  ✓ else_if_else_chain (cpp) [POSITIVE]: 0.01s
+  ✓ try_catch (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_imports: 2 tests
+  ✓ unterminated_include (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated C++ #include
+
+  ✓ basic_imports (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_mapping: 1 tests
+  ✓ basic_map (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_mir: 29 tests
+  ✓ forward_invalid_head (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, m
+  ✓ forward_trailing_tokens (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead
+  ✓ missing_dollar (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, message
+  ✓ native_after_terminal (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mes
+  ✓ trailing_tokens (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messag
+  ✓ transition_block_comment_across_then_native (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_inline_semicolon_native (cpp) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kind: Inva
+  ✓ transition_unknown_state (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ unbalanced_parens (cpp) [NEGATIVE]: 0.02s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_mir/negative/unbalanced_parens.frm: validation: Parse error: ParseErrorV3 { kind: UnbalancedArgs, m
+  ✓ forward_block_comment_across_lines (cpp) [POSITIVE]: 0.01s
+  ✓ forward_block_comment_across_then_native (cpp) [POSITIVE]: 0.01s
+  ✓ forward_inline_block_comment (cpp) [POSITIVE]: 0.01s
+  ✓ forward_inline_line_comment (cpp) [POSITIVE]: 0.01s
+  ✓ forward_inline_mixed_comments (cpp) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon (cpp) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon_multi (cpp) [POSITIVE]: 0.01s
+  ✓ forward_parent (cpp) [POSITIVE]: 0.01s
+  ✓ forward_trailing_whitespace (cpp) [POSITIVE]: 0.01s
+  ✓ inside_string_tokens_ignored (cpp) [POSITIVE]: 0.01s
+  ✓ not_at_sol_forward (cpp) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (cpp) [POSITIVE]: 0.01s
+  ✓ not_at_sol_transition (cpp) [POSITIVE]: 0.01s
+  ✓ stack_ops (cpp) [POSITIVE]: 0.01s
+  ✓ transition_args (cpp) [POSITIVE]: 0.01s
+  ✓ transition_inline_block_comment (cpp) [POSITIVE]: 0.02s
+  ✓ transition_inline_line_comment (cpp) [POSITIVE]: 0.01s
+  ✓ transition_inline_semicolon_comment (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_outline: 5 tests
+  ✓ header_outside_section (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (cpp) [NEGATIVE]: 0.03s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artifact hea
+  ✓ state_missing_brace (cpp) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (cpp) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (cpp) [POSITIVE]: 0.02s
+
+language_specific_cpp_v3_prolog: 4 tests
+  ✓ not_first_token (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+prolog e
+  ✓ test_prolog_missing (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespace
+prol
+  ✓ target_ok (cpp) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (cpp) [POSITIVE]: 0.01s
+
+language_specific_cpp_v3_systems: 2 tests
+  ✓ frame_in_actions (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/cpp/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module artifact h
+
+language_specific_cpp_v3_validator: 4 tests
+  ✓ action_has_frame (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (cpp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (cpp) [POSITIVE]: 0.01s
+  ✓ terminal_last_transition (cpp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_closers: 3 tests
+  ✓ unterminated_interpolated (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_interpolated.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated ver
+  ✓ unterminated_raw_string (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_raw_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated strin
+  ✓ verbatim_and_raw (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_control_flow: 2 tests
+  ✓ transition_not_terminal (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ if_else_forward (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_core: 4 tests
+  ✓ forward_invalid_head (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_core/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHea
+  ✓ missing_dollar (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_core/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mes
+  ✓ transition_unbalanced_args (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_core/negative/transition_unbalanced_args.frm: validation: Parse error: ParseErrorV3 { kind: Unba
+  ✓ transition_basic (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_data_types: 1 tests
+  ✓ ints_strings (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_expansion: 3 tests
+  ✓ else_if_chain (csharp) [POSITIVE]: 0.01s
+  ✓ else_if_else_chain (csharp) [POSITIVE]: 0.01s
+  ✓ try_catch_finally (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_imports: 2 tests
+  ✓ unterminated_using (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated C# using directive
+
+  ✓ basic_imports (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_mapping: 1 tests
+  ✓ basic_map (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_mir: 27 tests
+  ✓ forward_invalid_head (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead
+  ✓ forward_trailing_tokens (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidH
+  ✓ missing_dollar (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mess
+  ✓ native_after_terminal (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ transition_block_comment_across_then_native (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_inline_semicolon_native (csharp) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kind: I
+  ✓ transition_unknown_state (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ forward_block_comment_across_lines (csharp) [POSITIVE]: 0.01s
+  ✓ forward_block_comment_across_then_native (csharp) [POSITIVE]: 0.01s
+  ✓ forward_inline_block_comment (csharp) [POSITIVE]: 0.02s
+  ✓ forward_inline_line_comment (csharp) [POSITIVE]: 0.01s
+  ✓ forward_inline_mixed_comments (csharp) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon (csharp) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon_multi (csharp) [POSITIVE]: 0.02s
+  ✓ forward_parent (csharp) [POSITIVE]: 0.01s
+  ✓ forward_trailing_whitespace (csharp) [POSITIVE]: 0.01s
+  ✓ inside_string_tokens_ignored (csharp) [POSITIVE]: 0.01s
+  ✓ not_at_sol_forward (csharp) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (csharp) [POSITIVE]: 0.01s
+  ✓ not_at_sol_transition (csharp) [POSITIVE]: 0.01s
+  ✓ stack_ops (csharp) [POSITIVE]: 0.01s
+  ✓ transition_args (csharp) [POSITIVE]: 0.01s
+  ✓ transition_inline_block_comment (csharp) [POSITIVE]: 0.01s
+  ✓ transition_inline_line_comment (csharp) [POSITIVE]: 0.02s
+  ✓ transition_inline_semicolon_comment (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_outline: 5 tests
+  ✓ header_outside_section (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artifact 
+  ✓ state_missing_brace (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (csharp) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_prolog: 4 tests
+  ✓ not_first_token (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+prolo
+  ✓ test_prolog_missing (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespace
+p
+  ✓ target_ok (csharp) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (csharp) [POSITIVE]: 0.01s
+
+language_specific_csharp_v3_systems: 2 tests
+  ✓ frame_in_actions (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/csharp/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module artifac
+
+language_specific_csharp_v3_validator: 4 tests
+  ✓ action_has_frame (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (csharp) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (csharp) [POSITIVE]: 0.01s
+  ✓ terminal_last_transition (csharp) [POSITIVE]: 0.01s
+
+language_specific_java_v3_closers: 3 tests
+  ✓ unterminated_block_comment (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_block_comment.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedComment, message: \"unterminated c
+  ✓ unterminated_string (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated string\" 
+  ✓ strings_with_brace_and_comment (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_control_flow: 2 tests
+  ✓ transition_not_terminal (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ if_else_forward (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_core: 4 tests
+  ✓ forward_invalid_head (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_core/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead,
+  ✓ missing_dollar (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_core/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messa
+  ✓ transition_unbalanced_args (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_core/negative/transition_unbalanced_args.frm: validation: Parse error: ParseErrorV3 { kind: Unbala
+  ✓ transition_basic (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_data_types: 1 tests
+  ✓ ints_strings (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_expansion: 3 tests
+  ✓ else_if_chain (java) [POSITIVE]: 0.01s
+  ✓ else_if_else_chain (java) [POSITIVE]: 0.01s
+  ✓ try_catch_finally (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_imports: 2 tests
+  ✓ missing_semicolon (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated Java import/package
+
+  ✓ basic_imports (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_mapping: 1 tests
+  ✓ basic_map (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_mir: 29 tests
+  ✓ forward_invalid_head (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ forward_trailing_tokens (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHea
+  ✓ missing_dollar (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messag
+  ✓ native_after_terminal (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, me
+  ✓ trailing_tokens (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messa
+  ✓ transition_block_comment_across_then_native (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_inline_semicolon_native (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kind: Inv
+  ✓ transition_unknown_state (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ unbalanced_parens (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_mir/negative/unbalanced_parens.frm: validation: Parse error: ParseErrorV3 { kind: UnbalancedArgs, 
+  ✓ forward_block_comment_across_lines (java) [POSITIVE]: 0.01s
+  ✓ forward_block_comment_across_then_native (java) [POSITIVE]: 0.01s
+  ✓ forward_inline_block_comment (java) [POSITIVE]: 0.01s
+  ✓ forward_inline_line_comment (java) [POSITIVE]: 0.01s
+  ✓ forward_inline_mixed_comments (java) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon (java) [POSITIVE]: 0.02s
+  ✓ forward_inline_semicolon_multi (java) [POSITIVE]: 0.01s
+  ✓ forward_parent (java) [POSITIVE]: 0.01s
+  ✓ forward_trailing_whitespace (java) [POSITIVE]: 0.02s
+  ✓ inside_string_tokens_ignored (java) [POSITIVE]: 0.02s
+  ✓ not_at_sol_forward (java) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (java) [POSITIVE]: 0.01s
+  ✓ not_at_sol_transition (java) [POSITIVE]: 0.01s
+  ✓ stack_ops (java) [POSITIVE]: 0.01s
+  ✓ transition_args (java) [POSITIVE]: 0.02s
+  ✓ transition_inline_block_comment (java) [POSITIVE]: 0.01s
+  ✓ transition_inline_line_comment (java) [POSITIVE]: 0.01s
+  ✓ transition_inline_semicolon_comment (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_outline: 5 tests
+  ✓ header_outside_section (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artifact he
+  ✓ state_missing_brace (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_prolog: 4 tests
+  ✓ not_first_token (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+prolog 
+  ✓ test_prolog_missing (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespace
+pro
+  ✓ target_ok (java) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (java) [POSITIVE]: 0.01s
+
+language_specific_java_v3_systems: 2 tests
+  ✓ frame_in_actions (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/java/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module artifact 
+
+language_specific_java_v3_validator: 4 tests
+  ✓ action_has_frame (java) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (java) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (java) [POSITIVE]: 0.01s
+  ✓ terminal_last_transition (java) [POSITIVE]: 0.01s
+
+language_specific_python_v3_closers: 3 tests
+  ✓ unterminated_string (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated string\" 
+  ✓ unterminated_triple_quote (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_triple_quote.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated str
+  ✓ braces_in_strings (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_control_flow: 6 tests
+  ✓ transition_not_terminal (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ for_loop_forward (python) [POSITIVE]: 0.01s
+  ✓ if_chain_forwards (python) [POSITIVE]: 0.02s
+  ✓ if_elif_else (python) [POSITIVE]: 0.02s
+  ✓ try_except_finally_forward (python) [POSITIVE]: 0.01s
+  ✓ while_forward_then_native (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_core: 9 tests
+  ✓ forward_invalid_head (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_core/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHea
+  ✓ missing_dollar (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_core/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mes
+  ✓ transition_unbalanced_args (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_core/negative/transition_unbalanced_args.frm: validation: Parse error: ParseErrorV3 { kind: Unba
+  ✓ forward_multi_native (python) [POSITIVE]: 0.01s
+  ✓ forward_parent (python) [POSITIVE]: 0.01s
+  ✓ stack_ops (python) [POSITIVE]: 0.01s
+  ✓ stack_ops_then_native (python) [POSITIVE]: 0.01s
+  ✓ transition_basic (python) [POSITIVE]: 0.02s
+  ✓ transition_params (python) [POSITIVE]: 0.02s
+
+language_specific_python_v3_data_types: 5 tests
+  ✓ dict_ops (python) [POSITIVE]: 0.02s
+  ✓ ints_strings (python) [POSITIVE]: 0.02s
+  ✓ list_ops (python) [POSITIVE]: 0.01s
+  ✓ set_ops (python) [POSITIVE]: 0.01s
+  ✓ tuple_ops (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_expansion: 1 tests
+  ✓ elif_chain (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_imports: 2 tests
+  ✓ unterminated_paren (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated Python import statement
+
+  ✓ basic_imports (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_mapping: 1 tests
+  ✓ basic_map (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_mir: 23 tests
+  ✓ forward_invalid_head (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead
+  ✓ forward_trailing_tokens (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidH
+  ✓ missing_dollar (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mess
+  ✓ native_after_terminal (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ trailing_tokens (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, mes
+  ✓ transition_inline_semicolon_native (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kind: I
+  ✓ transition_unknown_state (python) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ unbalanced_parens (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_mir/negative/unbalanced_parens.frm: validation: Parse error: ParseErrorV3 { kind: UnbalancedArgs
+  ✓ forward_inline_semicolon (python) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon_multi (python) [POSITIVE]: 0.01s
+  ✓ forward_parent (python) [POSITIVE]: 0.02s
+  ✓ forward_trailing_whitespace (python) [POSITIVE]: 0.02s
+  ✓ inside_string_tokens_ignored (python) [POSITIVE]: 0.02s
+  ✓ not_at_sol_forward (python) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (python) [POSITIVE]: 0.02s
+  ✓ not_at_sol_transition (python) [POSITIVE]: 0.01s
+  ✓ stack_ops (python) [POSITIVE]: 0.01s
+  ✓ transition_args (python) [POSITIVE]: 0.02s
+  ✓ transition_inline_comment (python) [POSITIVE]: 0.01s
+  ✓ transition_inline_semicolon_comment (python) [POSITIVE]: 0.01s
+  ✓ unicode_ws_sol (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_operators: 5 tests
+  ✓ arithmetic_ops (python) [POSITIVE]: 0.01s
+  ✓ comparison_ops (python) [POSITIVE]: 0.01s
+  ✓ equality (python) [POSITIVE]: 0.01s
+  ✓ logical_ops (python) [POSITIVE]: 0.01s
+  ✓ ternary_expr (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_outline: 6 tests
+  ✓ header_outside_section (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artifact 
+  ✓ state_missing_brace (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (python) [POSITIVE]: 0.01s
+  ✓ test_outline_basic (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_prolog: 4 tests
+  ✓ not_first_token (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+prolo
+  ✓ test_prolog_missing (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespace
+p
+  ✓ target_ok (python) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_scoping: 3 tests
+  ✓ function_scope (python) [POSITIVE]: 0.01s
+  ✓ nested_functions (python) [POSITIVE]: 0.01s
+  ✓ shadowing (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_systems: 5 tests
+  ✓ frame_in_actions (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (python) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/python/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module artifac
+  ✓ interface_with_param (python) [POSITIVE]: 0.01s
+  ✓ multiple_handlers (python) [POSITIVE]: 0.01s
+  ✓ simple_interface (python) [POSITIVE]: 0.01s
+
+language_specific_python_v3_validator: 6 tests
+  ✓ action_has_frame (python) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (python) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (python) [POSITIVE]: 0.01s
+  ✓ terminal_last_forward (python) [POSITIVE]: 0.01s
+  ✓ terminal_last_stack_ops (python) [POSITIVE]: 0.01s
+  ✓ terminal_last_transition (python) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_closers: 2 tests
+  ✓ unterminated_raw_string (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_raw_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedRawString, message: \"unterminated ra
+  ✓ raw_strings_with_brace (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_control_flow: 2 tests
+  ✓ transition_not_terminal (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ if_else_forward (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_core: 1 tests
+  ✓ transition_basic (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_data_types: 1 tests
+  ✓ ints_strings (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_expansion: 2 tests
+  ✓ else_if_chain (rust) [POSITIVE]: 0.01s
+  ✓ else_if_else_chain (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_imports: 2 tests
+  ✓ missing_semicolon (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated Rust use/extern
+
+  ✓ basic_imports (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_mapping: 1 tests
+  ✓ basic_map (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_mir: 30 tests
+  ✓ forward_invalid_head (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ forward_trailing_tokens (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHea
+  ✓ missing_dollar (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messag
+  ✓ native_after_terminal (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, me
+  ✓ trailing_tokens (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, messa
+  ✓ transition_block_comment_across_then_native (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_inline_semicolon_native (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kind: Inv
+  ✓ transition_unknown_state (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ unbalanced_parens (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_mir/negative/unbalanced_parens.frm: validation: Parse error: ParseErrorV3 { kind: UnbalancedArgs, 
+  ✓ forward_block_comment_across_lines (rust) [POSITIVE]: 0.01s
+  ✓ forward_block_comment_across_then_native (rust) [POSITIVE]: 0.01s
+  ✓ forward_inline_block_comment (rust) [POSITIVE]: 0.02s
+  ✓ forward_inline_line_comment (rust) [POSITIVE]: 0.01s
+  ✓ forward_inline_mixed_comments (rust) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon (rust) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon_multi (rust) [POSITIVE]: 0.02s
+  ✓ forward_parent (rust) [POSITIVE]: 0.01s
+  ✓ forward_trailing_whitespace (rust) [POSITIVE]: 0.02s
+  ✓ inside_raw_string_forward_ignored (rust) [POSITIVE]: 0.01s
+  ✓ inside_raw_string_transition_ignored (rust) [POSITIVE]: 0.01s
+  ✓ not_at_sol_forward (rust) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (rust) [POSITIVE]: 0.01s
+  ✓ not_at_sol_transition (rust) [POSITIVE]: 0.01s
+  ✓ stack_ops (rust) [POSITIVE]: 0.01s
+  ✓ transition_args (rust) [POSITIVE]: 0.01s
+  ✓ transition_inline_block_comment (rust) [POSITIVE]: 0.01s
+  ✓ transition_inline_line_comment (rust) [POSITIVE]: 0.01s
+  ✓ transition_inline_semicolon_comment (rust) [POSITIVE]: 0.02s
+
+language_specific_rust_v3_outline: 5 tests
+  ✓ header_outside_section (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artifact he
+  ✓ state_missing_brace (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_prolog: 4 tests
+  ✓ not_first_token (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+prolog 
+  ✓ test_prolog_missing (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespace
+pro
+  ✓ target_ok (rust) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (rust) [POSITIVE]: 0.01s
+
+language_specific_rust_v3_systems: 2 tests
+  ✓ frame_in_actions (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/rust/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module artifact 
+
+language_specific_rust_v3_validator: 4 tests
+  ✓ action_has_frame (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (rust) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (rust) [POSITIVE]: 0.02s
+  ✓ terminal_last_transition (rust) [POSITIVE]: 0.02s
+
+language_specific_typescript_v3_closers: 3 tests
+  ✓ unterminated_string (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_string.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated string\" 
+  ✓ unterminated_template (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: unterminated_template.frm: validation error: Scan error: ScanErrorV3 { kind: UnterminatedProtected, message: "CloseErrorV3 { kind: UnterminatedString, message: \"unterminated templat
+  ✓ template_with_brace (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_control_flow: 7 tests
+  ✓ transition_not_terminal (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Transition must be last statement in its containing block
+
+  ✓ else_if_else_chain (typescript) [POSITIVE]: 0.02s
+  ✓ for_loop_forward (typescript) [POSITIVE]: 0.01s
+  ✓ if_chain_forwards (typescript) [POSITIVE]: 0.02s
+  ✓ nested_if_transition_last (typescript) [POSITIVE]: 0.01s
+  ✓ try_catch_finally_forward (typescript) [POSITIVE]: 0.01s
+  ✓ while_forward_then_native (typescript) [POSITIVE]: 0.02s
+
+language_specific_typescript_v3_core: 9 tests
+  ✓ forward_invalid_head (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_core/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: Invali
+  ✓ missing_dollar (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_core/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead,
+  ✓ transition_unbalanced_args (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_core/negative/transition_unbalanced_args.frm: validation: Parse error: ParseErrorV3 { kind: 
+  ✓ forward_parent (typescript) [POSITIVE]: 0.01s
+  ✓ forward_semicolon_multi_native (typescript) [POSITIVE]: 0.01s
+  ✓ stack_ops (typescript) [POSITIVE]: 0.02s
+  ✓ stack_ops_then_native (typescript) [POSITIVE]: 0.02s
+  ✓ transition_basic (typescript) [POSITIVE]: 0.01s
+  ✓ transition_params (typescript) [POSITIVE]: 0.02s
+
+language_specific_typescript_v3_data_types: 6 tests
+  ✓ array_ops (typescript) [POSITIVE]: 0.02s
+  ✓ map_ops (typescript) [POSITIVE]: 0.02s
+  ✓ numbers_strings (typescript) [POSITIVE]: 0.01s
+  ✓ object_ops (typescript) [POSITIVE]: 0.01s
+  ✓ set_ops (typescript) [POSITIVE]: 0.01s
+  ✓ tuple_types (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_expansion: 3 tests
+  ✓ else_if_chain (typescript) [POSITIVE]: 0.01s
+  ✓ else_if_else_chain (typescript) [POSITIVE]: 0.01s
+  ✓ try_catch_finally (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_imports: 2 tests
+  ✓ missing_brace (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unterminated TypeScript import/export
+
+  ✓ basic_imports (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_mapping: 1 tests
+  ✓ basic_map (typescript) [POSITIVE]: 0.02s
+
+language_specific_typescript_v3_mir: 29 tests
+  ✓ forward_invalid_head (typescript) [NEGATIVE]: 0.02s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/forward_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: Invalid
+  ✓ forward_trailing_tokens (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/forward_trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: Inva
+  ✓ missing_dollar (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/missing_dollar.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead, 
+  ✓ native_after_terminal (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ stack_invalid_head (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/stack_invalid_head.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHe
+  ✓ trailing_tokens (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/trailing_tokens.frm: validation: Parse error: ParseErrorV3 { kind: InvalidHead,
+  ✓ transition_block_comment_across_then_native (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_inline_semicolon_native (typescript) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: unknown state 'B'
+validation: Transition must be last statement in its containing block
+
+  ✓ transition_invalid_state_ident (typescript) [NEGATIVE]: 0.02s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/transition_invalid_state_ident.frm: validation: Parse error: ParseErrorV3 { kin
+  ✓ transition_unknown_state (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: unknown state 'ZZ'
+
+  ✓ unbalanced_parens (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_mir/negative/unbalanced_parens.frm: validation: Parse error: ParseErrorV3 { kind: Unbalanced
+  ✓ forward_block_comment_across_lines (typescript) [POSITIVE]: 0.01s
+  ✓ forward_block_comment_across_then_native (typescript) [POSITIVE]: 0.01s
+  ✓ forward_inline_mixed_comments (typescript) [POSITIVE]: 0.02s
+  ✓ forward_inline_semicolon (typescript) [POSITIVE]: 0.01s
+  ✓ forward_inline_semicolon_multi (typescript) [POSITIVE]: 0.01s
+  ✓ forward_parent (typescript) [POSITIVE]: 0.01s
+  ✓ forward_trailing_whitespace (typescript) [POSITIVE]: 0.01s
+  ✓ inside_template_forward_ignored (typescript) [POSITIVE]: 0.01s
+  ✓ inside_template_transition_ignored (typescript) [POSITIVE]: 0.01s
+  ✓ not_at_sol_forward (typescript) [POSITIVE]: 0.01s
+  ✓ not_at_sol_stack (typescript) [POSITIVE]: 0.01s
+  ✓ not_at_sol_transition (typescript) [POSITIVE]: 0.01s
+  ✓ stack_ops (typescript) [POSITIVE]: 0.01s
+  ✓ transition_args (typescript) [POSITIVE]: 0.01s
+  ✓ transition_inline_block_comment (typescript) [POSITIVE]: 0.01s
+  ✓ transition_inline_line_comment (typescript) [POSITIVE]: 0.01s
+  ✓ transition_inline_semicolon_comment (typescript) [POSITIVE]: 0.01s
+  ✓ unicode_ws_sol (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_operators: 5 tests
+  ✓ arithmetic_ops (typescript) [POSITIVE]: 0.02s
+  ✓ comparison_ops (typescript) [POSITIVE]: 0.01s
+  ✓ logical_ops (typescript) [POSITIVE]: 0.01s
+  ✓ strict_equality (typescript) [POSITIVE]: 0.01s
+  ✓ ternary_ops (typescript) [POSITIVE]: 0.02s
+
+language_specific_typescript_v3_outline: 6 tests
+  ✓ header_outside_section (typescript) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: handler body outside machine: section
+
+  ✓ missing_brace (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_outline/negative/pending/missing_brace.frm: validation error: missing '{' after module artif
+  ✓ state_missing_brace (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: missing '{' after state header in machine: section
+
+  ✓ test_action_with_frame (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ basic_outline (typescript) [POSITIVE]: 0.01s
+  ✓ test_outline_basic (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_prolog: 4 tests
+  ✓ not_first_token (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_prolog/negative/not_first_token.frm: validation error: prolog error: NotFirstNonWhitespace
+p
+  ✓ test_prolog_missing (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_prolog/negative/test_prolog_missing.frm: validation error: prolog error: NotFirstNonWhitespa
+  ✓ target_ok (typescript) [POSITIVE]: 0.01s
+  ✓ test_prolog_ok (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_scoping: 4 tests
+  ✓ block_scope (typescript) [POSITIVE]: 0.02s
+  ✓ closure_scope (typescript) [POSITIVE]: 0.02s
+  ✓ function_block_scope (typescript) [POSITIVE]: 0.01s
+  ✓ let_const_shadowing (typescript) [POSITIVE]: 0.01s
+
+language_specific_typescript_v3_systems: 6 tests
+  ✓ frame_in_actions (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Frame statements are not allowed in actions/operations
+
+  ✓ interface_missing_brace (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: /Users/marktruluck/projects/frame_transpiler/framec_tests/language_specific/typescript/v3_systems/negative/interface_missing_brace.frm: validation error: missing '{' after module art
+  ✓ interface_with_param (typescript) [POSITIVE]: 0.01s
+  ✓ multiple_handlers (typescript) [POSITIVE]: 0.01s
+  ✓ simple_interface (typescript) [POSITIVE]: 0.01s
+  ✓ transition_between_states (typescript) [POSITIVE]: 0.02s
+
+language_specific_typescript_v3_validator: 6 tests
+  ✓ action_has_frame (typescript) [NEGATIVE]: 0.02s
+    Error: Expected failure: validation: Frame statements are not allowed in actions/operations
+
+  ✓ handler_multiple_directives (typescript) [NEGATIVE]: 0.01s
+    Error: Expected failure: validation: Cannot forward to parent: no parent available
+validation: Transition must be last statement in its containing block
+validation: unknown state 'B'
+validation: Transition m
+  ✓ actions_without_frame (typescript) [POSITIVE]: 0.01s
+  ✓ terminal_last_forward (typescript) [POSITIVE]: 0.01s
+  ✓ terminal_last_stack_ops (typescript) [POSITIVE]: 0.02s
+  ✓ terminal_last_transition (typescript) [POSITIVE]: 0.02s
+
+======================================================================
+TEST EXECUTION SUMMARY
+======================================================================
+
+PYTHON:
+  Total tests: 79
+  Overall success: 79/79 (100.0%)
+  Transpilation: 79/79 (100.0%)
+  Validation: 79/79 (100.0%)
+
+TYPESCRIPT:
+  Total tests: 91
+  Overall success: 91/91 (100.0%)
+  Transpilation: 91/91 (100.0%)
+  Validation: 91/91 (100.0%)
+
+CSHARP:
+  Total tests: 58
+  Overall success: 58/58 (100.0%)
+  Transpilation: 58/58 (100.0%)
+  Validation: 58/58 (100.0%)
+
+C:
+  Total tests: 65
+  Overall success: 65/65 (100.0%)
+  Transpilation: 65/65 (100.0%)
+  Validation: 65/65 (100.0%)
+
+CPP:
+  Total tests: 61
+  Overall success: 61/61 (100.0%)
+  Transpilation: 61/61 (100.0%)
+  Validation: 61/61 (100.0%)
+
+JAVA:
+  Total tests: 60
+  Overall success: 60/60 (100.0%)
+  Transpilation: 60/60 (100.0%)
+  Validation: 60/60 (100.0%)
+
+RUST:
+  Total tests: 56
+  Overall success: 56/56 (100.0%)
+  Transpilation: 56/56 (100.0%)
+  Validation: 56/56 (100.0%)
+
+By Category:
+  language_specific_c_v3_closers: 3/3 (100.0%)
+  language_specific_c_v3_control_flow: 3/3 (100.0%)
+  language_specific_c_v3_core: 6/6 (100.0%)
+  language_specific_c_v3_data_types: 1/1 (100.0%)
+  language_specific_c_v3_expansion: 2/2 (100.0%)
+  language_specific_c_v3_imports: 2/2 (100.0%)
+  language_specific_c_v3_mapping: 1/1 (100.0%)
+  language_specific_c_v3_mir: 29/29 (100.0%)
+  language_specific_c_v3_operators: 1/1 (100.0%)
+  language_specific_c_v3_outline: 5/5 (100.0%)
+  language_specific_c_v3_prolog: 4/4 (100.0%)
+  language_specific_c_v3_scoping: 1/1 (100.0%)
+  language_specific_c_v3_systems: 3/3 (100.0%)
+  language_specific_c_v3_validator: 4/4 (100.0%)
+  language_specific_cpp_v3_closers: 3/3 (100.0%)
+  language_specific_cpp_v3_control_flow: 2/2 (100.0%)
+  language_specific_cpp_v3_core: 5/5 (100.0%)
+  language_specific_cpp_v3_data_types: 1/1 (100.0%)
+  language_specific_cpp_v3_expansion: 3/3 (100.0%)
+  language_specific_cpp_v3_imports: 2/2 (100.0%)
+  language_specific_cpp_v3_mapping: 1/1 (100.0%)
+  language_specific_cpp_v3_mir: 29/29 (100.0%)
+  language_specific_cpp_v3_outline: 5/5 (100.0%)
+  language_specific_cpp_v3_prolog: 4/4 (100.0%)
+  language_specific_cpp_v3_systems: 2/2 (100.0%)
+  language_specific_cpp_v3_validator: 4/4 (100.0%)
+  language_specific_csharp_v3_closers: 3/3 (100.0%)
+  language_specific_csharp_v3_control_flow: 2/2 (100.0%)
+  language_specific_csharp_v3_core: 4/4 (100.0%)
+  language_specific_csharp_v3_data_types: 1/1 (100.0%)
+  language_specific_csharp_v3_expansion: 3/3 (100.0%)
+  language_specific_csharp_v3_imports: 2/2 (100.0%)
+  language_specific_csharp_v3_mapping: 1/1 (100.0%)
+  language_specific_csharp_v3_mir: 27/27 (100.0%)
+  language_specific_csharp_v3_outline: 5/5 (100.0%)
+  language_specific_csharp_v3_prolog: 4/4 (100.0%)
+  language_specific_csharp_v3_systems: 2/2 (100.0%)
+  language_specific_csharp_v3_validator: 4/4 (100.0%)
+  language_specific_java_v3_closers: 3/3 (100.0%)
+  language_specific_java_v3_control_flow: 2/2 (100.0%)
+  language_specific_java_v3_core: 4/4 (100.0%)
+  language_specific_java_v3_data_types: 1/1 (100.0%)
+  language_specific_java_v3_expansion: 3/3 (100.0%)
+  language_specific_java_v3_imports: 2/2 (100.0%)
+  language_specific_java_v3_mapping: 1/1 (100.0%)
+  language_specific_java_v3_mir: 29/29 (100.0%)
+  language_specific_java_v3_outline: 5/5 (100.0%)
+  language_specific_java_v3_prolog: 4/4 (100.0%)
+  language_specific_java_v3_systems: 2/2 (100.0%)
+  language_specific_java_v3_validator: 4/4 (100.0%)
+  language_specific_python_v3_closers: 3/3 (100.0%)
+  language_specific_python_v3_control_flow: 6/6 (100.0%)
+  language_specific_python_v3_core: 9/9 (100.0%)
+  language_specific_python_v3_data_types: 5/5 (100.0%)
+  language_specific_python_v3_expansion: 1/1 (100.0%)
+  language_specific_python_v3_imports: 2/2 (100.0%)
+  language_specific_python_v3_mapping: 1/1 (100.0%)
+  language_specific_python_v3_mir: 23/23 (100.0%)
+  language_specific_python_v3_operators: 5/5 (100.0%)
+  language_specific_python_v3_outline: 6/6 (100.0%)
+  language_specific_python_v3_prolog: 4/4 (100.0%)
+  language_specific_python_v3_scoping: 3/3 (100.0%)
+  language_specific_python_v3_systems: 5/5 (100.0%)
+  language_specific_python_v3_validator: 6/6 (100.0%)
+  language_specific_rust_v3_closers: 2/2 (100.0%)
+  language_specific_rust_v3_control_flow: 2/2 (100.0%)
+  language_specific_rust_v3_core: 1/1 (100.0%)
+  language_specific_rust_v3_data_types: 1/1 (100.0%)
+  language_specific_rust_v3_expansion: 2/2 (100.0%)
+  language_specific_rust_v3_imports: 2/2 (100.0%)
+  language_specific_rust_v3_mapping: 1/1 (100.0%)
+  language_specific_rust_v3_mir: 30/30 (100.0%)
+  language_specific_rust_v3_outline: 5/5 (100.0%)
+  language_specific_rust_v3_prolog: 4/4 (100.0%)
+  language_specific_rust_v3_systems: 2/2 (100.0%)
+  language_specific_rust_v3_validator: 4/4 (100.0%)
+  language_specific_typescript_v3_closers: 3/3 (100.0%)
+  language_specific_typescript_v3_control_flow: 7/7 (100.0%)
+  language_specific_typescript_v3_core: 9/9 (100.0%)
+  language_specific_typescript_v3_data_types: 6/6 (100.0%)
+  language_specific_typescript_v3_expansion: 3/3 (100.0%)
+  language_specific_typescript_v3_imports: 2/2 (100.0%)
+  language_specific_typescript_v3_mapping: 1/1 (100.0%)
+  language_specific_typescript_v3_mir: 29/29 (100.0%)
+  language_specific_typescript_v3_operators: 5/5 (100.0%)
+  language_specific_typescript_v3_outline: 6/6 (100.0%)
+  language_specific_typescript_v3_prolog: 4/4 (100.0%)
+  language_specific_typescript_v3_scoping: 4/4 (100.0%)
+  language_specific_typescript_v3_systems: 6/6 (100.0%)
+  language_specific_typescript_v3_validator: 6/6 (100.0%)
+
+Index comparison: 40 differences
+  - positive/forward_parent.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/ints_strings.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/forward_inline_semicolon.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/forward_inline_semicolon_multi.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/forward_trailing_whitespace.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/block_scope.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/multiple_handlers.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/multiple_handlers.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/for_loop_forward.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/if_chain_forwards.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/if_elif_else.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/try_except_finally_forward.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/while_forward_then_native.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/forward_multi_native.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/dict_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/list_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/set_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/tuple_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/arithmetic_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/arithmetic_ops.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/comparison_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/equality.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/logical_ops.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/logical_ops.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/ternary_expr.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/function_scope.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/nested_functions.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/shadowing.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/interface_with_param.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/interface_with_param.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/simple_interface.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/simple_interface.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/terminal_last_forward.frm [python] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/terminal_last_forward.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/try_catch_finally_forward.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/strict_equality.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/ternary_ops.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/closure_scope.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/function_block_scope.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}
+  - positive/let_const_shadowing.frm [typescript] expected={'transpile': True, 'validate': False, 'execute': True, 'negative': False, 'infinite': False} actual={'transpile': True, 'validate': True, 'execute': True, 'negative': False, 'infinite': False}

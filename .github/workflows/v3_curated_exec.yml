@@ -1,0 +1,63 @@
+name: V3 Curated Exec (Python/TypeScript/Rust)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ going_native, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  v3-curated-exec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-v3curated-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Frame Transpiler (release)
+        run: cargo build --release
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js (TypeScript)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript
+        run: npm install -g typescript
+
+      - name: Run curated exec (Py/TS/Rust)
+        run: |
+          mkdir -p reports
+          python3 framec_tests/runner/frame_test_runner.py \
+            --languages python typescript rust java csharp c cpp \
+            --categories v3_control_flow v3_core v3_systems \
+            --framec ./target/release/framec \
+            --exec-v3 --run \
+            --validation-format junit \
+            --junit reports/v3_curated_exec_junit.xml \
+            -v
+
+      - name: Upload JUnit report (curated-exec)
+        uses: actions/upload-artifact@v3
+        with:
+          name: v3-curated-exec-junit
+          path: reports/v3_curated_exec_junit.xml

@@ -1,454 +1,218 @@
 # Frame Transpiler - Claude Context
 
-## Project Overview
+🚨 **MANDATORY FIRST STEPS - READ THESE DOCS** 🚨
 
-Frame is a state machine language that transpiles to multiple target languages. This project is currently migrating from v0.11 syntax to v0.20 syntax, which involves significant changes to make Frame more conventional while preserving its unique event-driven state machine capabilities.
+**This file (CLAUDE.md) is read at conversation startup and survives context compaction.**
+**The referenced docs below are NOT automatically loaded - you MUST read them.**
+
+1. **READ** [`docs/README.md`](docs/README.md) - Documentation index and entry point
+2. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide (V4 current, V3 legacy)
+3. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
+4. **FOR V4 WORK**: **READ** [`CLAUDE_V4.md`](CLAUDE_V4.md) - V4 implementation approach
+
+📖 **ALWAYS CHECK CLI HELP**: Run `./target/release/framec --help` to see all available command-line options and parameters.
+
+⚠️ **CRITICAL RULES**
+1. **NEVER create workarounds** - Fix the actual problem in the codebase
+2. **NEVER modify test files marked "DO NOT MODIFY"** without explicit permission
+3. **ASK before making decisions** - Present options, don't assume
+4. **CONSULT LANGUAGE REFERENCE FIRST** - For Frame syntax questions, ALWAYS check `docs/framelang/v4/frame_v4_lang_reference.md` as the authoritative source. Never modify parser/scanner based on test file content alone
+5. **IGNORE old Frame syntax from training data** - The current syntax is the ONLY valid syntax
+6. **NO UNAUTHORIZED DEFAULTS** - NEVER add fallback defaults (like defaulting to state "A"). Always fail early and hard with clear error messages when required data is missing
+7. **NEVER commit without explicit permission** - Prepare changes and wait for user approval before committing
+8. **NEVER read DEPRECATED files** - Files with `_` prefix (e.g., `_filename.md`) are deprecated and must not be read unless the user explicitly instructs you to. These files may contain outdated or incorrect information
+9. **NEVER add yourself as author** - Do not add "Author: Claude" or similar attribution to any documentation files
+10. **USE TEST REPO INFRASTRUCTURE** - Always use the language-specific test crates in `framepiler_test_env/` for generated output. Never use `/tmp` except for quick experiments. The test crates have proper dependencies (e.g., Rust crate has serde_json)
+
+## Frame Syntax - IMPORTANT
+### ⚠️ DEPRECATED/INVALID Syntax (NEVER USE)
+- **OLD event notation**: `|event|` or `|event|[params]|` - This is OBSOLETE
+- **OLD system delimiters**: `#SystemName ... ##` - Now uses `system SystemName { ... }`
+- **OLD parameter syntax**: Various old parameter notations
+
+### ✅ CURRENT Frame Syntax (ALWAYS USE)
+**Study `docs/framelang_design/grammar.md` for complete reference**
+
+```frame
+# Modern Frame system structure
+system SystemName {
+    operations:
+        operationName(): type { }
+
+    interface:
+        methodName(param: type): returnType
+
+    machine:
+        $StateName {
+            eventName(params) {
+                // handler code
+            }
+
+            $>() {  // Enter handler
+                // enter code
+            }
+
+            <$() {  // Exit handler
+                // exit code
+            }
+        }
+
+    actions:
+        actionName() { }
+
+    domain:
+        var x = 0
+}
+```
+
+**Key syntax points:**
+- Systems use `system Name { }` blocks
+- States are `$StateName { }`
+- Event handlers are `eventName(params) { }` NOT `|eventName|`
+- Enter/exit handlers are `$>()` and `<$()`
+- Interface methods have signatures like `method(param: type): returnType`
+- For V4 examples: `framepiler_test_env/tests/common/primary/`
+- For V3 (legacy) examples: `framepiler_test_env/common/test-frames/v3/`
 
 ## Current State
+- **Version**: v0.96.10 (branch `v4_pure`)
+- **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
+- **V4 Test Status**: Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
+- **Unit Tests**: 208 pass, 0 fail, 2 ignored — zero warnings
+- **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
+- **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
 
-**Branch**: `v0.20`  
-**Status**: ✅ **v0.20 SYNTAX MIGRATION COMPLETE**  
-**Achievement**: **85% Test Success Rate** (39/46 tests passing) across 18+ Frame systems  
-**Recent**: Comprehensive documentation demo validation + state stack implementation  
+## Test Infrastructure (CRITICAL - USE TEST REPO ONLY)
 
-### 🎉 **Major Milestones Achieved (2025-01-21)**
+🚨 **ALWAYS use the test repo infrastructure** - NEVER use `/tmp` for test output except for quick experiments.
 
-#### ✅ **Comprehensive Demo Test Suite Created**
-- **History Demos**: 5 complete state stack examples from documentation 
-- **Transition Demos**: Basic transition patterns validated
-- **Documentation Coverage**: All intermediate_frame examples extracted and tested
-- **State Stack**: 100% working (`$$[+]` push, `$$[-]` pop with state preservation)
-- **Hierarchical**: 100% working (`=> $^` parent dispatch with router architecture)
+📖 **READ**: [`framepiler_test_env/tests/README.md`](framepiler_test_env/tests/README.md) - Complete test documentation
 
-#### ✅ **Test Results Summary**
-- **Total Systems**: 18 Frame systems successfully converted to v0.20
-- **Test Coverage**: 46 behavioral tests across all major language features
-- **Success Rate**: **39 PASSING / 46 TOTAL = 85% SUCCESS**
-- **State Stack Tests**: **100% PASSING** (all 8 stack-related tests)
-- **Hierarchical Tests**: **100% PASSING** (all 14 hierarchy tests)
-- **Basic Feature Tests**: **100% PASSING** (all core functionality)
+**Test Counts:**
+- Python: 146 tests (.fpy)
+- TypeScript: 128 tests (.fts)
+- Rust: 132 tests (.frs)
+- C: 141 tests (.fc)
+- **Total: 547 test files**
 
-#### ✅ **Complete Demo Systems Catalog** 
+**Test Output Directories:**
+- `framepiler_test_env/output/python/tests/` - Python generated output
+- `framepiler_test_env/output/typescript/tests/` - TypeScript generated output
+- `framepiler_test_env/output/rust/tests/` - Rust generated output
+- `framepiler_test_env/output/c/tests/` - C generated output
 
-**Documentation-Extracted Demos (From `/intermediate_frame/history.rst`):**
-1. **`History101`** - Basic state machine limitations demonstration
-2. **`History102`** - State name parameter approach for return navigation  
-3. **`History103`** - Introduction to state stack push/pop operations
-4. **`History104`** - Comprehensive comparison: transitions vs stack operations
-5. **`History105`** - Complete generic history with full state preservation
+### V4 Test Runner (UNIFIED)
+```bash
+cd framepiler_test_env/tests
+./run_tests.sh              # Run ALL tests (146 py + 128 ts + 132 rs + 141 c)
+./run_tests.sh --python     # Run only Python
+./run_tests.sh --category primary  # Run only primary category
+./run_tests.sh --help       # Show all options
+```
 
-**Core Feature Demos (From `/intermediate_frame/transitions.rst`):**
-6. **`BasicTransitionDemo`** - Fundamental state transition patterns
+### V3 Docker Test Runner (Legacy)
+```bash
+export FRAMEPILER_TEST_ENV=$(pwd)/framepiler_test_env
+framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
+  python_3 v3_data_types --framec ./target/release/framec
+```
 
-**Existing Validated Systems:**
-7. **`Basic`** - State machine fundamentals with enter/exit events
-8. **`Hierarchical`** - Parent dispatch with `=> $^` syntax  
-9. **`Transition`** - State lifecycle and transition mechanics
-10. **`StateParams`** - State parameters and argument passing
-11. **`EventHandler`** - Event handlers with parameters and return values
-12. **`SimpleHandlerCalls`** - Handler interactions and event chaining
-13. **`StateVars`** - State variable management and scoping
-14. **`TransitionParams`** - Enter/exit event parameter passing
-15. **`StateContext`** - Complex state context with variables
-16. **`StateStack`** - State stack operations (`$$[+]`, `$$[-]`)
-17. **`StateContextStack`** - State stack with context preservation
-18. **`ForwardEvents`** - Event forwarding patterns
+- **Module separator**: `::` (NOT `.` - dot is for member access)
+- **Check before starting**: Read `docs/HOW_TO.md` for complete current processes
 
-**Test Results by Category:**
-- **State Stack Operations**: 8/8 tests ✅ **100% PASSING**
-- **Hierarchical State Machines**: 14/14 tests ✅ **100% PASSING**  
-- **Basic State Operations**: 17/17 tests ✅ **100% PASSING**
-- **Parameter/Context Handling**: 6/7 tests ✅ **86% PASSING** (1 return value issue)
+## When Tests Fail
+1. Investigate root cause (don't assume test is wrong)
+2. Check scanner/parser for actual syntax
+3. ASK: "Should I fix X in visitor or is this a test issue?"
+
+## Test Validation Pattern
+**For tests that print "FAIL" messages, always use proper failure handling:**
+```frame
+if test_passes {
+    print("SUCCESS: descriptive message")
+} else {
+    print("FAIL: descriptive message")
+    # Force test failure by raising an exception
+    var failed_tests = []
+    var index = failed_tests[999]  # This will cause an IndexError and fail the test
+}
+```
+This ensures tests exit with proper failure codes for automated testing systems.
 
 ## Architecture
 
+### V4 Pipeline (CURRENT - Pure Preprocessor)
+V4 is a preprocessor for `@@system` blocks. Native code passes through verbatim.
+
 ```
-Frame Source (.frm) 
+Source file (.fpy/.fts/.frs/.fc)
     ↓
-Scanner (Tokenizer) → framec/src/frame_c/scanner.rs
-    ↓  
-Parser → framec/src/frame_c/parser.rs
+Stage 0: Segmenter (segmenter/) - Split source into prolog, system body, epilog spans
     ↓
-AST → framec/src/frame_c/ast.rs
+Stage 1: Lexer (lexer/) - Tokenize system body into Frame token stream
     ↓
-Visitors (Code Generation) → framec/src/frame_c/visitors/
+Stage 2: Pipeline Parser (pipeline_parser/) - Parse tokens into SystemAst
     ↓
-Target Code (Python, C#, etc.)
+Stage 3: Arcanum (arcanum.rs) - Build symbol table from AST
+    ↓
+Stage 4: Validator (frame_validator.rs) - Validate transitions, states, section order
+    ↓
+Stage 5: Codegen (codegen/system_codegen.rs) - Generate CodegenNode IR
+    ↓
+Stage 6: Backend Emitter (codegen/backends/*.rs) - Emit target language code
+    ↓
+Stage 7: Assembler (assembler/) - Stitch prolog + generated class + epilog
+    ↓
+Output: Complete target language file
 ```
 
-## Key v0.20 Syntax Changes
+**"Oceans Model"**: Native code is the ocean (passed through verbatim), `@@system` blocks are islands (expanded to classes).
 
-### System Declaration
-- **Old**: `#SystemName ... ##`
-- **New**: `system SystemName { ... }`
+**Key V4 Files**:
+- `framec/src/frame_c/v4/segmenter/` - Stage 0: source segmentation
+- `framec/src/frame_c/v4/lexer/` - Stage 1: tokenization
+- `framec/src/frame_c/v4/pipeline_parser/` - Stage 2: parse tokens into AST
+- `framec/src/frame_c/v4/arcanum.rs` - Stage 3: symbol table
+- `framec/src/frame_c/v4/frame_validator.rs` - Stage 4: validation
+- `framec/src/frame_c/v4/codegen/system_codegen.rs` - Stage 5: CodegenNode IR
+- `framec/src/frame_c/v4/codegen/backends/{python,typescript,rust,c,cpp,csharp,java}.rs` - Stage 6: emit code
+- `framec/src/frame_c/v4/assembler/` - Stage 7: output assembly
+- `framec/src/frame_c/v4/pipeline/compiler.rs` - Orchestrates all stages
 
-### Block Keywords
-- **Old**: `-interface-`, `-machine-`, `-actions-`, `-domain-`
-- **New**: `interface:`, `machine:`, `actions:`, `domain:`
+### V3 Pipeline (Legacy - for reference only)
+- Module Partitioner → Native Region Scanner → MIR Assembler → Expander → Splicer
+- Uses state machine-based scanning (NO string manipulation)
+- No longer under active development
 
-### Parameters
-- **Old**: `[param1, param2]`
-- **New**: `(param1, param2)`
+### V4 Syntax
+```frame
+@@target python_3
 
-### Event Handlers
-- **Old**: `|eventName|`
-- **New**: `eventName()`
+# Native imports (passed through)
+import math
 
-### Enter/Exit Events
-- **Old**: `|>|` and `|<|`
-- **New**: `$>()` and `<$()`
+@@system MySystem {
+    operations:
+        static helper(): int {
+            return 42
+        }
 
-### Return Statements
-- **Old**: `^` and `^(value)`
-- **New**: `return` and `return value`
+    interface:
+        method(param: type): returnType
 
-### Event Forwarding to Parent (NEW in v0.20)
-- **Old**: `:>` (deprecated), `@:>` (terminator - deprecated)
-- **New**: `=> $^` (statement - can appear anywhere in event handler)
+    machine:
+        $State {
+            handler(params) {
+                # Native code with Frame statements
+                -> $OtherState   # Transition
+            }
+        }
 
-### Attributes (NEW in v0.20)
-- **Old**: `#[static]` (Rust-style)
-- **New**: `@staticmethod` (Python-style)
+    domain:
+        var x = 0
+}
 
-### Current Event Reference (NEW in v0.20)
-- **Old**: `@` for current event
-- **New**: `$@` for current event
-- **Note**: Single `@` now reserved for Python-style attributes
-
-### System Parameters
-- **Old**: `#System [$[start], >[enter], #[domain]]`
-- **New**: `system System ($(start), $>(enter), domain)`
-
-### System Instantiation
-- **Old**: `System($("a"), >("b"), #("c"))`
-- **New**: `System("a", "b", "c")` (flattened arguments)
-
-## Build & Test
-
-### Build
-```bash
-cargo build
+# Native test harness (passed through)
+def main():
+    s = MySystem()
 ```
-
-### Test Transpiler
-```bash
-# Available languages: python_3, graphviz
-./target/debug/framec -l python_3 file.frm
-```
-
-### Test Files Location
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/`
-- Keep test files here, NOT in main transpiler project
-
-## Code Conventions
-
-### Scanner (scanner.rs)
-- Token recognition in `scan_token()` method
-- New tokens added to `TokenType` enum
-- Use `peek()` and `peek_next()` for lookahead
-
-### Parser (parser.rs)
-- Event handler parsing in `event_handler()` method
-- Terminator parsing handles `return`, `=>`, `@:>`
-- Use `TerminatorType` enum for different terminators
-
-### AST (ast.rs)
-- All syntax tree node definitions
-- `TerminatorType` enum defines terminator semantics
-
-### Visitors
-- Each target language has its own visitor
-- All visitors must handle new `TerminatorType::DispatchToParentState`
-- Python visitor is primary reference implementation
-
-## Documentation Migration Status
-
-Documentation is located in `/Users/marktruluck/projects/frame-docs/`
-
-### Getting Started Documentation (✅ COMPLETED)
-- `getting_started/basics.rst` - Basic Frame syntax and concepts
-- `getting_started/system.rst` - System declarations and structure
-- `getting_started/frame_events.rst` - Event handling fundamentals
-- `getting_started/machine_block.rst` - State machine structure
-- `getting_started/actions_block.rst` - Action method definitions
-- `getting_started/domain_block.rst` - Domain variable declarations
-- `getting_started/index.rst` - Getting started overview
-
-### Intermediate Frame Documentation (🔄 IN PROGRESS)
-**✅ Completed:**
-- `intermediate_frame/hsm.rst` - Hierarchical state machines with `@:>` operator
-- `intermediate_frame/interface.rst` - v0.20 interface syntax and parameter matching
-- `intermediate_frame/intermediate_events.rst` - Enter/exit events with v0.20 syntax
-- `intermediate_frame/systems.rst` - System parameter syntax migration
-- `intermediate_frame/transitions.rst` - Transition syntax updates
-- `intermediate_frame/conditionals.rst` - **NEW** v0.20 if/elif/else conventional syntax
-- `intermediate_frame/loops_new.rst` - **NEW** v0.20 for/while loop conventional syntax
-
-**⏳ Pending Updates:**
-- `intermediate_frame/control_flow.rst` - Contains deprecated pattern matching syntax (?, ?!, :>, ?~, ?#, ?:)
-- `intermediate_frame/loops.rst` - Contains legacy loop syntax, may be replaced by loops_new.rst
-- `intermediate_frame/history.rst` - State history mechanisms
-- `intermediate_frame/enums.rst` - Enumeration support
-- `intermediate_frame/functions.rst` - Function definitions and calls
-- `intermediate_frame/lists.rst` - List/array operations
-- `intermediate_frame/return.rst` - Return statement migration (^ → return)
-- `intermediate_frame/states.rst` - State definitions and behavior
-
-### Advanced Frame Documentation (🔄 IN PROGRESS)
-- `advanced_frame/state_variables.rst` - ✅ COMPLETED
-- `advanced_frame/transitions.rst` - ✅ COMPLETED  
-- `advanced_frame/services.rst` - ✅ COMPLETED v0.20 migration with auto-return and empty parameters
-- `advanced_frame/transition_parameters.rst` - Transition parameter passing
-- `advanced_frame/control_flow.rst` - Advanced control flow patterns
-- `advanced_frame/compartments.rst` - State compartmentalization
-
-### Transpiler Grammar Documentation (✅ COMPLETED)
-- `docs/source/language/grammar.md` - Complete BNF grammar with v0.20 syntax, design decisions, and examples
-
-### Documentation Notes
-- **conditionals.rst** and **loops_new.rst** focus exclusively on v0.20 conventional syntax
-- Pattern matching syntax (?, ?!, :>, ?~, ?#, ?:) will be deprecated and should not be included in new docs
-- All system examples use correct block order: operations, interface, machine, actions, domain
-- Legacy files like control_flow.rst and loops.rst contain extensive deprecated syntax
-
-## Important Notes
-
-### System Block Structure
-- System blocks are optional but must appear in specified order:
-  1. `operations:`
-  2. `interface:`
-  3. `machine:`
-  4. `actions:`
-  5. `domain:`
-- Blocks can be omitted if not needed
-- Order is enforced by parser
-
-### Event Handler Terminators
-- All event handlers MUST end with a terminator (`return`, `@:>`, `=>`)
-- `@:>` forwards events to parent states in hierarchical state machines
-- `@:>` is a block terminator - no statements can follow it
-- Code generators must emit implicit return after `@:>` dispatch
-
-### Hierarchical State Machines
-- Use `$Child => $Parent` syntax for hierarchy
-- `@:>` operator forwards events from child to parent
-- Child processes event first, then forwards to parent
-- Parent state handles forwarded event
-
-### Parameter Validation
-- Interface method parameters must exactly match event handler parameters
-- Names and types must be identical
-- System parameter order: start state, enter event, domain (flattened)
-
-## Git Workflow
-
-### Branches
-- `main` - stable v0.11 syntax
-- `v0.20` - active development branch
-
-### Commit Style
-- Use conventional commits
-- Reference specific syntax changes
-- Include rationale for design decisions
-
-## Common Tasks
-
-### Adding New Syntax
-1. Update scanner.rs with new token recognition
-2. Add token to TokenType enum
-3. Update parser.rs to handle new syntax
-4. Update AST if needed (new node types)
-5. Update all visitors in visitors/ directory
-6. Update grammar.md documentation
-7. Create test cases in test5 project
-
-### Testing Changes
-1. Build with `cargo build`
-2. Test with sample .frm files
-3. Verify generated code compiles/runs
-4. Check all visitors handle new syntax
-
-## Recent Accomplishments (2025-01-20)
-
-### Router-Based Parent Dispatch Architecture ✅
-- **Achievement**: Complete router infrastructure implementation for parent dispatch eliminating hardcoded method names
-- **Architecture Improvement**: Unified all parent dispatch through existing `__router` infrastructure 
-- **Router Enhancement**: Modified signature to accept optional `compartment` parameter for hierarchical dispatch
-- **Code Generation**: `=> $^` generates `self.__router(__e, compartment.parent_compartment)` instead of hardcoded calls
-- **Consistency**: Both explicit parent dispatch and fallback parent dispatch use same router mechanism
-- **Maintainability**: Eliminates code duplication and provides single point of routing logic
-- **Dynamic Resolution**: States resolved dynamically through router rather than hardcoded method names
-- **Test Coverage**: Comprehensive validation with 98/98 files passing (100% success rate)
-
-### Complete `=> $^` Parent Dispatch Implementation ✅
-- **Achievement**: Full implementation of new parent dispatch syntax replacing deprecated `@:>`
-- **Parser Enhancement**: Added validation to prevent `=> $^` in non-hierarchical states  
-- **AST Updates**: Enhanced `ParentDispatchStmtNode` with parent state tracking
-- **Auto-Return**: Parser automatically adds return terminators to event handlers without explicit returns
-- **Double Return Fix**: Resolved issue where both explicit and auto-generated returns were being created
-- **Documentation**: Updated all syntax documentation and examples
-
-### Empty Parameter List Support ✅
-- **Achievement**: Full support for empty parameter lists `()` in all contexts
-- **Parser Enhancement**: Fixed v0.11 restriction that rejected empty parameter syntax in `expr_list()` parsing
-- **Method Call Fix**: `self.method()` calls now parse correctly and generate proper Python code
-- **Interface Support**: Empty parameter interfaces like `quit()` fully supported
-- **Code Generation**: Fixed Python visitor call chain handling to output `self.method()` → `method()`
-- **Test Validation**: All services documentation examples now transpile successfully
-- **Implementation**: Modified parser `unary_expression()` and call chain processing in `call()` method
-
-## Recent Accomplishments (2025-01-18)
-
-### @ Symbol Refactoring for v0.20 ✅
-- **Achievement**: Successfully refactored @ symbol usage for clearer semantics
-- **Python Attributes**: Adopted `@staticmethod` and other Python decorators as standard
-- **Current Event**: Changed from `@` to `$@` to align with Frame's $ prefix pattern
-- **FrameEvents**: Reserved `@@` for FrameEvent markers
-- **Implementation**: Updated scanner, parser, AST, and Python visitor
-- **Documentation**: Updated all Frame documentation to reflect new syntax
-
-### Static Operations Support ✅
-- **Parser**: Now correctly recognizes `@staticmethod` attribute
-- **Code Generation**: Python visitor generates proper `@staticmethod` decorator
-- **Method Signature**: Static methods correctly omit `self` parameter
-- **Validation**: All operations.rst examples now generate working Python code
-
-## Recent Accomplishments (2025-01-17)
-
-### Comprehensive v0.20 Syntax Validation ✅
-- **Achievement**: 100% test coverage for implemented v0.20 features (56/56 files)
-- **Parser Fixes**: Transition + return parsing, system parameters, legacy syntax updates
-- **Quality Assurance**: All generated Python code passes syntax validation
-- **Test Suite**: Now serves as comprehensive v0.20 syntax documentation
-- **Regression Testing**: All existing functionality preserved
-
-### Major Parser Improvements ✅
-- **Return Statements**: Now work as regular statements in all contexts (if/elif/else, loops, etc.)
-- **Return Assignment**: `return = expr` syntax for interface return values  
-- **Transition Parsing**: Fixed `-> $State` followed by `return` in conditional blocks
-- **System Parameters**: Correct v0.20 syntax with flattened instantiation arguments
-- **Legacy Cleanup**: Updated all test files from v0.11 to v0.20 syntax
-
-### Test File Modernization ✅  
-- **Legacy Syntax**: ^ → return, :> → @:>, old system parameters → v0.20
-- **Function Restrictions**: Enforced single main function, converted multiple functions to system actions
-- **Syntax Patterns**: Updated for loops, parameter lists, block structures
-- **Documentation Value**: Test files now serve as syntax examples
-
-## Design Decisions Log
-
-### `=> $^` Parent Dispatch (2025-01-20)
-- **Decision**: Statement syntax (not terminator) replacing deprecated `@:>`
-- **Rationale**: More flexible - can appear anywhere in event handler with statements after
-- **Implementation**: Parser validates hierarchical context, AST tracks parent state, visitor generates parent call
-- **Transition Safety**: Generated code checks for transitions after parent call and returns early if needed
-- **Validation**: Parser error if used in non-hierarchical state
-
-### Router-Based Parent Dispatch Architecture (2025-01-20)
-- **Decision**: Use existing `__router` infrastructure for all parent dispatch instead of hardcoded method names
-- **Rationale**: Maintains architectural consistency, eliminates code duplication, easier maintenance
-- **Implementation**: 
-  - Modified router signature: `__router(self, __e, compartment=None)`
-  - Parent dispatch: `self.__router(__e, compartment.parent_compartment)`
-  - Fallback dispatch also uses router for consistency
-- **Benefits**: Dynamic state resolution, no hardcoded names, single point of routing logic
-- **Compatibility**: Preserves all existing functionality while improving code quality
-
-### v0.20 System Parameters
-- **Decision**: Flattened argument lists for instantiation
-- **Rationale**: Simpler, more conventional syntax
-- **Migration**: `System($(a), $>(b), c)` → `System(a, b, c)`
-
-### Interface Return Assignment (2025-01-17)
-- **Decision**: Replace `^=` with `return = value` syntax
-- **Rationale**: More conventional and readable syntax
-- **Implementation**: Parser recognizes `return =` as interface return assignment
-- **Migration**: `^= expr` → `return = expr`
-- **Codegen**: Generates assignment to return stack/field in target language
-
-## Files to Never Edit
-
-- Test files in main transpiler project (use test5 instead)
-- Legacy v0.11 documentation (keep for reference)
-- Generated code files
-
-## Current Status & Issues Found
-
-### ✅ RESOLVED: if/elif/else Parsing in Event Handlers (2025-01-16)
-
-**Issue**: Event handlers failed to parse if/elif/else chains with return statements, causing "Expected '}'" errors.
-
-**Root Cause**: Frame's parser only supported `return` as event handler terminators, not as regular statements within blocks.
-
-**Solution Implemented**:
-1. Added `ReturnStmt` variant to `StatementType` enum (ast.rs:1689)
-2. Created `ReturnStmtNode` AST node (ast.rs:3780-3794)
-3. Added return statement parsing to `statement()` method (parser.rs:4652-4667)
-4. Implemented visitor support in Python and GraphViz visitors
-5. Added `visit_return_stmt_node` to AstVisitor trait
-
-**Files Modified**:
-- `framec/src/frame_c/ast.rs` - Added ReturnStmt AST node
-- `framec/src/frame_c/parser.rs` - Added return statement parsing
-- `framec/src/frame_c/visitors/mod.rs` - Added visitor method
-- `framec/src/frame_c/visitors/python_visitor.rs` - Python code generation
-- `framec/src/frame_c/visitors/graphviz_visitor.rs` - Pattern matching
-
-**Test Results**:
-- ✅ Event handlers now support if/elif/else chains with return statements
-- ✅ Action methods continue to work as before
-- ✅ Generated Python code is clean and conventional
-- ✅ All test cases pass successfully
-
-**Working Test Files**:
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/test_enum_basic.frm` - ✅ Works
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/test_enums_terminator.frm` - ✅ Works
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/test_enums.frm` - ✅ **NOW WORKS**
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/test_elif_with_return.frm` - ✅ Works
-- `/Users/marktruluck/projects/test5/.vscode/v0.20_syntax/test_simple_elif.frm` - ✅ Works
-
-### Known Issues & Future Optimizations
-
-**1. Dead Code Generation (Low Priority)**
-- **Issue**: Event handlers generate unreachable return statements after complete if/elif chains
-- **Example**: Final `return` after exhaustive if/elif/else is unreachable
-- **Status**: Functional correctness is fine, this is a code generation optimization
-- **Solution**: Requires control flow analysis to detect exhaustive return coverage
-
-### Documentation Status After Fix
-- `intermediate_frame/enums.rst` - ✅ Now fully validated with working examples
-- `intermediate_frame/conditionals.rst` - ✅ Examples now work in event handlers
-- All if/elif/else documentation examples can now be validated
-
-## Current Priorities
-
-1. ✅ **COMPLETED**: if/elif/else parsing in event handlers - fixed with transition + return parsing
-2. ✅ **COMPLETED**: Validate all implemented syntax with transpiler - 98/98 test files passing (100% success rate)
-3. ✅ **COMPLETED**: Update legacy syntax (^, :>, @:>, system parameters, multiple functions)
-4. ✅ **COMPLETED**: Complete `=> $^` parent dispatch implementation with validation and double return fix
-5. ✅ **COMPLETED**: Auto-return statements for event handlers without explicit returns
-6. ✅ **COMPLETED**: Router-based parent dispatch architecture eliminating hardcoded method names
-7. ✅ **COMPLETED**: Empty parameter list support for v0.20 interface methods and operations
-8. ✅ **COMPLETED**: Comprehensive test validation with 100% success rate (73/73 files)
-9. Continue intermediate Frame documentation migration for remaining features
-10. Update remaining advanced Frame topics
-11. Remove deprecated `^` and `@:>` token support (parser updated, need to clean up scanner)
-12. Complete v0.20 syntax implementation for remaining features
-13. (Future) Optimize dead code generation in event handlers
-
-## Helpful Commands
-
-```bash
-# Check for old syntax in docs
-grep -r ":>" docs/
-grep -r "\^" docs/
-grep -r "\|.*\|" docs/
-
-# Find Frame files for testing
-find . -name "*.frm"
-
-# Build and test in one command
-cargo build && ./target/debug/framec -l python_3 test_file.frm
-```
-- Always indent the code in the frame blocks (operations: interface: machine: etc) in the samples that are generated or updated.
-- do not add attribution to claude on the commit messages

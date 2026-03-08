@@ -1,6 +1,9 @@
 # General
 .DS_Store
 
+# Underscore-prefixed files (scratch/deprecated)
+_*
+
 # IDE
 *.idea
 *.iml
@@ -8,7 +11,36 @@
 ./config.yaml
 target
 
-framec_tests/javascript/node_modules
+# Node.js dependencies
+node_modules/
 
 # Planning docs (internal use only)
 docs/plans/
+
+# Temporary working documents
+docs/tmp/
+
+# Claude-specific files (AI assistant context)
+CLAUDE.md
+CLAUDE.local.md
+
+# Test infrastructure has been moved to shared environment
+# See: framepiler_test_env/framepiler/
+# Backup archives from migration
+framec_tests_backup_*.tar.gz
+
+# Python caches
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Private scripts and utilities (not for version control)
+.private/
+
+# Rust build artifacts
+*.rlib
+
+# Miscellaneous test files and debugging artifacts
+.misc/
+framepiler_test_env

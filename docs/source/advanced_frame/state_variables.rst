@@ -7,14 +7,13 @@ entry to a state. As with state parameters, they go out of scope when
 the state compartment does.
 
 State variables are declared after the state declaration and before any
-event handlers:
+event handlers, using the `$.` prefix:
 
 ``Frame``
 
 .. code-block::
 
-    system StateVariableDemo {
-
+    @@system StateVariableDemo {
         interface:
             print()
             updateName(newName: string)
@@ -22,34 +21,30 @@ event handlers:
 
         machine:
             $JoeName {
-                var name: string = "Joe"
+                $.name: string = "Joe"
 
                 print() {
-                    print(name)
-                    return
+                    print($.name)
                 }
                 updateName(newName: string) {
-                    name = newName
-                    return
+                    $.name = newName
                 }
                 forgetMe() {
                     -> $ResetName
-                    return
                 }
             }
 
             $ResetName {
                 $>() {
                     -> $JoeName
-                    return
                 }
             }
 
         actions:
-            print(msg: string) {}
+            print(msg: string) { }
     }
 
-The `StateVariableDemo` system start state, `$JoeName`, initializes the `name`
+The `StateVariableDemo` system start state, `$JoeName`, initializes the `$.name`
 state variable to "Joe". The `updateName()` handler will update the state
 variable such that the next `print()` event will print the new name.
 

@@ -19,83 +19,95 @@ by Dr David Harel in his
 modeling and the SYSML systems modeling languages as the standard flavor of
 state machine visual languages.
 
-Reviewing our #Lamp spec, we can see that two states share a significant
-amount of identical functionality with the |getColor| and |setColor| handlers:
+Reviewing our Lamp spec, we can see that two states share a significant
+amount of identical functionality with the `getColor` and `setColor` handlers:
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        interface:
+            turnOn()
+            turnOff()
+            setColor(color: string)
+            getColor(): string
 
-    -interface-
+        machine:
+            $Off {
+                turnOn() {
+                    -> $On
+                }
+                getColor(): string {
+                    return self.color
+                }
+                setColor(color: string) {
+                    self.color = color
+                }
+            }
 
-    turnOn
-    turnOff
-    setColor [color:string]
-    getColor : string
+            $On {
+                $>() {
+                    turnOnLamp()
+                }
+                $<() {
+                    turnOffLamp()
+                }
+                turnOff() {
+                    -> $Off
+                }
+                getColor(): string {
+                    return self.color
+                }
+                setColor(color: string) {
+                    self.color = color
+                }
+            }
 
-    -machine-
+        actions:
+            turnOnLamp() { }
+            turnOffLamp() { }
 
-    $Off
-        |turnOn|
-            -> $On ^
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
-
-    $On
-        |>|
-            turnOnLamp() ^
-        |<|
-            turnOffLamp() ^
-        |turnOff|
-            -> $Off ^
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
-
-    -actions-
-
-    turnOnLamp
-    turnOffLamp
-
-    -domain-
-
-    var color:string = "white"
-
-    ##
+        domain:
+            var color: string = "white"
+    }
 
 To remove the redundancy, HSMs factor out shared functionality into parent
 states which is then inherited by child states.
-For our #Lamp we will create a new `$Base` state and move those handlers into
+For our Lamp we will create a new `$ColorBehavior` state and move those handlers into
 it.
 
 .. code-block:: language
 
-    #Lamp
+    @@system Lamp {
+        ...
 
-    ...
+        machine:
+            $Off => $ColorBehavior {
+                turnOn() {
+                    -> $On
+                }
+            }
 
-    -machine-
+            $On => $ColorBehavior {
+                $>() {
+                    turnOnLamp()
+                }
+                $<() {
+                    turnOffLamp()
+                }
+                turnOff() {
+                    -> $Off
+                }
+            }
 
-    $Off => $ColorBehavior
-        |turnOn|
-            -> $On ^
-
-    $On => $ColorBehavior
-        |>|
-            turnOnLamp() ^
-        |<|
-            turnOffLamp() ^
-        |turnOff|
-            -> $Off ^
-
-    $ColorBehavior
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
+            $ColorBehavior {
+                getColor(): string {
+                    return self.color
+                }
+                setColor(color: string) {
+                    self.color = color
+                }
+            }
+    }
 
 Here we can see the `$Off` and `$On` states now inherit their behavior from
 `$ColorBehavior` state using the `=>` dispatch operator.
@@ -148,49 +160,52 @@ Above we can see that the `$ColorBehavior` state now contains the get/setColor
 event handlers and the `$Off` and `$On` states forward the FrameEvent
 to it for any functionality they do not handle.
 
-Here is the full HSM implementation of our #Lamp:
+Here is the full HSM implementation of our Lamp:
 
 .. code-block::
 
-    #Lamp
+    @@system Lamp {
+        interface:
+            turnOn()
+            turnOff()
+            setColor(color: string)
+            getColor(): string
 
-    -interface-
+        machine:
+            $Off => $ColorBehavior {
+                turnOn() {
+                    -> $On
+                }
+            }
 
-    turnOn
-    turnOff
-    setColor [color:string]
-    getColor : string
+            $On => $ColorBehavior {
+                $>() {
+                    turnOnLamp()
+                }
+                $<() {
+                    turnOffLamp()
+                }
+                turnOff() {
+                    -> $Off
+                }
+            }
 
-    -machine-
+            $ColorBehavior {
+                getColor(): string {
+                    return self.color
+                }
+                setColor(color: string) {
+                    self.color = color
+                }
+            }
 
-    $Off => $ColorBehavior
-        |turnOn|
-            -> $On ^
+        actions:
+            turnOnLamp() { }
+            turnOffLamp() { }
 
-    $On => $ColorBehavior
-        |>|
-            turnOnLamp() ^
-        |<|
-            turnOffLamp() ^
-        |turnOff|
-            -> $Off ^
-
-    $ColorBehavior
-        |getColor| : string
-            ^(color)
-        |setColor| [color:string]
-            #.color = color ^
-
-    -actions-
-
-    turnOnLamp
-    turnOffLamp
-
-    -domain-
-
-    var color:string = "white"
-
-    ##
+        domain:
+            var color: string = "white"
+    }
 
 Statecharts are the current gold standard for state machine modeling. We will
 next explore another powerful Statechart innovation - the history mechanism.

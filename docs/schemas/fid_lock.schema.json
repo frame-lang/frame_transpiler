@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://frame-lang.org/schemas/fid_lock.json",
+  "title": "Frame FID Lockfile",
+  "type": "object",
+  "required": ["lockVersion", "generatedAt", "toolchain", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "lockVersion": { "type": "string" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "toolchain": {
+      "type": "object",
+      "required": ["framec"],
+      "additionalProperties": false,
+      "properties": {
+        "framec": { "type": "string" },
+        "importers": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["@target", "resource", "fingerprint", "outputs"],
+      "additionalProperties": false,
+      "properties": {
+        "@target": { "type": "string" },
+        "resource": { "$ref": "#/$defs/resource" },
+        "modules": { "type": "array", "items": { "$ref": "#/$defs/moduleMap" } },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/output" }, "minItems": 1 }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "oneOf": [ { "$ref": "#/$defs/fileResource" }, { "$ref": "#/$defs/moduleResource" } ]
+    },
+    "fileResource": {
+      "type": "object",
+      "required": ["file"],
+      "properties": { "file": { "type": "object", "required": ["uri"], "properties": { "uri": { "type": "string" } } } }
+    },
+    "moduleResource": {
+      "type": "object",
+      "required": ["module"],
+      "properties": { "module": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } } }
+    },
+    "moduleMap": {
+      "type": "object",
+      "required": ["module", "import"],
+      "additionalProperties": false,
+      "properties": {
+        "module": { "type": "string" },
+        "import": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "fingerprint": {
+      "type": "object",
+      "required": ["algorithm", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "type": "string", "enum": ["sha256"] },
+        "value": { "type": "string" },
+        "package": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "manager": { "type": "string", "enum": ["npm", "yarn", "pnpm", "pip", "poetry", "stdlib", "git", "file", "unknown"] },
+            "name": { "type": "string" },
+            "version": { "type": "string" },
+            "resolved": { "type": "string" }
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["namespace", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "namespace": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    }
+  }
+}

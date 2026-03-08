@@ -1,0 +1,84 @@
+name: Frame Transpiler Tests
+
+on:
+  push:
+    branches: [ main, v0.* ]
+  pull_request:
+    branches: [ main, v0.* ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.9", "3.10", "3.11"]
+        rust: [stable]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    # Setup Rust
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: ${{ matrix.rust }}
+    
+    # Setup Python
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    # Cache Rust dependencies
+    - name: Cache Cargo
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    # Cache Python dependencies
+    - name: Cache pip
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('framec_tests/requirements.txt') }}
+    
+    # Build Rust transpiler
+    - name: Build transpiler
+      run: cargo build --release
+    
+    # Install Python dependencies
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r framec_tests/requirements.txt
+    
+    # Run tests
+    - name: Run Frame tests
+      run: |
+        cd framec_tests
+        python runner/frame_test_runner.py --all --verbose --framec ../target/release/framec
+
+    - name: Install Clang (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install -y clang
+
+    - name: Run LLVM smoke tests
+      run: |
+        python3 framec_tests/runner/frame_test_runner.py \
+          --languages llvm \
+          --categories language_specific_llvm \
+          --framec ./target/release/framec \
+          --timeout 30
+    
+    # Upload test results
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: framec_tests/reports/

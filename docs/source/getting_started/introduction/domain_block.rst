@@ -8,15 +8,12 @@ might have a few member variables.
 
 .. code-block::
 
-    #ThingForSale
-
-    -domain-
-
-    var item_id:i64 = newId()         --- expression intitializer
-    var location:string = "warehouse" --- typed variable
-    const sku = 12345                 --- untyped constant
-
-    ##
+    @@system ThingForSale {
+        domain:
+            var item_id: i64 = newId()         // expression initializer
+            var location: string = "warehouse" // typed variable
+            const sku = 12345                  // untyped constant
+    }
 
 Domain variables follow the general declaration syntax discussed in the
 :ref:`variable_declarations` section.
@@ -24,7 +21,7 @@ Domain variables follow the general declaration syntax discussed in the
 Domain Scope Prefix
 -------------------
 Domain variables can be disambiguated from variables with the same name in
-different scopes by prefixing it with `#.<domain_var>`. For example `#.location` would
+different scopes by prefixing it with `self.<domain_var>`. For example `self.location` would
 reference the domain variable shown above. Variables from other scopes also
 have scope prefixes which will be discussed in context.
 
@@ -32,10 +29,7 @@ Our lamp will have just one data member - the color of the light.
 
 .. code-block::
 
-    #Lamp
-
-    -domain-
-
-    var color:string = "white"
-
-    ##
+    @@system Lamp {
+        domain:
+            var color: string = "white"
+    }

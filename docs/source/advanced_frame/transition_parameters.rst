@@ -1,11 +1,11 @@
 Transition Parameters
 =====================
 
-Transition parameters allow system designers to specify that data that should
-be sent to enter |>| and exit |<| event handlers during a transition.
+Transition parameters allow system designers to specify data that should
+be sent to enter `$>()` and exit `$<()` event handlers during a transition.
 
 This capability simplifies managing data passing when the current event handler
-shouldn’t process information in the current context.
+shouldn't process information in the current context.
 
 Enter Event Parameters
 ----------------------
@@ -29,32 +29,32 @@ This list is sent as arguments to the enter event in the target state:
 
 .. code-block::
 
-    #EnterEventParameters
+    @@system EnterEventParameters {
+        interface:
+            start()
 
-        -interface-
+        machine:
+            $Begin {
+                start() {
+                    -> ("Hello $State") $State
+                }
+            }
 
-        start @(|>>|)
+            $State {
+                $>(greeting: string) {
+                    print(greeting)
+                }
+            }
 
-        -machine-
-
-        $Begin
-            |>>| -> ("Hello $State") $State ^
-
-        $State
-            |>| [greeting:string]
-                print(greeting) ^
-
-        -actions-
-
-        print[message:string]
-
-    ##
+        actions:
+            print(message: string) { }
+    }
 
 Exit Event Parameters
 ---------------------
 
 Though not as common an operation as sending data forward to the next state,
-Frame also enables sending data to the exit event hander of the current state as well:
+Frame also enables sending data to the exit event handler of the current state as well:
 
 .. code-block::
 
@@ -72,12 +72,23 @@ as in
 
 .. code-block::
 
-    $OuttaHere
-        |<| [exitMsg:string]
-            print(exitMsg) ^
+    @@system ExitEventParameters {
+        machine:
+            $OuttaHere {
+                $<(exitMsg: string) {
+                    print(exitMsg)
+                }
 
-        |gottaGo|
-            ("cya") -> $NextState ^
+                gottaGo() {
+                    ("cya") -> $NextState
+                }
+            }
+
+            $NextState { }
+
+        actions:
+            print(msg: string) { }
+    }
 
 State Parameters
 ----------------
@@ -96,30 +107,35 @@ State parameters are declared as a parameter list for the state:
 
 .. code-block::
 
-    #StateParameters
+    @@system StateParameters {
+        machine:
+            $Begin {
+                start() {
+                    -> $State("Hi! I am $State :)")
+                }
+            }
 
-        -machine-
+            $State(stateNameTag: string) {
+                $>() {
+                    print(stateNameTag)
+                }
+                $<() {
+                    print(stateNameTag)
+                }
+                stop() {
+                    print(stateNameTag)
+                    -> $End
+                }
+            }
 
-        $Begin
-            |>>| -> $State("Hi! I am $State :)")  ^
+            $End { }
 
-        $State [stateNameTag:string]
-            |>|  print(stateNameTag) ^
-            |<|  print(stateNameTag) ^
-            |<<|
-                 print(stateNameTag)
-                 -> $End ^
+        actions:
+            print(message: string) { }
 
-        $End
-
-        -actions-
-
-        printAll[message:string]
-
-        -domain-
-
-        var systemName = "#Variables"
-    ##
+        domain:
+            var systemName = "Variables"
+    }
 
 Above we see that the stateNameTag is accessible in the enter, exit and
 stop event handlers. It will also be in scope for all other event handlers for

@@ -1,25 +1,78 @@
 [package]
 name = "framec"
-version = "0.20.0"
+version.workspace = true
 authors = ["Mark Truluck <mark@frame-lang.org>"]
-edition = "2018"
+edition = "2021"
+
+[features]
+# Placeholder feature to silence cfg gating in typescript visitor until B2 is enabled
+ts_b2_codegen = []
+
+# Optional native parser adapters (off by default)
+native-ts = ["swc_common", "swc_ecma_parser", "swc_ecma_ast"]
+native-rs = ["syn/full"]
+native-c = ["tree-sitter", "tree-sitter-c"]
+native-cpp = ["tree-sitter", "tree-sitter-cpp"]
+native-java = ["tree-sitter", "tree-sitter-java"]
+native-csharp = ["tree-sitter", "tree-sitter-c-sharp"]
+native-py = ["tree-sitter", "tree-sitter-python"]
+native-py-rp = ["rustpython-parser"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "framec"
+path = "src/main.rs"
+
+[[bin]]
+name = "v3_rs_snapshot_shape"
+path = "src/bin/v3_rs_snapshot_shape.rs"
+
+[[bin]]
+name = "v3_rs_snapshot_traffic_light"
+path = "src/bin/v3_rs_snapshot_traffic_light.rs"
+
 [dependencies]
-clap = { version = "3.0.14" }
-convert_case = "0.4.0"
+chrono = "0.4"
+clap = { version = "4.5" }
+convert_case = "0.6"
 downcast-rs = "1.2.0"
 exitcode = "1.1.2"
-figment = { version = "0.10.6", features = ["yaml"] }
-serde = { version = "1.0", features = ["serde_derive"] }
-serde_yaml = "0.8"
+serde = { version = "1.0", features = ["derive", "serde_derive"] }
+serde_json = "1.0"
 sha2 = "0.10"
-structopt = "0.3.21"
-wasm-bindgen = "0.2"
-indoc = "1.0"
+wasm-bindgen = "0.2.92"
+indoc = "2.0"
+colored = "2.0"
+petgraph = "0.6"
+regex = "1.10"
+toml = "0.9.5"
+uuid = { version = "1", features = ["v4"] }
+tempfile = "3"
+# Parser crates are optional and only used when corresponding features are enabled
+syn = { version = "2", optional = true, features = ["full"] }
+swc_common = { version = "16", features = ["tty-emitter"], optional = true }
+swc_ecma_parser = { version = "26", features = ["typescript"], optional = true }
+swc_ecma_ast = { version = "17", optional = true }
+tree-sitter = { version = "0.20", optional = true }
+tree-sitter-c = { version = "0.20", optional = true }
+tree-sitter-cpp = { version = "0.20", optional = true }
+tree-sitter-java = { version = "0.20", optional = true }
+tree-sitter-c-sharp = { version = "0.20", optional = true }
+tree-sitter-python = { version = "0.20", optional = true }
+
+# Python parser (pure Rust) for hermetic native parsing
+rustpython-parser = { version = "0.3", optional = true }
+
+# Internal persistence library used by Stage 15/17 tooling.
+frame_persistence_rs = { path = "../runtime/persistence_rs" }
+
+# Note: rustpython-parser intentionally omitted here for now; Python adapter will be added later.
+
+[dev-dependencies]
+tempfile = "3"
 
 
 [package.metadata.wasm-pack.profile.release]

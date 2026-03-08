@@ -11,16 +11,17 @@ State changes are trivial - the only activity is to update the state
 variable to the new state. Transitions, however, become increasingly more
 sophisticated depending on the language features used in a spec.
 
-State Changes
--------------
+State Changes (Deprecated)
+--------------------------
 
-Sometimes it is desirable to change states without triggering the full
-enter/exit machinery involved with a transition. The state change operator
-enables this capability:
+.. note::
+   The state change operator (`->>`) has been deprecated in Frame V4.
+   All state changes should now use the standard transition operator (`->`)
+   which includes proper enter/exit lifecycle handling.
 
-->> $NewState
-
-A simple filter system is a good example of when changing state is more appropriate than a full transition. Here we can see that the #Filter system simply oscillates between the $Off and $On states. It’s only behaivor is enabling and disabling transmission of objects through it so no state resource management is necessary:
+In older Frame versions, it was possible to change states without triggering the full
+enter/exit machinery using the state change operator. This capability has been
+removed to ensure consistent state lifecycle behavior.
 .. code-block:: language
 
     <code>

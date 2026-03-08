@@ -1,0 +1,62 @@
+name: V3 Exec Smoke (All Languages)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ going_native, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  v3-exec-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-v3exec-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Frame Transpiler (release)
+        run: cargo build --release
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js (TypeScript)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript
+        run: npm install -g typescript
+
+      - name: Run V3 exec smoke across all languages
+        run: |
+          mkdir -p reports
+          python3 framec_tests/runner/frame_test_runner.py \
+            --languages python typescript csharp c cpp java rust \
+            --categories v3_exec_smoke \
+            --framec ./target/release/framec \
+            --validation-format junit \
+            --junit reports/v3_exec_smoke_junit.xml \
+            -v
+
+      - name: Upload JUnit report (exec-smoke)
+        uses: actions/upload-artifact@v3
+        with:
+          name: v3-exec-smoke-junit
+          path: reports/v3_exec_smoke_junit.xml

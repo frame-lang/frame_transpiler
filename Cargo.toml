@@ -1,7 +1,12 @@
 [workspace]
+resolver = "2"
 members = [
     "framec",
     "frame_build", 
-    "frame_runtime",
-    "framec_tests",
+    "runtime/llvm",
+    "runtime/persistence_rs",
 ]
+exclude = ["framec_tests", "framepiler_test_env"]
+
+[workspace.package]
+version = "0.96.0"

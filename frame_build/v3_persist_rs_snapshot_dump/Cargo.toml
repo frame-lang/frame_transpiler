@@ -1,0 +1,7 @@
+[package]
+name = "traffic_light_snapshot_dump_harness"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+frame_persistence_rs = { path = "../../runtime/persistence_rs" }

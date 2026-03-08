@@ -1,0 +1,54 @@
+name: Strict Native Facade
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ going_native, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  strict-facade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-strict-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build with native adapters (strict profile)
+        run: |
+          cargo build --release --features native-py-rp,native-py,native-ts,native-rs,native-c,native-cpp,native-java,native-csharp
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js (for TypeScript)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript
+        run: npm install -g typescript
+
+      - name: Run facade strict tests (all languages)
+        run: |
+          python3 framec_tests/runner/frame_test_runner.py \
+            --languages python typescript csharp c cpp java rust \
+            --categories v3_facade_smoke \
+            --framec ./target/release/framec \
+            -v

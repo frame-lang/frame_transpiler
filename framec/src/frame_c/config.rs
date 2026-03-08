@@ -1,791 +1,363 @@
-use crate::frame_c::ast::{AttributeNode, SystemNode};
-use crate::frame_c::utils::{frame_exitcode, RunError};
-use figment::providers::{Format, Yaml};
-use figment::value::{Dict, Map, Value};
-use figment::{Error, Figment, Metadata, Profile, Provider};
+// Simplified configuration system for Frame v0.57+
+// Focuses on build configuration and Python-specific options
+
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-/// The root struct of a frame configuration.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// The simplified Frame configuration structure (v0.57+)
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FrameConfig {
-    pub codegen: CodeGenConfig,
-}
+    #[serde(default)]
+    pub project: ProjectConfig,
 
-impl FrameConfig {
-    /// Write out the default configuration to `config.yaml` in the current working directory.
-    pub fn write_default_yaml_file() -> Result<(), RunError> {
-        let default_config = FrameConfig::default();
-        match serde_yaml::to_string(&default_config) {
-            Ok(serialized) => match fs::write("config.yaml", serialized) {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    let msg = format!("Error writing default config.yaml: {}", err);
-                    Err(RunError::new(frame_exitcode::CONFIG_ERR, &*msg))
-                }
-            },
-            Err(err) => {
-                let msg = format!("Error serializing default configuration: {}", err);
-                Err(RunError::new(frame_exitcode::CONFIG_ERR, &*msg))
-            }
-        }
-    }
+    #[serde(default)]
+    pub build: BuildConfig,
 
-    /// Load a configuration by merging the default configuration with an optional local
-    /// configuration file, then overriding any configuration attributes defined in the Frame spec.
-    pub fn load(
-        local_config: &Option<PathBuf>,
-        system_node: &SystemNode,
-    ) -> Result<FrameConfig, Error> {
-        let mut figment = FrameConfig::default().figment();
-        if let Some(path) = local_config {
-            figment = figment.merge(Yaml::file(path));
-        }
-        figment.merge(Figment::from(system_node)).extract()
-    }
-}
-
-/// Configuration options related to code generation.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CodeGenConfig {
-    pub common: CommonConfig,
-    pub rust: RustConfig,
-    pub golang: GolangConfig,
-    pub smcat: SmcatConfig,
-    pub javascript: JavascriptConfig,
+    #[serde(default)]
     pub python: PythonConfig,
-    pub java: JavaConfig,
-    pub csharp: CsharpConfig,
-    pub cpp: CppConfig,
+
+    #[serde(default)]
+    pub paths: PathsConfig,
+
+    #[serde(default)]
+    pub scripts: HashMap<String, String>,
 }
 
-/// Code generation options shared among all backends.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CommonConfig {
-    pub features: CommonFeatures,
-    pub code: CommonCode,
-    pub attributes: CommonAttributes,
-}
-
-/// Code generation options specific to the Rust backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GolangConfig {
-    //    pub features: GolangFeatures,
-    pub code: GolangCode,
-}
-
-/// Naming options for generated code specific to the Rust backend. These options can be used to
-/// tweak the names of types, methods, fields, and variables in generated code.
-///
-/// These options are "use at your own risk" for now since we are not testing Frame with anything
-/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
-/// to leave them be. :-)
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GolangCode {
-    pub action_prefix: String,
-    pub action_suffix: String,
-    pub actions_prefix: String,
-    pub actions_suffix: String,
-
-    pub enter_token: String,
-    pub exit_token: String,
-    pub enter_msg: String,
-    pub exit_msg: String,
-    pub event_args_suffix: String,
-    pub event_args_method_suffix: String,
-    pub enter_args_member_name: String,
-    pub exit_args_member_name: String,
-
-    pub frame_event_type_name: String,
-    pub frame_event_variable_name: String,
-    pub frame_event_args_attribute_name: String,
-    pub frame_event_args_type_name: String,
-    pub frame_event_message_attribute_name: String,
-    pub frame_event_message_type_name: String,
-    pub frame_event_return_attribute_name: String,
-    pub frame_event_return_type_name: String,
-
-    pub initialize_method_name: String,
-    pub handle_event_method_name: String,
-    pub change_state_method_name: String,
-    pub transition_method_name: String,
-
-    pub assignment_temp_var_name: String,
-    pub state_handler_name_prefix: String,
-    pub state_handler_name_suffix: String,
-
-    pub state_var_name: String,
-    pub state_args_suffix: String,
-    pub state_args_var_name: String,
-    pub state_vars_suffix: String,
-    pub state_vars_var_name: String,
-    //    pub state_name_use_sysname_prefix: bool, // auto prefix the state name w/ system name
-    pub state_context_type_name: String,
-    pub state_context_var_name: String,
-    pub state_context_suffix: String,
-    pub state_context_method_suffix: String,
-    pub this_state_context_var_name: String,
-
-    pub state_enum_suffix: String,
-    pub state_enum_traits: String,
-
-    pub change_state_hook_method_name: String,
-    pub transition_hook_method_name: String,
-
-    pub state_stack_var_name: String,
-    pub state_stack_push_method_name: String,
-    pub state_stack_pop_method_name: String,
-
-    pub runtime_info_module_name: String,
-    pub runtime_module_use_as_name: String,
-    pub machine_info_function_name: String,
-    pub pop_state_info_name: String,
-    pub event_monitor_var_name: String,
-    pub transition_info_arg_name: String,
-    pub managed: bool,      // Generate Managed code
-    pub marshal: bool,      // Generate Marshalling code
-    pub state_type: String, // Name of state type
-    pub marshal_system_state_var: String,
-    pub system_struct_type: String,
-    pub manager: String,
-    pub compartment_type: String,
-
-    pub this_branch_transitioned: bool,
-}
-
-impl Default for GolangCode {
+impl Default for FrameConfig {
     fn default() -> Self {
-        GolangCode {
-            action_prefix: String::from(""),
-            action_suffix: String::from(""),
-            actions_prefix: String::from(""),
-            actions_suffix: String::from("Actions"),
-
-            enter_token: String::from(">"),
-            exit_token: String::from("<"),
-            enter_msg: String::from("Enter"),
-            exit_msg: String::from("Exit"),
-            event_args_suffix: String::from("Args"),
-            event_args_method_suffix: String::from("_args"),
-            enter_args_member_name: String::from("enter_args"),
-            exit_args_member_name: String::from("exit_args"),
-
-            frame_event_type_name: String::from("framelang.FrameEvent"),
-            frame_event_variable_name: String::from("frame_event"),
-            frame_event_args_attribute_name: String::from("arguments"),
-            frame_event_args_type_name: String::from("FrameEventArgs"),
-            frame_event_message_attribute_name: String::from("message"),
-            frame_event_message_type_name: String::from("FrameMessage"),
-            frame_event_return_attribute_name: String::from("ret"),
-            frame_event_return_type_name: String::from("FrameEventReturn"),
-
-            initialize_method_name: String::from("initialize"),
-            handle_event_method_name: String::from("handle_event"),
-            change_state_method_name: String::from("change_state"),
-            transition_method_name: String::from("transition"),
-
-            assignment_temp_var_name: String::from("assign_temp"),
-            state_handler_name_prefix: String::from(""),
-            state_handler_name_suffix: String::from("_handler"),
-
-            state_var_name: String::from("state"),
-            state_args_suffix: String::from("StateArgs"),
-            state_args_var_name: String::from("state_args"),
-            state_vars_suffix: String::from("StateVars"),
-            state_vars_var_name: String::from("state_vars"),
-            //           state_name_use_sysname_prefix:true,
-            state_context_type_name: String::from("StateContext"),
-            state_context_var_name: String::from("state_context"),
-            state_context_suffix: String::from("StateContext"),
-            state_context_method_suffix: String::from("_context"),
-            this_state_context_var_name: String::from("this_state_context"),
-
-            state_enum_suffix: String::from("State"),
-            state_enum_traits: String::from(
-                "Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord",
-            ),
-
-            change_state_hook_method_name: String::from("change_state_hook"),
-            transition_hook_method_name: String::from("transition_hook"),
-
-            state_stack_var_name: String::from("state_stack"),
-            state_stack_push_method_name: String::from("state_stack_push"),
-            state_stack_pop_method_name: String::from("state_stack_pop"),
-
-            runtime_info_module_name: String::from("runtime_info"),
-            runtime_module_use_as_name: String::from("runtime"),
-            machine_info_function_name: String::from("machine_info"),
-            pop_state_info_name: String::from("$$[-]"),
-            event_monitor_var_name: String::from("event_monitor"),
-            transition_info_arg_name: String::from("transition_info"),
-
-            managed: false, // Generate Managed code
-            marshal: false, // Generate Marshling code
-            // Name of state type. In Golang this can't be a universal type
-            // (like framelang.FrameState)
-            state_type: String::new(),
-            marshal_system_state_var: String::new(),
-            system_struct_type: String::new(),
-            manager: String::new(),
-            compartment_type: String::new(),
-
-            this_branch_transitioned: false,
+        FrameConfig {
+            project: ProjectConfig::default(),
+            build: BuildConfig::default(),
+            python: PythonConfig::default(),
+            paths: PathsConfig::default(),
+            scripts: HashMap::new(),
         }
     }
 }
 
-/// Code generation options specific to the Cpp backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CppConfig {
-    pub code: CppCode,
+/// Project metadata configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ProjectConfig {
+    /// Project name
+    pub name: Option<String>,
+
+    /// Project version
+    pub version: Option<String>,
+
+    /// Entry point for multi-file compilation
+    pub entry: Option<PathBuf>,
+
+    /// Project root directory
+    #[serde(default = "default_project_root")]
+    pub root: PathBuf,
+
+    /// Project authors
+    #[serde(default)]
+    pub authors: Vec<String>,
+
+    /// Project description
+    pub description: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CppCode {
-    pub public_domain: bool,
-    pub public_state_info: bool,
-    pub public_compartment: bool,
-}
-
-impl Default for CppCode {
+impl Default for ProjectConfig {
     fn default() -> Self {
-        CppCode {
-            public_domain: false,
-            public_state_info: false,
-            public_compartment: false,
-        }
-    }
-}
-/// Code generation options specific to the Java backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JavaConfig {
-    pub code: JavaCode,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JavaCode {
-    pub public_domain: bool,
-    pub public_state_info: bool,
-    pub public_compartment: bool,
-}
-
-impl Default for JavaCode {
-    fn default() -> Self {
-        JavaCode {
-            public_domain: false,
-            public_state_info: false,
-            public_compartment: false,
+        Self {
+            name: None,
+            version: None,
+            entry: None,
+            root: default_project_root(),
+            authors: Vec::new(),
+            description: None,
         }
     }
 }
 
-/// Code generation options specific to the CSharp backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CsharpConfig {
-    pub code: CsharpCode,
+/// Build configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BuildConfig {
+    /// Target language (python_3, etc.)
+    #[serde(default = "default_target")]
+    pub target: String,
+
+    /// Output directory for generated code
+    #[serde(default = "default_output_dir")]
+    pub output_dir: PathBuf,
+
+    /// Output mode (concatenated or separate_files)
+    #[serde(default)]
+    pub output_mode: OutputMode,
+
+    /// Source directories to search for modules
+    #[serde(default = "default_source_dirs")]
+    pub source_dirs: Vec<PathBuf>,
+
+    /// Enable optimizations
+    #[serde(default)]
+    pub optimize: bool,
+
+    /// Enable debug output
+    #[serde(default)]
+    pub debug: bool,
+
+    /// Enable incremental compilation (future)
+    #[serde(default = "default_incremental")]
+    pub incremental: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CsharpCode {
-    pub public_domain: bool,
-    pub public_state_info: bool,
-    pub public_compartment: bool,
+/// Output generation mode
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputMode {
+    Concatenated,
+    SeparateFiles,
 }
 
-impl Default for CsharpCode {
+impl Default for OutputMode {
     fn default() -> Self {
-        CsharpCode {
-            public_domain: false,
-            public_state_info: false,
-            public_compartment: false,
+        OutputMode::Concatenated
+    }
+}
+
+impl Default for BuildConfig {
+    fn default() -> Self {
+        BuildConfig {
+            target: default_target(),
+            output_dir: default_output_dir(),
+            output_mode: OutputMode::default(),
+            source_dirs: default_source_dirs(),
+            optimize: false,
+            debug: false,
+            incremental: default_incremental(),
         }
     }
 }
 
-/// Naming options for generated code specific to the javascript backend. These options can be used to
-/// tweak the names of types, methods, fields, and variables in generated code.
-///
-/// These options are "use at your own risk" for now since we are not testing Frame with anything
-/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
-/// to leave them be. :-)
-/// Code generation options specific to the Javascript backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JavascriptConfig {
-    pub code: JavascriptCode,
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct JavascriptCode {
-    pub public_domain: bool,
-    pub public_state_info: bool,
-    pub public_compartment: bool,
-    pub generate_import_export: bool,
+fn default_target() -> String {
+    "python_3".to_string()
 }
 
-impl Default for JavascriptCode {
-    fn default() -> Self {
-        JavascriptCode {
-            public_domain: false,
-            public_state_info: false,
-            public_compartment: false,
-            generate_import_export: false,
-        }
-    }
+fn default_output_dir() -> PathBuf {
+    PathBuf::from("dist")
 }
 
-/// Code generation options specific to the Python backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+fn default_source_dirs() -> Vec<PathBuf> {
+    vec![PathBuf::from("src")]
+}
+
+fn default_incremental() -> bool {
+    true
+}
+
+fn default_project_root() -> PathBuf {
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// Paths configuration
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct PathsConfig {
+    #[serde(default)]
+    pub modules: Vec<String>,
+
+    #[serde(default)]
+    pub imports: Vec<String>,
+
+    #[serde(default)]
+    pub aliases: HashMap<String, String>,
+}
+
+/// Python-specific configuration
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PythonConfig {
-    pub code: PythonCode,
-}
+    /// Generate event handlers as individual functions (v0.36 feature)
+    #[serde(default = "default_event_handlers")]
+    pub event_handlers_as_functions: bool,
 
-/// Naming options for generated code specific to the python backend. These options can be used to
-/// tweak the names of types, methods, fields, and variables in generated code.
-///
-/// These options are "use at your own risk" for now since we are not testing Frame with anything
-/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
-/// to leave them be. :-)
+    /// Python runtime to target
+    #[serde(default)]
+    pub runtime: PythonRuntime,
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PythonCode {
+    /// Minimum Python version required
+    pub min_version: Option<String>,
+
+    /// Generate public state info (rarely used)
+    #[serde(default)]
     pub public_state_info: bool,
+
+    /// Generate public compartment (rarely used)
+    #[serde(default)]
     pub public_compartment: bool,
 }
 
-impl Default for PythonCode {
+impl Default for PythonConfig {
     fn default() -> Self {
-        PythonCode {
+        PythonConfig {
+            event_handlers_as_functions: default_event_handlers(),
+            runtime: PythonRuntime::default(),
+            min_version: None,
             public_state_info: false,
             public_compartment: false,
         }
     }
 }
 
-/// Code generation features shared among all backends.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CommonFeatures {}
-
-/// Naming options for generated code shared among all backends.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CommonCode {}
-
-/// Naming options for generated code shared among all backends.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CommonAttributes {
-    pub allow_relaxed_event_signatures: bool,
+fn default_event_handlers() -> bool {
+    true // v0.36 default
 }
 
-impl Default for CommonAttributes {
-    fn default() -> Self {
-        CommonAttributes {
-            // Throw error if event hander/interface signatures aren't identical for a message.
-            allow_relaxed_event_signatures: false,
-        }
-    }
-}
+/// Python runtime options
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub enum PythonRuntime {
+    /// Standard Python runtime
+    #[default]
+    Standard,
 
-/// Code generation options specific to the Golang backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustConfig {
-    pub features: RustFeatures,
-    pub code: RustCode,
-    pub runtime: RustRuntime,
-}
+    /// AsyncIO runtime
+    AsyncIO,
 
-/// Code generation features specific to the Rust backend.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustFeatures {
-    /// When enabled, generated code will attempt to conform to standard Rust naming conventions.
-    /// However, options in `RustCode` are in general not overridden by this feature.
-    ///
-    /// Default is `true`.
-    pub follow_rust_naming: bool,
-
-    /// When enabled, generate an empty implementation of the `Action` trait. This is nice so that
-    /// the unextended output of Frame compiles. Actions may still be overridden by implementing
-    /// them directly in an `impl` block for the generated state machine type.
-    ///
-    /// Default is `true`.
-    pub generate_action_impl: bool,
-
-    /// When enabled, generates "hook" methods that will be invoked on every transition or
-    /// change-state. These hook methods are added to the `Action` trait and must be implemented.
-    ///
-    /// Default is `false`.
-    pub generate_hook_methods: bool,
-
-    /// When enabled, generates code that links into the Frame runtime system. See the
-    /// `frame_runtime` crate. This crate provides reflection and monitoring capabilities to
-    /// running state machines.
-    ///
-    /// To use the runtime interface, include the `frame_runtime` crate and import one the
-    /// following modules:
-    ///
-    ///  * `frame_runtime::unsync` if the `thread_safe` feature is disabled (default)
-    ///  * `frame_runtime::sync` if the `thread_safe` feature is enabled
-    ///
-    /// By default, the `runtime_support` feature is `false`.
-    pub runtime_support: bool,
-
-    /// When enabled, generates a state machine that implements the `Send` trait, and so can be
-    /// safely passed acrosss thread boundries.
-    ///
-    /// Default is `false`.
-    pub thread_safe: bool,
-}
-
-/// Naming options for generated code specific to the Rust backend. These options can be used to
-/// tweak the names of types, methods, fields, and variables in generated code.
-///
-/// These options are "use at your own risk" for now since we are not testing Frame with anything
-/// other than the defaults. Unless you have some strong reason to do otherwise, it's probably best
-/// to leave them be. :-)
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustCode {
-    pub action_prefix: String,
-    pub action_suffix: String,
-    pub actions_prefix: String,
-    pub actions_suffix: String,
-
-    pub enter_token: String,
-    pub exit_token: String,
-    pub enter_msg: String,
-    pub exit_msg: String,
-    pub event_args_suffix: String,
-    pub event_args_method_suffix: String,
-    pub enter_args_member_name: String,
-    pub exit_args_member_name: String,
-
-    pub frame_event_type_name: String,
-    pub frame_event_variable_name: String,
-    pub frame_event_args_attribute_name: String,
-    pub frame_event_args_type_name: String,
-    pub frame_event_message_attribute_name: String,
-    pub frame_event_message_type_name: String,
-    pub frame_event_return_attribute_name: String,
-    pub frame_event_return_type_name: String,
-
-    pub initialize_method_name: String,
-    pub handle_event_method_name: String,
-    pub change_state_method_name: String,
-    pub transition_method_name: String,
-
-    pub assignment_temp_var_name: String,
-    pub state_handler_name_prefix: String,
-    pub state_handler_name_suffix: String,
-
-    pub state_var_name: String,
-    pub state_args_suffix: String,
-    pub state_args_var_name: String,
-    pub state_vars_suffix: String,
-    pub state_vars_var_name: String,
-
-    pub state_context_type_name: String,
-    pub state_context_var_name: String,
-    pub state_context_suffix: String,
-    pub state_context_method_suffix: String,
-    pub this_state_context_var_name: String,
-
-    pub state_enum_suffix: String,
-    pub state_enum_traits: String,
-
-    pub change_state_hook_method_name: String,
-    pub transition_hook_method_name: String,
-
-    pub state_stack_var_name: String,
-    pub state_stack_push_method_name: String,
-    pub state_stack_pop_method_name: String,
-
-    pub runtime_info_module_name: String,
-    pub runtime_module_use_as_name: String,
-    pub machine_info_function_name: String,
-    pub pop_state_info_name: String,
-    pub event_monitor_var_name: String,
-    pub transition_info_arg_name: String,
-}
-
-/// Initial settings for the Rust runtime system. These options are only relevant if
-/// [RustFeatures.runtime_support] is enabled. These options can be changed at runtime later.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RustRuntime {
-    /// The number of handled events to save in the event history. A value of `0` disables the
-    /// event history feature, while a negative value allows the history to grow to unbounded size
-    /// (in which case it should be occasionally manually cleared).
-    ///
-    /// Default is `0`, disabling event history tracking.
-    pub event_history_capacity: i32,
-
-    /// The number of transitions to save in the transition history. A value of `0` disables the
-    /// event history feature, while a negative value allows the history to grow to unbounded size
-    /// (in which case it should be occasionally manually cleared).
-    ///
-    /// Default is `1`, storing the most recent transition only.
-    pub transition_history_capacity: i32,
-}
-
-impl RustRuntime {
-    /// Get the event history capacity as a value suitable for the event monitor.
-    pub fn event_history_capacity(&self) -> Option<usize> {
-        self.event_history_capacity.try_into().ok()
-    }
-
-    /// Get the transition history capacity as a value suitable for the event monitor.
-    pub fn transition_history_capacity(&self) -> Option<usize> {
-        self.transition_history_capacity.try_into().ok()
-    }
-}
-
-/// Code generation options specific to the Smcat backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SmcatConfig {
-    pub features: SmcatFeatures,
-    pub code: SmcatCode,
-}
-
-/// Code generation features specific to the Smcat backend.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SmcatFeatures {}
-
-/// Style options for generated code specific to the Smcat backend.
-///
-/// See the sections "colors and line width", "classes", and "overriding the type of a state" in
-/// the smcat README: <https://github.com/sverweij/state-machine-cat/blob/develop/README.md>
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SmcatCode {
-    /// Style settings for nodes that do not have any children.
-    pub simple_state_node_style: String,
-    /// Style settings for nodes that have sub-states as children.
-    pub parent_state_node_style: String,
-    /// Style settings for "change-state" transitions.
-    pub change_state_edge_style: String,
-    /// Style settings for standard transitions.
-    pub transition_edge_style: String,
+    /// Trio runtime (future)
+    Trio,
 }
 
 impl FrameConfig {
-    /// Generate a configuration from any `Provider`.
-    pub fn from<T: Provider>(provider: T) -> Result<FrameConfig, Error> {
-        Figment::from(provider).extract()
-    }
-    /// Access this configuration as a `Figment`, which is useful for merging with configurations
-    /// from other sources.
-    pub fn figment(&self) -> Figment {
-        Figment::from(self)
-    }
-}
-
-/// Make `FrameConfig` a `Provider` for composability.
-impl Provider for FrameConfig {
-    fn metadata(&self) -> Metadata {
-        Metadata::named("FrameConfig struct")
-    }
-    fn data(&self) -> Result<Map<Profile, Dict>, Error> {
-        figment::providers::Serialized::from(self, Profile::Default).data()
-    }
-}
-
-/// Make `AttributeNode` a `Provider`. An attribute may contain zero or one configuration settings.
-///
-/// The format of an attribute name is `[full.path.to.attribute]:[type]`, where the path is the
-/// sequence of field names starting from the `FrameConfig` struct to access the attribute value,
-/// and the type is one of currently supported attribute types:
-///
-///  * `bool`, corresponding to Rust's `bool` type
-///  * `int`, corresponding to Rust's `i32` type
-///  * `str`, corresponding to Rust's `String` type
-///
-/// For example, to enable the Rust backend's boolean `runtime_support` feature, the following
-/// attribute statement would be used.
-///
-/// ```text
-/// #[codegen.rust.features.runtime_support:bool="true"]
-/// ```
-impl Provider for AttributeNode {
-    fn metadata(&self) -> Metadata {
-        Metadata::named("AttributeNode")
-    }
-    fn data(&self) -> Result<Map<Profile, Dict>, Error> {
-        let mut map = Map::new();
-        let attr_name;
-        let value;
-        match self {
-            AttributeNode::MetaNameValueStr { attr } => {
-                attr_name = attr.name.clone();
-                value = attr.value.clone();
-            }
-            _ => return Ok(map),
-        }
-        //        let attr_name = &self.name;
-        let config_path;
-        let config_value;
-        if let Some(path) = attr_name.strip_suffix(":bool") {
-            // this attribute is a boolean option
-            config_path = path;
-            match value.parse::<bool>() {
-                Ok(value) => {
-                    config_value = Value::from(value);
-                }
-                Err(err) => {
-                    return Err(Error::from(format!(
-                        "Error parsing boolean feature option: {:?}",
-                        err
-                    )));
-                }
-            }
-        } else if let Some(path) = attr_name.strip_suffix(":int") {
-            // this attribute is an integer option
-            config_path = path;
-            match value.parse::<i32>() {
-                Ok(value) => {
-                    config_value = Value::from(value);
-                }
-                Err(err) => {
-                    return Err(Error::from(format!(
-                        "Error parsing integer feature option: {:?}",
-                        err
-                    )));
-                }
-            }
-        } else if let Some(path) = attr_name.strip_suffix(":str") {
-            // this attribute is a string config option
-            config_path = path;
-            config_value = Value::from(value);
+    /// Load configuration from frame.toml file
+    pub fn load(config_path: &Option<PathBuf>) -> Result<FrameConfig, String> {
+        if let Some(path) = config_path {
+            Self::load_from_file(path)
         } else {
-            return Ok(map);
+            // Try to find frame.toml in current directory or parents
+            Self::find_and_load()
         }
-        // recursively generate the chain of dictionaries for this option
-        let mut dict = Dict::new();
-        let mut iter = config_path.rsplit('.');
-        if let Some(key) = iter.next() {
-            dict.insert(String::from(key), config_value);
-            for key in iter {
-                let mut next = Dict::new();
-                next.insert(String::from(key), Value::from(dict));
-                dict = next;
+    }
+
+    /// Load configuration from a specific file
+    pub fn load_from_file(path: &PathBuf) -> Result<FrameConfig, String> {
+        let contents =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read config file: {}", e))?;
+
+        let cfg: FrameConfig =
+            toml::from_str(&contents).map_err(|e| format!("Failed to parse config file: {}", e))?;
+        // Basic validation: require an entry point and at least one module path.
+        if cfg.project.entry.is_none() {
+            return Err("frame.toml is missing [project.entry]".to_string());
+        }
+        if cfg.paths.modules.is_empty() && cfg.build.source_dirs.is_empty() {
+            return Err("frame.toml is missing module paths (paths.modules or build.source_dirs)".to_string());
+        }
+        // Validate that configured module/source paths exist (relative to config dir).
+        let cfg_dir = path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| PathBuf::from("."));
+        let mut module_paths: Vec<PathBuf> = cfg.paths.modules.iter().map(|p| PathBuf::from(p)).collect();
+        module_paths.extend(cfg.build.source_dirs.iter().cloned());
+        for p in module_paths {
+            let abs = cfg_dir.join(p);
+            if !abs.exists() {
+                return Err(format!("frame.toml path does not exist: {}", abs.display()));
             }
         }
-        map.insert(Profile::Default, dict);
-        Ok(map)
+        Ok(cfg)
     }
-}
 
-/// Make `SystemNode` a `Provider` by extracting and merging all configuration attribute settings
-/// from the Frame spec.
-impl Provider for SystemNode {
-    fn metadata(&self) -> Metadata {
-        Metadata::named("SystemNode attributes")
+    /// Find and load frame.toml from current directory or parents
+    pub fn find_and_load() -> Result<FrameConfig, String> {
+        let (_, config) = Self::find_project_config()
+            .ok_or_else(|| "No frame.toml found in project hierarchy".to_string())?;
+        Ok(config)
     }
-    fn data(&self) -> Result<Map<Profile, Dict>, Error> {
-        let mut figment = Figment::new();
-        if let Some(attributes) = &self.system_attributes_opt {
-            for attr in attributes.values() {
-                figment = figment.merge(Figment::from(attr));
+
+    /// Find project configuration by searching up the directory tree
+    pub fn find_project_config() -> Option<(PathBuf, FrameConfig)> {
+        Self::find_project_config_from(std::env::current_dir().ok()?)
+    }
+
+    /// Find project configuration starting from a specific directory
+    pub fn find_project_config_from(start_dir: PathBuf) -> Option<(PathBuf, FrameConfig)> {
+        let mut current = start_dir;
+
+        loop {
+            let config_path = current.join("frame.toml");
+
+            if config_path.exists() {
+                if let Ok(config) = Self::load_from_file(&config_path) {
+                    return Some((config_path, config));
+                }
+            }
+
+            // Check for alternative name
+            let alt_config = current.join(".framerc.toml");
+            if alt_config.exists() {
+                if let Ok(config) = Self::load_from_file(&alt_config) {
+                    return Some((alt_config, config));
+                }
+            }
+
+            // Move up to parent directory
+            if !current.pop() {
+                break;
             }
         }
-        figment.data()
+
+        None
+    }
+
+    /// Create a default frame.toml file
+    pub fn create_default(path: &PathBuf, project_name: Option<&str>) -> Result<(), String> {
+        let mut config = FrameConfig::default();
+
+        if let Some(name) = project_name {
+            config.project.name = Some(name.to_string());
+        }
+
+        // Set sensible defaults
+        config.project.version = Some("0.1.0".to_string());
+        config.project.entry = Some(PathBuf::from("src/main.frm"));
+        config.project.description = Some("A Frame language project".to_string());
+
+        // Add common scripts
+        config
+            .scripts
+            .insert("build".to_string(), "framec build".to_string());
+        config
+            .scripts
+            .insert("clean".to_string(), "rm -rf dist/".to_string());
+        config
+            .scripts
+            .insert("dev".to_string(), "framec --watch".to_string());
+
+        // Add common module paths
+        config.paths.modules = vec!["src".to_string(), "lib".to_string()];
+
+        let toml_string = toml::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+
+        fs::write(path, toml_string).map_err(|e| format!("Failed to write config file: {}", e))?;
+
+        Ok(())
+    }
+
+    /// Get the entry point file path
+    pub fn entry_point(&self) -> PathBuf {
+        self.project
+            .entry
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("main.frm"))
+    }
+
+    /// Check if we should generate separate files
+    pub fn use_separate_files(&self) -> bool {
+        self.build.output_mode == OutputMode::SeparateFiles
     }
 }
 
-// Defaults
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl Default for RustFeatures {
-    fn default() -> Self {
-        RustFeatures {
-            follow_rust_naming: true,
-            generate_action_impl: true,
-            generate_hook_methods: false,
-            runtime_support: false,
-            thread_safe: false,
-        }
-    }
-}
-
-impl Default for RustCode {
-    fn default() -> Self {
-        RustCode {
-            action_prefix: String::from(""),
-            action_suffix: String::from(""),
-            actions_prefix: String::from(""),
-            actions_suffix: String::from("Actions"),
-
-            enter_token: String::from(">"),
-            exit_token: String::from("<"),
-            enter_msg: String::from("Enter"),
-            exit_msg: String::from("Exit"),
-            event_args_suffix: String::from("Args"),
-            event_args_method_suffix: String::from("_args"),
-            enter_args_member_name: String::from("enter_args"),
-            exit_args_member_name: String::from("exit_args"),
-
-            frame_event_type_name: String::from("FrameEvent"),
-            frame_event_variable_name: String::from("frame_event"),
-            frame_event_args_attribute_name: String::from("arguments"),
-            frame_event_args_type_name: String::from("FrameEventArgs"),
-            frame_event_message_attribute_name: String::from("message"),
-            frame_event_message_type_name: String::from("FrameMessage"),
-            frame_event_return_attribute_name: String::from("ret"),
-            frame_event_return_type_name: String::from("FrameEventReturn"),
-
-            initialize_method_name: String::from("initialize"),
-            handle_event_method_name: String::from("handle_event"),
-            change_state_method_name: String::from("change_state"),
-            transition_method_name: String::from("transition"),
-
-            assignment_temp_var_name: String::from("assign_temp"),
-            state_handler_name_prefix: String::from(""),
-            state_handler_name_suffix: String::from("_handler"),
-
-            state_var_name: String::from("state"),
-            state_args_suffix: String::from("StateArgs"),
-            state_args_var_name: String::from("state_args"),
-            state_vars_suffix: String::from("StateVars"),
-            state_vars_var_name: String::from("state_vars"),
-
-            state_context_type_name: String::from("StateContext"),
-            state_context_var_name: String::from("state_context"),
-            state_context_suffix: String::from("StateContext"),
-            state_context_method_suffix: String::from("_context"),
-            this_state_context_var_name: String::from("this_state_context"),
-
-            state_enum_suffix: String::from("State"),
-            state_enum_traits: String::from(
-                "Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord",
-            ),
-
-            change_state_hook_method_name: String::from("change_state_hook"),
-            transition_hook_method_name: String::from("transition_hook"),
-
-            state_stack_var_name: String::from("state_stack"),
-            state_stack_push_method_name: String::from("state_stack_push"),
-            state_stack_pop_method_name: String::from("state_stack_pop"),
-
-            runtime_info_module_name: String::from("runtime_info"),
-            runtime_module_use_as_name: String::from("runtime"),
-            machine_info_function_name: String::from("machine_info"),
-            pop_state_info_name: String::from("$$[-]"),
-            event_monitor_var_name: String::from("event_monitor"),
-            transition_info_arg_name: String::from("transition_info"),
-        }
-    }
-}
-
-impl Default for RustRuntime {
-    fn default() -> Self {
-        RustRuntime {
-            event_history_capacity: 0,
-            transition_history_capacity: 1,
-        }
-    }
-}
-
-impl Default for SmcatCode {
-    fn default() -> Self {
-        SmcatCode {
-            simple_state_node_style: String::from("class=\"simple\""),
-            parent_state_node_style: String::from("class=\"parent\""),
-            change_state_edge_style: String::from("class=\"change-state\""),
-            transition_edge_style: String::from("class=\"standard\""),
-        }
+    #[test]
+    fn test_default_config() {
+        let config = FrameConfig::default();
+        assert_eq!(config.build.output_dir, PathBuf::from("dist"));
+        assert_eq!(config.build.source_dirs, vec![PathBuf::from("src")]);
+        assert!(config.python.event_handlers_as_functions);
     }
 }

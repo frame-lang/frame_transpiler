@@ -1,0 +1,12 @@
+[package]
+name = "frame_runtime_llvm"
+version = "0.86.25"
+edition = "2021"
+license = "MIT"
+description = "Experimental runtime support library for the Frame LLVM backend."
+
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[dependencies]
+libc = "0.2"

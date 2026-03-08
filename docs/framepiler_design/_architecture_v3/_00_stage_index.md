@@ -1,0 +1,45 @@
+# V3 Pipeline Stage Index
+
+This index links to the detailed, authoritative design documents for each stage of the V3 parser and codegen pipeline. These documents are normative and extend the overview in `architecture_v3_overview.md`. The V3 pipeline is the only supported path.
+
+- 01 — Module Partitioning: `01_module_partitioning.md`
+- 01a — Body Closers (Python): `01_body_closers_python.md`
+- 01b — Body Closers (TypeScript): `01_body_closers_typescript.md`
+- 01c — Body Closers (C#): `01_body_closers_csharp.md`
+- 01d — Body Closers (C): `01_body_closers_c.md`
+- 01e — Body Closers (C++): `01_body_closers_cpp.md`
+- 01f — Body Closers (Java): `01_body_closers_java.md`
+- 01g — Body Closers (Rust): `01_body_closers_rust.md`
+- 02 — Native Region Scanner (Python): `02_native_region_scanner_python.md`
+- 02b — Native Region Scanner (TypeScript): `02_native_region_scanner_typescript.md`
+- 02c — Native Region Scanner (C#): `02_native_region_scanner_csharp.md`
+- 02d — Native Region Scanner (C): `02_native_region_scanner_c.md`
+- 02e — Native Region Scanner (C++): `02_native_region_scanner_cpp.md`
+- 02f — Native Region Scanner (Java): `02_native_region_scanner_java.md`
+- 02g — Native Region Scanner (Rust): `02_native_region_scanner_rust.md`
+- 03 — Frame Segment Parser: `03_frame_segment_parser.md`
+- 04 — MIR Assembly: `04_mir_assembly.md`
+- 05 — Frame Statement Expansion (Python): `05_frame_statement_expansion_python.md`
+- 05b — Frame Statement Expansion (TypeScript): `05_frame_statement_expansion_typescript.md`
+ - 05c — Frame Statement Expansion (C): `05_frame_statement_expansion_c.md`
+ - 05d — Frame Statement Expansion (C++): `05_frame_statement_expansion_cpp.md`
+ - 05e — Frame Statement Expansion (C#): `05_frame_statement_expansion_csharp.md`
+ - 05f — Frame Statement Expansion (Java): `05_frame_statement_expansion_java.md`
+ - 05g — Frame Statement Expansion (Rust): `05_frame_statement_expansion_rust.md`
+- 06 — Splice & Mapping: `06_splice_and_mapping.md`
+- 06.5 — Structural Validation (early): `06_5_structural_validation.md`
+- 07 — Native Parse Facade (Python): `07_native_parse_facade_python.md`
+- 07b — Native Parse Facade (TypeScript): `07_native_parse_facade_typescript.md`
+- 07c — Native Parse Facade (C#): `07_native_parse_facade_csharp.md`
+- 07d — Native Parse Facade (C): `07_native_parse_facade_c.md`
+- 07e — Native Parse Facade (C++): `07_native_parse_facade_cpp.md`
+- 07f — Native Parse Facade (Java): `07_native_parse_facade_java.md`
+- 07g — Native Parse Facade (Rust): `07_native_parse_facade_rust.md`
+- 08 — Source Maps & Codegen: `08_source_maps_and_codegen.md`
+- 09 — Validation: `09_validation.md`
+- 10 — AST & Symbol Integration: `10_ast_and_symbol_integration.md`
+- 11 — Error Taxonomy: `11_error_taxonomy.md`
+- 12 — Testing Strategy: `12_testing_strategy.md`
+- 13 — Project Layer (Reserved): `13_project_layer_fid_linking.md`
+- 14 — Persistence & Snapshots (PRT, mandatory): `14_persistence_and_snapshots.md`
+- 99 — Naming Index (Objects/Traits): `99_naming_index.md`

@@ -1,455 +1,112 @@
-use crate::frame_c::config::FrameConfig;
-use crate::frame_c::parser::*;
-use crate::frame_c::scanner::*;
-use crate::frame_c::symbol_table::*;
-use crate::frame_c::utils::{frame_exitcode, RunError};
-// use crate::frame_c::visitors::cpp_visitor::CppVisitor;
-// use crate::frame_c::visitors::cs_visitor::CsVisitor;
-//use crate::frame_c::visitors::cs_visitor_for_bob::CsVisitorForBob;
-// use crate::frame_c::visitors::gdscript_3_2_visitor::GdScript32Visitor;
-// use crate::frame_c::visitors::golang_visitor::GolangVisitor;
-// use crate::frame_c::visitors::java_8_visitor::Java8Visitor;
-// use crate::frame_c::visitors::javascript_visitor::JavaScriptVisitor;
-// use crate::frame_c::visitors::plantuml_visitor::PlantUmlVisitor;
-use crate::frame_c::visitors::python_visitor::PythonVisitor;
-// use crate::frame_c::visitors::rust_visitor::RustVisitor;
-// use crate::frame_c::visitors::smcat_visitor::SmcatVisitor;
-use crate::frame_c::visitors::graphviz_visitor::GraphVizVisitor;
-
-use exitcode::USAGE;
-use sha2::{Digest, Sha256};
-use std::cell::RefCell;
-use std::fs;
-use std::io;
-use std::io::Read;
-use std::panic::{self, AssertUnwindSafe};
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
-
-// Re-export this enum here since it's part of the interface for the run functions. The definition
-// lives with visitors since adding a new visitor requires extending the enum and its trait impls.
-use crate::frame_c::ast::AttributeNode;
+use crate::frame_c::utils::RunError;
 pub use crate::frame_c::visitors::TargetLanguage;
-use std::convert::TryFrom;
-
-/* --------------------------------------------------------------------- */
-
-static IS_DEBUG: bool = false;
-static FRAMEC_VERSION: &str = "Emitted from framec_v0.20.0";
-
-/* --------------------------------------------------------------------- */
+use exitcode;
+use std::fs;
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
 
 pub struct Exe {}
 
 impl Exe {
-    /* --------------------------------------------------------------------- */
-
     pub fn new() -> Exe {
         Exe {}
     }
 
-    pub fn debug_print(msg: &str) {
-        if !IS_DEBUG {
-            return;
-        }
-
-        println!("{}", msg);
-    }
-
-    /* --------------------------------------------------------------------- */
-
-    /// Run the Frame compiler on a Frame specification loaded from a file.
-    ///
-    /// # Arguments
-    ///
-    /// * `config_path` - Optional path to a configuration YAML file.
-    ///
-    /// * `input_path` - Path to the file containing the Frame specification.
-    ///
-    /// * `target_language` - The target language to compile the specification to. This may be
-    ///   `None` if the `language` attribute is defined in the specification itself.
     pub fn run_file(
         &self,
-        config_path: &Option<PathBuf>,
         input_path: &Path,
         target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
         match fs::read_to_string(input_path) {
             Ok(content) => {
-                Exe::debug_print(&content);
-                self.run(config_path, input_path.to_str(), content, target_language)
+                // Use v4 compiler for all Frame files
+                // Prefer @@target from file, fallback to CLI option, then Python3
+                let lang = detect_at_target(&content)
+                    .or(target_language)
+                    .unwrap_or(TargetLanguage::Python3);
+                let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                
+                match compiler.compile(&content, input_path.to_str().unwrap_or("<unknown>")) {
+                    crate::frame_c::v4::FrameV4Result::Ok(output) => Ok(output.code),
+                    crate::frame_c::v4::FrameV4Result::Err(err) => {
+                        let mut error_msg = String::from("Frame v4 compilation errors:\n");
+                        for error in err.errors() {
+                            error_msg.push_str(&format!("  {}\n", error));
+                        }
+                        Err(RunError::new(exitcode::DATAERR, &error_msg))
+                    }
+                }
             }
-            Err(err) => {
-                let error_msg = format!("Error reading input file: {}", err);
-                let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
-                Err(run_error)
-            }
+            Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
     }
 
-    /* --------------------------------------------------------------------- */
-
-    pub fn run_stdin(
+    pub fn run_file_debug(
         &self,
-        config_path: &Option<PathBuf>,
+        input_path: &Path,
         target_language: Option<TargetLanguage>,
     ) -> Result<String, RunError> {
-        let mut buffer = String::new();
-        let mut stdin = io::stdin(); // We get `Stdin` here.
-        match stdin.read_to_string(&mut buffer) {
-            Ok(_size) => {
-                Exe::debug_print(&buffer);
-                self.run(config_path, None, buffer, target_language)
+        match fs::read_to_string(input_path) {
+            Ok(content) => {
+                // Use v4 compiler for debug output
+                // Prefer @@target from file, fallback to CLI option, then Python3
+                let lang = detect_at_target(&content)
+                    .or(target_language)
+                    .unwrap_or(TargetLanguage::Python3);
+                let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                
+                match compiler.compile(&content, input_path.to_str().unwrap_or("<unknown>")) {
+                    crate::frame_c::v4::FrameV4Result::Ok(output) => Ok(output.code),
+                    crate::frame_c::v4::FrameV4Result::Err(err) => {
+                        let mut error_msg = String::from("Frame v4 compilation errors:\n");
+                        for error in err.errors() {
+                            error_msg.push_str(&format!("  {}\n", error));
+                        }
+                        Err(RunError::new(exitcode::DATAERR, &error_msg))
+                    }
+                }
             }
-            Err(err) => {
-                let error_msg = format!("Error reading input file: {}", err);
-                let run_error = RunError::new(exitcode::NOINPUT, &*error_msg);
-                Err(run_error)
-            }
+            Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read file: {}", err))),
         }
     }
 
-    /* --------------------------------------------------------------------- */
-
-    /// Run the Frame compiler on a Frame specification passed as a `String`.
-    ///
-    /// # Arguments
-    ///
-    /// * `config_path` - Optional path to a configuration YAML file.
-    ///
-    /// * `input_path_str` - Path to the file containing the Frame specification, as a `&str`.
-    ///   This value is used for metadata in some backends, but the file path is not verified or
-    ///   loaded. This argument may be `None` if the Frame specification does not exist on the file
-    ///   system, for example, if it was obtained from standard input or the online framepiler.
-    ///
-    /// * `content` - The Frame specification.
-    ///
-    /// * `target_language` - The target language to compile the specification to. This may be
-    ///   `None` if the `language` attribute is defined in the specification itself.
-
-    pub fn run(
+    pub fn run_multifile(
         &self,
-        config_path: &Option<PathBuf>,
-        _input_path_str: Option<&str>,
-        content: String,
-        mut target_language: Option<TargetLanguage>,
+        _entry_path: &Path,
+        _target_language: Option<TargetLanguage>,
+        _output_dir: Option<PathBuf>,
     ) -> Result<String, RunError> {
-        // NOTE!!! There is a bug w/ the CLion debugger when a variable (maybe just String type)
-        // isn't initialized under some circumstances. Basically the debugger
-        // stops debugging or doesn't step and it looks like it hangs. To avoid
-        // this you have to initialize the variable, but the compiler then complains
-        // about the unused assignment. This can be squelched with `#[allow(unused_assignments)]`
-        // but I've reported it to JetBrains and want it fixed. So when you are
-        // debugging here, just uncomment the next line and then comment it back
-        // when checking in.
+        Err(RunError::new(exitcode::USAGE, "Multi-file compilation not supported in V4"))
+    }
 
-        let mut hasher = Sha256::new();
-        hasher.update(&content);
-        // let sha256 = &format!("{:x}", hasher.finalize());
-
-        let output;
-        //        let mut output= String::new(); ^^^^ See above! ^^^^
-
-        let scanner = Scanner::new(content);
-
-        let (has_errors, errors, tokens) = scanner.scan_tokens();
-        if has_errors {
-            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &*errors);
-            return Err(run_error);
-        }
-
-        for token in &tokens {
-            Exe::debug_print(&format!("{:?}", token));
-        }
-
-        let mut arcanum = Arcanum::new();
-        let mut comments = Vec::new();
-        // NOTE: This block is to remove references to symbol_table and comments
-        {
-            let mut syntactic_parser = Parser::new(&tokens, &mut comments, true, arcanum);
-
-            panic::set_hook(Box::new(|_info| {
-                // prevent std output from panics.
-            }));
-            // catch and suppress panics
-            let _result = panic::catch_unwind(AssertUnwindSafe(|| {
-                syntactic_parser.parse();
-            }));
-
-            if syntactic_parser.had_error() {
-                let mut errors = "Terminating with errors.\n".to_string();
-                errors.push_str(&syntactic_parser.get_errors());
-                let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
-                return Err(run_error);
-            }
-            arcanum = syntactic_parser.get_arcanum();
-        }
-
-        let mut comments2 = comments.clone();
-        let mut semantic_parser = Parser::new(&tokens, &mut comments2, false, arcanum);
-
-        // TODO: this doesn't capture any panics like syntactic_parser above.
-        // Need to figure how to implement.
-        let system_node = semantic_parser.parse();
-        if semantic_parser.had_error() {
-            let mut errors = "Terminating with errors.\n".to_string();
-            errors.push_str(&semantic_parser.get_errors());
-            let run_error = RunError::new(frame_exitcode::PARSE_ERR, &errors);
-            return Err(run_error);
-        }
-
-        // let generate_enter_args = semantic_parser.generate_enter_args;
-        // let generate_exit_args = semantic_parser.generate_exit_args;
-        let generate_state_context = semantic_parser.generate_state_context;
-        let generate_state_stack = semantic_parser.generate_state_stack;
-        let generate_change_state = semantic_parser.generate_change_state;
-        let generate_transition_state = semantic_parser.generate_transition_state;
-
-        // check for local config.yaml if no path specified
-        let mut local_config_path = config_path;
-        let config_yaml = PathBuf::from("config.yaml");
-        let some_config_yaml = Some(config_yaml.clone());
-        if local_config_path.is_none() && config_yaml.exists() {
-            local_config_path = &some_config_yaml;
-        }
-
-        // load configuration
-        let config = match FrameConfig::load(local_config_path, &system_node) {
-            Ok(cfg) => cfg,
-            Err(err) => {
-                let run_error = RunError::new(frame_exitcode::CONFIG_ERR, &err.to_string());
-                return Err(run_error);
-            }
-        };
-
-        // check for language attribute override in spec specifying target language
-
-        match &system_node.system_attributes_opt {
-            Some(attributes) => {
-                if let Some(attr_node) = attributes.get("language") {
-                    match attr_node {
-                        AttributeNode::MetaNameValueStr { attr } => {
-                            if let Ok(result) = TargetLanguage::try_from(attr.value.as_str()) {
-                                target_language = Some(result);
-                            }
+    pub fn run_stdin(&self, target_language: Option<TargetLanguage>) -> Result<String, RunError> {
+        let mut buffer = String::new();
+        let mut stdin = io::stdin();
+        match stdin.read_to_string(&mut buffer) {
+            Ok(_size) => {
+                // Use v4 compiler for stdin
+                // Prefer @@target from content, fallback to CLI option, then Python3
+                let lang = detect_at_target(&buffer)
+                    .or(target_language)
+                    .unwrap_or(TargetLanguage::Python3);
+                let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
+                let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
+                
+                match compiler.compile(&buffer, "<stdin>") {
+                    crate::frame_c::v4::FrameV4Result::Ok(output) => Ok(output.code),
+                    crate::frame_c::v4::FrameV4Result::Err(err) => {
+                        let mut error_msg = String::from("Frame v4 compilation errors:\n");
+                        for error in err.errors() {
+                            error_msg.push_str(&format!("  {}\n", error));
                         }
-                        _ => {}
+                        Err(RunError::new(exitcode::DATAERR, &error_msg))
                     }
                 }
-            }
-            None => {}
-        }
-
-        match target_language {
-            None => {
-                let run_error = RunError::new(USAGE, "No target language specified.");
-                return Err(run_error);
-            }
-            Some(lang) => match lang {
-                // TargetLanguage::Cpp => {
-                //     let mut visitor = CppVisitor::new(
-                //         semantic_parser.get_arcanum(),
-                //         generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //         config
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                // TargetLanguage::CSharp => {
-                //     let mut visitor = CsVisitor::new(
-                //         semantic_parser.get_arcanum(),
-                //         //generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         //generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //         config
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                // TargetLanguage::CSharpForBob => {
-                //     let mut visitor = CsVisitorForBob::new(
-                //         semantic_parser.get_arcanum(),
-                //         generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                // TargetLanguage::GdScript => {
-                //     let mut visitor = GdScript32Visitor::new(
-                //         semantic_parser.get_arcanum(),
-                //         generate_exit_args,
-                //         generate_enter_args || generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                //              TargetLanguage::GoLang => {
-                //                  let mut visitor = GolangVisitor::new(
-                //                      semantic_parser.get_arcanum(),
-                //                      config,
-                //  //                    generate_exit_args,
-                // //                     generate_enter_args || generate_state_context,
-                //                      generate_state_stack,
-                //                      generate_change_state,
-                //  //                    generate_transition_state,
-                //                      FRAMEC_VERSION,
-                //                      comments,
-                //                  );
-                //                  visitor.run(&system_node);
-                //                  output = visitor.get_code();
-                //              }
-                //              TargetLanguage::Java8 => {
-                //                  let mut visitor = Java8Visitor::new(
-                //                      semantic_parser.get_arcanum(),
-                //                      // generate_exit_args,
-                //                      generate_enter_args || generate_state_context,
-                //                      generate_state_stack,
-                //                      generate_change_state,
-                //                      FRAMEC_VERSION,
-                //                      comments,
-                //                      config
-                //                  );
-                //                  visitor.run(&system_node);
-                //                  output = visitor.get_code();
-                //              }
-                //              TargetLanguage::JavaScript => {
-                //                  let mut visitor = JavaScriptVisitor::new(
-                //                      semantic_parser.get_arcanum(),
-                //                      // generate_exit_args,
-                //                      // generate_enter_args || generate_state_context,
-                //                      generate_state_stack,
-                //                      generate_change_state,
-                //                      // generate_transition_state,
-                //                      FRAMEC_VERSION,
-                //                      comments,
-                //                      config
-                //                  );
-                //                  visitor.run(&system_node);
-                //                  output = visitor.get_code();
-                //              }
-                // TargetLanguage::PlantUml => {
-                //     let (arcanum, system_hierarchy) = semantic_parser.get_all();
-                //     let mut visitor = PlantUmlVisitor::new(
-                //         arcanum,
-                //         system_hierarchy,
-                //         generate_state_context,
-                //         generate_state_stack,
-                //         generate_change_state,
-                //         generate_transition_state,
-                //         FRAMEC_VERSION,
-                //         comments,
-                //     );
-                //     visitor.run(&system_node);
-                //     output = visitor.get_code();
-                // }
-                TargetLanguage::Graphviz => {
-                    let (arcanum, system_hierarchy_opt) = semantic_parser.get_all();
-                    // If there was no system in the spec then don't run the visitor.
-                    if let Some(system_hierarchy) = system_hierarchy_opt {
-                        let mut visitor = GraphVizVisitor::new(
-                            arcanum,
-                            system_hierarchy,
-                            generate_state_context,
-                            generate_state_stack,
-                            generate_change_state,
-                            generate_transition_state,
-                            FRAMEC_VERSION,
-                            comments,
-                        );
-                        visitor.run(&system_node);
-                        output = visitor.get_code();
-                    } else {
-                        output = String::from(
-                            "digraph structs { node [shape=plaintext] \
-                                                    struct1 [label=\"No System\"]; \
-                                                  }",
-                        );
-                    }
-                }
-                TargetLanguage::Python3 => {
-                    let mut visitor = PythonVisitor::new(
-                        semantic_parser.get_arcanum(),
-                        // generate_exit_args,
-                        // generate_enter_args || generate_state_context,
-                        generate_state_stack,
-                        generate_change_state,
-                        // generate_transition_state,
-                        FRAMEC_VERSION,
-                        comments,
-                        config,
-                    );
-                    let system_node_rcref = Rc::new(RefCell::new(system_node));
-                    visitor.run(system_node_rcref);
-                    output = visitor.get_code();
-                } // TargetLanguage::Rust => {
-                  //     let mut visitor = RustVisitor::new(
-                  //         FRAMEC_VERSION,
-                  //         config,
-                  //         input_path_str,
-                  //         sha256,
-                  //         semantic_parser.get_arcanum(),
-                  //         generate_enter_args,
-                  //         generate_exit_args,
-                  //         generate_state_context,
-                  //         generate_state_stack,
-                  //         generate_change_state,
-                  //         generate_transition_state,
-                  //         comments,
-                  //     );
-                  //     visitor.run(&system_node);
-                  //     output = visitor.get_code();
-                  // }
-                  // TargetLanguage::Smcat => {
-                  //     let mut visitor = SmcatVisitor::new(
-                  //         FRAMEC_VERSION,
-                  //         config,
-                  //         semantic_parser.get_system_hierarchy(),
-                  //     );
-                  //     visitor.run(&system_node);
-                  //     output = visitor.get_code();
-                  // }
-                  // TargetLanguage::XState => {
-                  //     let mut visitor = XStateVisitor::new(
-                  //         semantic_parser.get_arcanum(),
-                  //         generate_exit_args,
-                  //         generate_state_context,
-                  //         generate_state_stack,
-                  //         generate_change_state,
-                  //         generate_transition_state,
-                  //         FRAMEC_VERSION,
-                  //         comments,
-                  //     );
-                  //     visitor.run(&system_node);
-                  //     output = visitor.get_code();
-                  // },
             },
+            Err(err) => Err(RunError::new(exitcode::NOINPUT, &format!("Cannot read stdin: {}", err))),
         }
-
-        Ok(output)
-
-        // let mut graphviz_visitor = GraphVizVisitor::new(semantic_parser.get_arcanum(), comments);
-        // graphviz_visitor.run(&system_node);
-        // println!("{}", graphviz_visitor.code);
     }
 }
 
@@ -457,4 +114,59 @@ impl Default for Exe {
     fn default() -> Self {
         Exe::new()
     }
+}
+
+/// Detect @@target pragma in Frame V4 source files.
+/// This is the primary target detection method for V4 files.
+pub fn detect_at_target(content: &str) -> Option<TargetLanguage> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        // Skip empty lines and comments
+        if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with('#') {
+            continue;
+        }
+        // Look for @@target <lang>
+        if let Some(rest) = trimmed.strip_prefix("@@target") {
+            let lang_str = rest.trim();
+            // Extract the language token (first word)
+            let lang_token = lang_str.split_whitespace().next()?.trim();
+            return TargetLanguage::try_from(lang_token).ok();
+        }
+        // Stop looking after first non-comment, non-empty line that isn't @@target
+        if !trimmed.starts_with("@@") {
+            break;
+        }
+    }
+    None
+}
+
+// Retained helpers for header target detection used by CLI in legacy workflows.
+pub fn detect_header_target_annotation(content: &str) -> Option<TargetLanguage> {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") {
+            continue;
+        }
+        if let Some(language) = parse_target_attribute(trimmed) {
+            return Some(language);
+        }
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        break;
+    }
+    None
+}
+
+fn parse_target_attribute(line: &str) -> Option<TargetLanguage> {
+    let inner = line.strip_prefix("#[")?.trim();
+    let (body, _rest) = inner.split_once(']')?;
+    let body = body.trim();
+    let body = body.strip_prefix("target")?;
+    let body = body.trim_start_matches(|c: char| c == ':' || c == '=' || c.is_whitespace());
+    if body.is_empty() {
+        return None;
+    }
+    let language_token = body.split_whitespace().next()?.trim();
+    crate::frame_c::visitors::TargetLanguage::try_from(language_token).ok()
 }

@@ -1,0 +1,261 @@
+# Frame V4 Implementation - Claude Context
+
+## Architecture Summary
+
+**Frame V4 is a preprocessor.** It:
+- Parses Frame syntax (@@system, states, transitions)
+- Validates Frame semantics (Arcanum symbol table)
+- Generates target language code
+- Preserves native code exactly as written
+
+**Frame does NOT parse native code.** That's the target compiler's job.
+
+## Compartment Architecture
+
+See `docs/framelang/v4/frame_v4_lang_reference.md` Section 5.7 for the canonical compartment model.
+
+**Key point:** The compartment is a 6-field closure for states. State variables live in `compartment.state_vars`, and the state stack stores entire compartments (enabling push/pop to preserve state vars).
+
+## System Context Architecture
+
+See `docs/framelang/v4/frame_v4_lang_reference.md` Section 9 for the full specification.
+
+**Key structures:**
+- `FrameEvent` - lean routing object (message + parameters only, no return)
+- `FrameContext` - call context with event reference, return slot, and data
+- `_context_stack` - supports reentrancy with nested interface calls
+
+**@@ syntax:**
+| Syntax | Meaning |
+|--------|---------|
+| `@@.param` | Interface parameter (shorthand) |
+| `@@:params[x]` | Interface parameter (explicit) |
+| `@@:return` | Interface return value slot |
+| `@@:event` | Interface method name |
+| `@@:data[key]` | Call-scoped data |
+
+**Key rule:** `@@` ALWAYS refers to the interface call context, even inside lifecycle handlers (`$>`, `<$`).
+
+**Official docs:** https://frame-transpiler.readthedocs.io
+
+## Test Infrastructure
+
+**V4 Test Status:** Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
+
+**Test sources:** `framepiler_test_env/tests/` (dynamically discovered)
+- `.fpy` — Python sources
+- `.fts` — TypeScript sources
+- `.frs` — Rust sources
+- `.fc` — C sources
+
+**Generated output:**
+- `framepiler_test_env/output/python/tests/` — Python .py files
+- `framepiler_test_env/output/typescript/tests/` — TypeScript .ts files
+- `framepiler_test_env/output/rust/tests/` — Rust .rs files
+- `framepiler_test_env/output/c/tests/` — C .c files
+
+### Running Tests
+
+```bash
+cd framepiler_test_env/tests
+./run_tests.sh              # Runs all tests for all languages
+./run_tests.sh --c          # C tests only
+./run_tests.sh --category primary  # Primary category only
+./run_tests.sh --help       # Show all options
+```
+
+### When to Use /tmp
+
+Only for quick one-off experiments. For any test that should be validated or committed, generate into the test infrastructure so dependencies are available.
+
+## Key Documents
+
+Read these for complete understanding:
+
+1. **[docs/framelang_design/architecture_v4/README.md](docs/framelang_design/architecture_v4/README.md)** - V4 architecture overview
+2. **[docs/framelang_design/architecture_v4/TWO_PASS_ARCHITECTURE.md](docs/framelang_design/architecture_v4/TWO_PASS_ARCHITECTURE.md)** - Two-pass validation model
+3. **[docs/plans/VALIDATION_EXPANSION_PLAN.md](docs/plans/VALIDATION_EXPANSION_PLAN.md)** - Planned validation improvements
+4. **[docs/architecture_v5/PLAN.md](docs/framepiler_design/architecture_v5/PLAN.md)** - Future native compiler integration (V5)
+
+## Two-Pass Validation Model
+
+| Pass | When | What | Who |
+|------|------|------|-----|
+| **Pass 1** | Transpile-time | Frame semantics | Frame compiler |
+| **Pass 2** | Compile/Run-time | Native semantics | Target compiler (pyc/tsc/rustc) |
+
+**Frame validates:**
+- State existence (`-> $Unknown` → E402)
+- Parent existence for forward
+- Parameter arity
+- Terminal statement position
+- Section ordering
+
+**Native compiler validates:**
+- Variable existence
+- Type compatibility
+- Import resolution
+- Syntax correctness
+
+## The Oceans Model
+
+Native code is the "ocean". Frame constructs are "islands".
+
+```
+Handler Body:
+┌─────────────────────────────────────────────┐
+│ x = compute_value()        ← Ocean (native) │
+│ if x > threshold:          ← Ocean (native) │
+│     -> $Exceeded           ← Island (Frame) │
+└─────────────────────────────────────────────┘
+```
+
+- **NativeRegionScanner** finds Frame islands
+- **Splicer** replaces islands with generated code
+- Native code passes through unchanged
+
+## Pipeline
+
+```
+Source (.fpy/.fts/.frs/.fc)
+     │
+     ├──→ Stage 0: Segmenter ──→ Prolog + System Body + Epilog spans
+     │                                    │
+     │                                    ▼
+     │                          Stage 1: Lexer ──→ Token stream
+     │                                    │
+     │                                    ▼
+     │                          Stage 2: Pipeline Parser ──→ SystemAst
+     │                                    │
+     │                                    ▼
+     │                          Stage 3: Arcanum (symbol table)
+     │                                    │
+     │                                    ▼
+     │                          Stage 4: Validator (E4xx errors)
+     │                                    │
+     │                                    ▼
+     │                          Stage 5: Codegen (CodegenNode IR)
+     │                                    │
+     │                                    ▼
+     │                          Stage 6: Backend (Python/Rust/TS/C)
+     │                                    │
+     ▼                                    ▼
+     Stage 7: Assembler ──→ Prolog + Generated class + Epilog
+```
+
+## V4 Syntax
+
+```frame
+@@target python_3
+
+# Native imports (preserved)
+import math
+from typing import List
+
+@@system Calculator {
+    interface:
+        add(a: int, b: int): int
+
+    machine:
+        $Ready {
+            add(a: int, b: int) {
+                # Native code (preserved)
+                result = a + b
+                print(f"Result: {result}")
+
+                # Frame statement (expanded)
+                -> $Done
+            }
+        }
+
+        $Done { }
+
+    domain:
+        var history: List = []
+}
+
+# Section order: operations → interface → machine → actions → domain
+
+# Native code (preserved)
+if __name__ == '__main__':
+    calc = Calculator()
+    calc.add(1, 2)
+```
+
+## Implementation Rules
+
+### DO:
+- Parse Frame constructs fully (AST)
+- Store native code as byte spans
+- Validate Frame semantics via Arcanum
+- Use NativeRegionScanner to find Frame islands
+- Use Splicer to combine native + generated code
+- Preserve native code formatting exactly
+
+### DON'T:
+- Parse native code syntax
+- Validate native code semantics
+- Build native symbol tables
+- Do cross-language type checking
+- Reformat or modify native code
+
+## Target Languages
+
+**Active:**
+- Python 3
+- TypeScript
+- Rust
+- C
+
+**Deferred:**
+- C#, Java, C++ - Not actively maintained
+
+## What's in V5 (Future)
+
+V5 adds **optional** native code analysis for enhanced IDE support:
+- Extract symbols from native code (using language parsers)
+- Cross-reference Frame and native symbols
+- "Did you mean?" suggestions for typos
+
+This is opt-in and non-blocking. See `docs/architecture_v5/PLAN.md`.
+
+## Common Mistakes to Avoid
+
+1. **Parsing native code** - Don't. It's opaque bytes.
+2. **Native validation** - Leave it to the target compiler.
+3. **Cross-language types** - V5 scope, not V4.
+
+## Quick Reference
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `v4/segmenter/` | Stage 0: Source segmentation |
+| `v4/lexer/` | Stage 1: Tokenization |
+| `v4/pipeline_parser/` | Stage 2: Parse tokens → SystemAst |
+| `v4/frame_ast.rs` | Frame AST types |
+| `v4/arcanum.rs` | Stage 3: Symbol table |
+| `v4/frame_validator.rs` | Stage 4: Validation |
+| `v4/codegen/system_codegen.rs` | Stage 5: AST → CodegenNode |
+| `v4/codegen/backends/*.rs` | Stage 6: CodegenNode → target code |
+| `v4/assembler/` | Stage 7: Output assembly |
+| `v4/pipeline/compiler.rs` | Orchestrates all stages |
+| `v4/native_region_scanner.rs` | SyntaxSkipper (string/comment awareness) |
+| `v4/frame_parser.rs` | Legacy parser (being replaced by pipeline) |
+
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| E001 | Parse error |
+| E002 | Segmentation error |
+| E113 | System blocks out of order |
+| E400 | Code after terminal statement |
+| E402 | Unknown state reference |
+| E403 | Duplicate state definition |
+| E405 | Parameter mismatch |
+
+---
+
+**Remember: Frame V4 is a preprocessor. Parse Frame, preserve native, validate Frame only.**

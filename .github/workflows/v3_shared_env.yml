@@ -1,0 +1,121 @@
+name: V3 Tests (Shared Environment)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ going_native, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  v3-shared-prt:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [python, typescript, rust]
+    steps:
+      - name: Checkout transpiler
+        uses: actions/checkout@v3
+        with:
+          path: frame_transpiler
+
+      - name: Checkout shared test environment
+        uses: actions/checkout@v3
+        with:
+          repository: frame-lang/framepiler_test_env
+          path: framepiler_test_env
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            frame_transpiler/target
+          key: ${{ runner.os }}-cargo-v3shared-${{ hashFiles('frame_transpiler/**/Cargo.lock') }}
+
+      - name: Build Frame Transpiler
+        working-directory: frame_transpiler
+        run: cargo build --release --features native-py-rp,native-ts,native-rs
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Node.js (for TypeScript)
+        if: matrix.language == 'typescript'
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install TypeScript
+        if: matrix.language == 'typescript'
+        run: npm install -g typescript
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build test Docker image
+        working-directory: framepiler_test_env/framepiler
+        run: |
+          docker build -f docker/Dockerfile.${{ matrix.language }} \
+            -t frame-transpiler-${{ matrix.language }}:latest .
+
+      - name: Build Docker test runner
+        working-directory: framepiler_test_env/framepiler/docker
+        run: cargo build --release
+      
+      - name: Run V3 tests using Docker runner
+        working-directory: frame_transpiler
+        run: |
+          mkdir -p reports
+          # Run tests for each category using the Docker runner
+          FRAMEPILER_TEST_ENV=../framepiler_test_env
+          for category in data_types operators scoping systems async persistence imports; do
+            echo "Running ${{ matrix.language }} v3_${category} tests..."
+            ../framepiler_test_env/framepiler/docker/target/release/frame-docker-runner \
+              ${{ matrix.language }} v3_${category} \
+              --framec ./target/release/framec || true
+          done
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: v3-${{ matrix.language }}-results
+          path: framepiler_test_env/framepiler/reports/${{ matrix.language }}_results.xml
+
+  v3-shared-summary:
+    runs-on: ubuntu-latest
+    needs: v3-shared-prt
+    steps:
+      - name: Download all test results
+        uses: actions/download-artifact@v3
+        with:
+          path: test-results
+
+      - name: Combine test results
+        run: |
+          echo "## V3 Test Results Summary" > summary.md
+          echo "" >> summary.md
+          for lang in python typescript rust; do
+            if [ -f "test-results/v3-${lang}-results/${lang}_results.xml" ]; then
+              echo "### ${lang^} Tests" >> summary.md
+              echo "✅ Test results available" >> summary.md
+              echo "" >> summary.md
+            fi
+          done
+          cat summary.md
+
+      - name: Upload combined summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: v3-test-summary
+          path: summary.md

@@ -1,0 +1,506 @@
+//! Rust code generation backend
+
+use crate::frame_c::visitors::TargetLanguage;
+use crate::frame_c::v4::codegen::ast::*;
+use crate::frame_c::v4::codegen::backend::*;
+
+/// Rust backend for code generation
+pub struct RustBackend;
+
+impl LanguageBackend for RustBackend {
+    fn emit(&self, node: &CodegenNode, ctx: &mut EmitContext) -> String {
+        match node {
+            CodegenNode::Module { imports, items } => {
+                let mut result = String::new();
+                for import in imports {
+                    result.push_str(&self.emit(import, ctx));
+                    result.push('\n');
+                }
+                if !imports.is_empty() && !items.is_empty() {
+                    result.push('\n');
+                }
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        result.push_str("\n\n");
+                    }
+                    result.push_str(&self.emit(item, ctx));
+                }
+                result
+            }
+
+            CodegenNode::Import { module, items, alias: _ } => {
+                if items.is_empty() {
+                    format!("use {};", module)
+                } else {
+                    format!("use {}::{{{}}};", module, items.join(", "))
+                }
+            }
+
+            CodegenNode::Class { name, fields, methods, base_classes: _, is_abstract: _, derives } => {
+                let mut result = String::new();
+
+                // Derive attributes (for serde, etc.)
+                if !derives.is_empty() {
+                    result.push_str(&format!("{}#[derive({})]\n", ctx.get_indent(), derives.join(", ")));
+                }
+
+                // Struct definition
+                result.push_str(&format!("{}pub struct {} {{\n", ctx.get_indent(), name));
+                ctx.push_indent();
+                for field in fields {
+                    if let Some(ref raw_code) = field.raw_code {
+                        // V4: Native code pass-through
+                        result.push_str(&format!("{}{},\n", ctx.get_indent(), raw_code));
+                    } else {
+                        let vis = if matches!(field.visibility, Visibility::Public) { "pub " } else { "" };
+                        let type_ann = field.type_annotation.as_ref()
+                            .map(|t| self.convert_type(t))
+                            .unwrap_or_else(|| "()".to_string());
+                        result.push_str(&format!("{}{}{}: {},\n", ctx.get_indent(), vis, field.name, type_ann));
+                    }
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}\n\n", ctx.get_indent()));
+
+                // Impl block
+                result.push_str(&format!("{}impl {} {{\n", ctx.get_indent(), name));
+                ctx.push_indent();
+                for (i, method) in methods.iter().enumerate() {
+                    if i > 0 {
+                        result.push('\n');
+                    }
+                    result.push_str(&self.emit(method, ctx));
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}\n", ctx.get_indent()));
+
+                result
+            }
+
+            CodegenNode::Enum { name, variants } => {
+                let mut result = format!("{}pub enum {} {{\n", ctx.get_indent(), name);
+                ctx.push_indent();
+                for variant in variants {
+                    result.push_str(&format!("{}{},\n", ctx.get_indent(), variant.name));
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}\n", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::Method { name, params, return_type, body, is_async, is_static, visibility, decorators: _ } => {
+                let mut result = String::new();
+                let vis = if matches!(visibility, Visibility::Public) { "pub " } else { "" };
+                let async_kw = if *is_async { "async " } else { "" };
+
+                let params_str = self.emit_params(params, !*is_static);
+                let return_str = return_type.as_ref()
+                    .map(|rt| format!(" -> {}", rt))
+                    .unwrap_or_default();
+
+                result.push_str(&format!("{}{}{}fn {}({}){} {{\n",
+                    ctx.get_indent(), vis, async_kw, name, params_str, return_str));
+
+                ctx.push_indent();
+                let has_return_type = return_type.is_some();
+                let stmt_count = body.len();
+                for (i, stmt) in body.iter().enumerate() {
+                    let is_last = i == stmt_count - 1;
+                    result.push_str(&self.emit(stmt, ctx));
+                    // Don't add semicolon to last statement if method has return type
+                    // (the last expression IS the return value in Rust)
+                    if is_last && has_return_type {
+                        result.push('\n');
+                    } else if self.needs_semicolon(stmt) {
+                        result.push_str(";\n");
+                    } else {
+                        result.push('\n');
+                    }
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}\n", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::Constructor { params, body, super_call: _ } => {
+                let params_str = self.emit_params(params, false);
+                let mut result = format!("{}pub fn new({}) -> Self {{\n", ctx.get_indent(), params_str);
+                ctx.push_indent();
+
+                // Rust needs struct initialization. Separate field assignments from other statements.
+                let mut field_inits: Vec<(String, String)> = Vec::new();
+                let mut post_init_stmts: Vec<&CodegenNode> = Vec::new();
+
+                for stmt in body {
+                    // Check if this is a field assignment: self.field = value
+                    if let CodegenNode::Assignment { target, value } = stmt {
+                        if let CodegenNode::FieldAccess { object, field } = target.as_ref() {
+                            if matches!(object.as_ref(), CodegenNode::SelfRef) {
+                                // This is self.field = value - collect for struct init
+                                // For Rust: wrap string literals in String::from() for String fields
+                                let value_str = if let CodegenNode::Literal(Literal::String(s)) = value.as_ref() {
+                                    // String literal needs conversion for String fields
+                                    format!("String::from(\"{}\")", s.replace("\\", "\\\\").replace("\"", "\\\""))
+                                } else {
+                                    self.emit(value, ctx)
+                                };
+                                field_inits.push((field.clone(), value_str));
+                                continue;
+                            }
+                        }
+                    }
+                    // Everything else is a post-init statement
+                    post_init_stmts.push(stmt);
+                }
+
+                if post_init_stmts.is_empty() {
+                    // Simple case: just struct initialization
+                    result.push_str(&format!("{}Self {{\n", ctx.get_indent()));
+                    ctx.push_indent();
+                    for (field, value) in &field_inits {
+                        result.push_str(&format!("{}{}: {},\n", ctx.get_indent(), field, value));
+                    }
+                    ctx.pop_indent();
+                    result.push_str(&format!("{}}}\n", ctx.get_indent()));
+                } else {
+                    // Complex case: need mutable binding for post-init calls
+                    result.push_str(&format!("{}let mut this = Self {{\n", ctx.get_indent()));
+                    ctx.push_indent();
+                    for (field, value) in &field_inits {
+                        result.push_str(&format!("{}{}: {},\n", ctx.get_indent(), field, value));
+                    }
+                    ctx.pop_indent();
+                    result.push_str(&format!("{}}};\n", ctx.get_indent()));
+
+                    // Emit post-init statements, replacing self with this
+                    for stmt in post_init_stmts {
+                        let stmt_str = self.emit(stmt, ctx);
+                        // Replace "self." with "this." for post-init code
+                        let stmt_str = stmt_str.replace("self.", "this.");
+                        result.push_str(&stmt_str);
+                        if self.needs_semicolon(stmt) {
+                            result.push_str(";\n");
+                        } else {
+                            result.push('\n');
+                        }
+                    }
+                    result.push_str(&format!("{}this\n", ctx.get_indent()));
+                }
+
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}\n", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::VarDecl { name, type_annotation, init, is_const } => {
+                let kw = if *is_const { "let" } else { "let mut" };
+                let type_ann = type_annotation.as_ref()
+                    .map(|t| format!(": {}", self.convert_type(t)))
+                    .unwrap_or_default();
+                if let Some(init_expr) = init {
+                    format!("{}{} {}{} = {}", ctx.get_indent(), kw, name, type_ann, self.emit(init_expr, ctx))
+                } else {
+                    format!("{}{} {}{}", ctx.get_indent(), kw, name, type_ann)
+                }
+            }
+
+            CodegenNode::Assignment { target, value } => {
+                format!("{}{} = {}", ctx.get_indent(), self.emit(target, ctx), self.emit(value, ctx))
+            }
+
+            CodegenNode::Return { value } => {
+                if let Some(val) = value {
+                    format!("{}{}", ctx.get_indent(), self.emit(val, ctx))
+                } else {
+                    format!("{}return", ctx.get_indent())
+                }
+            }
+
+            CodegenNode::If { condition, then_block, else_block } => {
+                let mut result = format!("{}if {} {{\n", ctx.get_indent(), self.emit(condition, ctx));
+                ctx.push_indent();
+                for stmt in then_block {
+                    result.push_str(&self.emit(stmt, ctx));
+                    if self.needs_semicolon(stmt) {
+                        result.push_str(";\n");
+                    } else {
+                        result.push('\n');
+                    }
+                }
+                ctx.pop_indent();
+
+                if let Some(else_stmts) = else_block {
+                    result.push_str(&format!("{}}} else {{\n", ctx.get_indent()));
+                    ctx.push_indent();
+                    for stmt in else_stmts {
+                        result.push_str(&self.emit(stmt, ctx));
+                        if self.needs_semicolon(stmt) {
+                            result.push_str(";\n");
+                        } else {
+                            result.push('\n');
+                        }
+                    }
+                    ctx.pop_indent();
+                }
+                result.push_str(&format!("{}}}", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::Match { scrutinee, arms } => {
+                let mut result = format!("{}match {} {{\n", ctx.get_indent(), self.emit(scrutinee, ctx));
+                ctx.push_indent();
+                for arm in arms {
+                    result.push_str(&format!("{}{} => {{\n", ctx.get_indent(), self.emit(&arm.pattern, ctx)));
+                    ctx.push_indent();
+                    for stmt in &arm.body {
+                        result.push_str(&self.emit(stmt, ctx));
+                        if self.needs_semicolon(stmt) {
+                            result.push_str(";\n");
+                        } else {
+                            result.push('\n');
+                        }
+                    }
+                    ctx.pop_indent();
+                    result.push_str(&format!("{}}}\n", ctx.get_indent()));
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::While { condition, body } => {
+                let mut result = format!("{}while {} {{\n", ctx.get_indent(), self.emit(condition, ctx));
+                ctx.push_indent();
+                for stmt in body {
+                    result.push_str(&self.emit(stmt, ctx));
+                    if self.needs_semicolon(stmt) {
+                        result.push_str(";\n");
+                    } else {
+                        result.push('\n');
+                    }
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::For { var, iterable, body } => {
+                let mut result = format!("{}for {} in {} {{\n", ctx.get_indent(), var, self.emit(iterable, ctx));
+                ctx.push_indent();
+                for stmt in body {
+                    result.push_str(&self.emit(stmt, ctx));
+                    if self.needs_semicolon(stmt) {
+                        result.push_str(";\n");
+                    } else {
+                        result.push('\n');
+                    }
+                }
+                ctx.pop_indent();
+                result.push_str(&format!("{}}}", ctx.get_indent()));
+                result
+            }
+
+            CodegenNode::Break => format!("{}break", ctx.get_indent()),
+            CodegenNode::Continue => format!("{}continue", ctx.get_indent()),
+
+            CodegenNode::ExprStmt(expr) => format!("{}{}", ctx.get_indent(), self.emit(expr, ctx)),
+
+            CodegenNode::Comment { text, is_doc } => {
+                if *is_doc { format!("{}/// {}", ctx.get_indent(), text) }
+                else { format!("{}// {}", ctx.get_indent(), text) }
+            }
+
+            CodegenNode::Empty => String::new(),
+
+            CodegenNode::Ident(name) => name.clone(),
+            CodegenNode::Literal(lit) => self.emit_literal(lit, ctx),
+            CodegenNode::BinaryOp { op, left, right } => self.emit_binary_op(op, left, right, ctx),
+            CodegenNode::UnaryOp { op, operand } => self.emit_unary_op(op, operand, ctx),
+
+            CodegenNode::Call { target, args } => {
+                let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
+                format!("{}({})", self.emit(target, ctx), args_str.join(", "))
+            }
+
+            CodegenNode::MethodCall { object, method, args } => {
+                let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
+                format!("{}.{}({})", self.emit(object, ctx), method, args_str.join(", "))
+            }
+
+            CodegenNode::FieldAccess { object, field } => {
+                format!("{}.{}", self.emit(object, ctx), field)
+            }
+
+            CodegenNode::IndexAccess { object, index } => {
+                format!("{}[{}]", self.emit(object, ctx), self.emit(index, ctx))
+            }
+
+            CodegenNode::SelfRef => "self".to_string(),
+
+            CodegenNode::Array(elements) => {
+                let elems: Vec<String> = elements.iter().map(|e| self.emit(e, ctx)).collect();
+                format!("vec![{}]", elems.join(", "))
+            }
+
+            CodegenNode::Dict(pairs) => {
+                let pairs_str: Vec<String> = pairs.iter().map(|(k, v)| {
+                    format!("({}, {})", self.emit(k, ctx), self.emit(v, ctx))
+                }).collect();
+                format!("HashMap::from([{}])", pairs_str.join(", "))
+            }
+
+            CodegenNode::Ternary { condition, then_expr, else_expr } => {
+                format!("if {} {{ {} }} else {{ {} }}",
+                    self.emit(condition, ctx), self.emit(then_expr, ctx), self.emit(else_expr, ctx))
+            }
+
+            CodegenNode::Lambda { params, body } => {
+                let params_str = params.iter().map(|p| p.name.clone()).collect::<Vec<_>>().join(", ");
+                format!("|{}| {}", params_str, self.emit(body, ctx))
+            }
+
+            CodegenNode::Cast { expr, target_type } => {
+                format!("{} as {}", self.emit(expr, ctx), target_type)
+            }
+
+            CodegenNode::New { class, args } => {
+                let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
+                format!("{}::new({})", class, args_str.join(", "))
+            }
+
+            // Frame-specific
+            CodegenNode::Transition { target_state, exit_args: _, enter_args: _, state_args: _, indent } => {
+                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
+                // Use compartment-based transition
+                let compartment_type = if let Some(ref sys_name) = ctx.system_name {
+                    format!("{}Compartment", sys_name)
+                } else {
+                    "Compartment".to_string()
+                };
+                format!("{}self.__transition({}::new(\"{}\"))", ind, compartment_type, target_state)
+            }
+
+            CodegenNode::ChangeState { target_state, state_args: _, indent } => {
+                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
+                // Use string-based state change
+                let compartment_type = if let Some(ref sys_name) = ctx.system_name {
+                    format!("{}Compartment", sys_name)
+                } else {
+                    "Compartment".to_string()
+                };
+                format!("{}self.__compartment = {}::new(\"{}\")", ind, compartment_type, target_state)
+            }
+
+            CodegenNode::Forward { to_parent: _, indent } => {
+                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
+                format!("{}return", ind)
+            }
+            CodegenNode::StackPush { indent } => {
+                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
+                format!("{}self._state_stack_push()", ind)
+            }
+            CodegenNode::StackPop { indent } => {
+                let ind = format!("{}{}", ctx.get_indent(), " ".repeat(*indent));
+                format!("{}self._state_stack_pop()", ind)
+            }
+
+            CodegenNode::StateContext { state_name } => {
+                format!("self._state_context.get(\"{}\").unwrap()", state_name)
+            }
+
+            CodegenNode::SendEvent { event, args } => {
+                let args_str: Vec<String> = args.iter().map(|a| self.emit(a, ctx)).collect();
+                if args_str.is_empty() {
+                    format!("{}self.{}()", ctx.get_indent(), event)
+                } else {
+                    format!("{}self.{}({})", ctx.get_indent(), event, args_str.join(", "))
+                }
+            }
+
+            CodegenNode::NativeBlock { code, span: _ } => code.clone(),
+            CodegenNode::SplicePoint { id } => format!("// SPLICE_POINT: {}", id),
+        }
+    }
+
+    fn runtime_imports(&self) -> Vec<String> {
+        // Don't emit HashMap import - we use full paths (std::collections::HashMap)
+        // and native prolog may already have the import
+        vec![]
+    }
+
+    fn class_syntax(&self) -> ClassSyntax {
+        ClassSyntax::rust()
+    }
+
+    fn target_language(&self) -> TargetLanguage {
+        TargetLanguage::Rust
+    }
+
+}
+
+impl RustBackend {
+    /// Convert type annotation from generic/Python types to Rust types
+    fn convert_type(&self, type_str: &str) -> String {
+        match type_str {
+            "Any" => "Box<dyn std::any::Any>".to_string(),
+            "int" => "i64".to_string(),
+            "float" => "f64".to_string(),
+            "str" | "string" | "String" => "String".to_string(),
+            "bool" => "bool".to_string(),
+            "None" => "()".to_string(),
+            "List" => "Vec<Box<dyn std::any::Any>>".to_string(),
+            "Dict" => "HashMap<String, Box<dyn std::any::Any>>".to_string(),
+            // Keep Rust types as-is
+            t if t.starts_with("Vec<") || t.starts_with("HashMap<") || t.starts_with("&") => t.to_string(),
+            other => other.to_string(),
+        }
+    }
+
+    fn emit_params(&self, params: &[Param], include_self: bool) -> String {
+        let mut all_params = Vec::new();
+        if include_self {
+            all_params.push("&mut self".to_string());
+        }
+        for param in params {
+            let type_ann = param.type_annotation.as_ref()
+                .map(|t| self.convert_type(t))
+                .unwrap_or_else(|| "()".to_string());
+            all_params.push(format!("{}: {}", param.name, type_ann));
+        }
+        all_params.join(", ")
+    }
+
+    fn needs_semicolon(&self, node: &CodegenNode) -> bool {
+        match node {
+            CodegenNode::If { .. } | CodegenNode::While { .. } |
+            CodegenNode::For { .. } | CodegenNode::Match { .. } |
+            CodegenNode::Comment { .. } | CodegenNode::Empty => false,
+            // NativeBlocks that end with } or ; don't need another semicolon
+            CodegenNode::NativeBlock { code, .. } => {
+                let trimmed = code.trim();
+                !trimmed.ends_with('}') && !trimmed.ends_with(';')
+            }
+            _ => true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_emit_self() {
+        let backend = RustBackend;
+        let mut ctx = EmitContext::new();
+        assert_eq!(backend.emit(&CodegenNode::SelfRef, &mut ctx), "self");
+    }
+
+    #[test]
+    fn test_emit_array() {
+        let backend = RustBackend;
+        let mut ctx = EmitContext::new();
+        let node = CodegenNode::Array(vec![CodegenNode::int(1), CodegenNode::int(2)]);
+        assert_eq!(backend.emit(&node, &mut ctx), "vec![1, 2]");
+    }
+}

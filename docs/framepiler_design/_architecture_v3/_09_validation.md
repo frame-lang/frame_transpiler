@@ -1,0 +1,98 @@
+# Stage 9 — Validation (ValidatorV3)
+
+Purpose
+- Enforce structural and policy rules on MixedBody and surrounding Frame context before code emission.
+
+Inputs
+- `MixedBody` for each handler
+- Frame context (states, events, domain), `Arcanum` symbol table
+
+Rules (non‑exhaustive)
+- Transition-in-block terminal: a Transition must be the last statement in its containing block. The handler may continue outside that block.
+- Forwards and stack ops are not mandated terminal; native lines may follow (subject to target language syntax).
+- No Frame statements in actions/operations (native‑only).
+- State/target existence: transition targets must resolve to known states.
+- Parent forward availability: a parent forward (=> $^) requires that the enclosing state explicitly declares a parent in the machine: section (e.g., `$A => $Parent { … }`). If the enclosing state does not declare a parent (regardless of other states), validation fails with “Cannot forward to parent: no parent available.” When no parent is declared anywhere in the machine:, all forwards to parent fail with the same diagnostic. This rule applies to module demos (files with machine: sections). Single‑body demo fixtures without a machine: section are exempt because no parent relationship can be declared in that form.
+ - Advisory state param arity (E405, Stage 10B, flag‑gated): When enabled via `FRAME_VALIDATE_NATIVE_POLICY=1`, compare transition `state_args` against the target state’s parameter list declared in the outline header; emit E405 on mismatch. This is advisory only and does not alter code generation.
+
+Outline checks
+- E111: function header missing `{` (actions/operations/interface sections) — “missing '{' after module artifact header”.
+- E112: state header missing `{` in machine: — “missing '{' after state header in machine: section”.
+
+Diagnostics
+- Report policy violations with precise Frame spans (for MIR) or native spans (for native policy).
+- Human‑oriented and machine‑readable formats.
+ - Advisory Frame‑level policies (e.g., E405) are opt‑in via `FRAME_VALIDATE_NATIVE_POLICY=1`.
+
+PRT Policy Coverage (Python / TypeScript / Rust)
+- Python:
+  - E400 (transition terminal-in-block): exercised in `language_specific/python/v3_validator/negative/*` and runtime fixtures under `v3_systems_runtime`.
+  - E401 (no Frame in actions/operations): `framec_tests/language_specific/python/v3_validator/negative/action_has_frame.frm`.
+  - E402/E403/E404 (unknown state / parent forward / handler placement): driven from Arcanum in V3 module path; negatives live in `v3_validator/negative` and CLI project tests.
+  - E405 (state param arity mismatch): `framec_tests/language_specific/python/v3_validator/negative/transition_state_arity_mismatch.frm` when `FRAME_VALIDATE_NATIVE_POLICY=1`.
+  - E406 (system.method must target interface method): `framec_tests/language_specific/python/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
+- TypeScript:
+  - E400/E401/E402/E403/E404: same rules as Python, using the TypeScript scanner and Arcanum; negatives live in `language_specific/typescript/v3_validator/negative/*`.
+  - E405: `framec_tests/language_specific/typescript/v3_validator/negative/transition_state_arity_mismatch.frm`.
+  - E406: `framec_tests/language_specific/typescript/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
+- Rust:
+  - Structural and policy validation uses the same ValidatorV3 core (E400/E401/E402/E403/E404/E405).
+  - No Frame statements in actions/operations (E401) is exercised by `language_specific/rust/v3_validator/negative/action_has_frame.frm`.
+  - Handler placement, section ordering, and related structural rules are covered by `v3_validator/negative/system_block_order.frm` and `.../handler_multiple_directives.frm`.
+  - E406 (system.method must target interface method) is covered by `language_specific/rust/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm`.
+  - Stage 7 native validation for Rust is enforced via `@rs-compile` on V3 CLI fixtures (e.g., `language_specific/rust/v3_cli/positive/basic_cli_compile.frm` and `.../system_return_cli.frm`), which requires generated Rust to pass `rustc` syntax checks.
+
+Complexity
+- Linear in item count per handler.
+
+Test Hooks
+- Negative fixtures per rule and per language.
+
+Interfaces
+- `ValidatorV3::validate_regions_mir(regions, mir) -> ValidationResultV3` — structural checks (terminal‑last).
+- `ValidatorV3::validate_regions_mir_with_policy(regions, mir, ValidatorPolicyV3) -> ValidationResultV3` — expanded checks using body kind.
+- `ValidatorPolicyV3 { body_kind: Option<BodyKindV3> }`, `BodyKindV3 = Handler | Action | Operation | Unknown`.
+
+Notes
+- Native policy checks (e.g., Python body styles, TS equality operators) are not enforced by default in V3. Any native validation occurs via optional Stage 07 native facades and focuses on wrapper lines only. Generated code policies (e.g., preferring `===`/`!==` in TS) apply to expansions we emit; we do not scan user native text for these by default.
+
+CLI Integration (demo)
+- Global flags `--validate` and `--validation-only` apply to demo commands:
+  - `demo-multi` validates each provided single‑body file prior to transpile.
+  - `demo-project` walks the directory, validates eligible single‑body files, then (unless `--validation-only`) transpiles.
+  - Validation prints human messages to stderr; non‑zero exit on failure in `--validation-only` mode.
+## Addendum: Validation Routes and Native Parse Policy
+
+The V3 runner uses multiple validation routes depending on category and file style (single‑body vs module). This section documents flags and the native parse policy.
+
+### Flags and environment
+
+- `--validate` / `--validation-only`: enable compiler‑side structural/semantic validation without emitting files.
+- `--validate-native`: request native parse validation (Stage 07) for module files when available.
+- `FRAME_VALIDATE_NATIVE_POLICY=1`: enables stricter native parse checks in some runner categories (e.g., `v3_validator`).
+
+### Routes
+
+- Single‑body validators (demo‑frame): used for a subset of `v3_*` categories where single‑body fixtures are authoritative (e.g., `v3_closers`).
+- Module validation: for module files (with `@target`) categories, use `compile --validation-only` and rely on emitted trailers/sidecars for mapping assertions.
+
+Recommended matrix to keep aligned with the runner:
+
+| Category            | Route                         | Native Parse |
+|---------------------|-------------------------------|--------------|
+| v3_closers          | single‑body (demo)            | no           |
+| v3_mapping          | module (compile)              | optional     |
+| v3_visitor_map      | module (compile)              | optional     |
+| v3_validator        | module (compile + native)     | yes (env)    |
+| v3_cli              | module (compile/emit)         | no           |
+| v3_cli_project      | project compile               | no           |
+
+### Trailers and sidecars (assertions)
+
+When using module validation, extract and assert the presence/shape of these where applicable:
+
+- `frame-map` → `*.frame-map.json`
+- `visitor-map` → `*.visitor-map.json`
+- `debug-manifest` → `*.debug-manifest.json`
+- `native-symbols` → `*.native-symbols.json`
+- `errors-json` → `*.errors.json` (optional)

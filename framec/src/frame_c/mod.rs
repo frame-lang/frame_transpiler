@@ -1,9 +1,6 @@
-mod ast;
 pub mod cli;
 pub mod compiler;
-pub mod config;
-mod parser;
-mod scanner;
-mod symbol_table;
+pub mod config; // Project configuration system (v0.58)
 pub mod utils;
-mod visitors;
+mod visitors; // Retains TargetLanguage enum only
+pub mod v4; // V4 pure preprocessor implementation

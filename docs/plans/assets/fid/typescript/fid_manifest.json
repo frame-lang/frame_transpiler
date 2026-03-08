@@ -1,0 +1,23 @@
+{
+  "sources": [
+    {
+      "@target": "typescript",
+      "resources": [
+        {
+          "file": {
+            "uri": "../../../../../framec_tests/fixtures/native_decl_generation/typescript/typedoc_runtime_socket.json",
+            "modules": [
+              { "module": "runtime::socket", "import": [
+                "framesocketclient",
+                "frame_socket_client_connect",
+                "frame_socket_client_read_line",
+                "frame_socket_client_write_line",
+                "frame_socket_client_close"
+              ] }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

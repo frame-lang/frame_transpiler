@@ -1,0 +1,35 @@
+{
+  "name": "frame-transpiler",
+  "version": "0.83.0",
+  "description": "Frame Language Transpiler - A state machine DSL that compiles to Python, TypeScript, and other target languages",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frame-lang/frame_transpiler"
+  },
+  "keywords": [
+    "frame",
+    "state-machine",
+    "transpiler",
+    "dsl",
+    "python",
+    "typescript"
+  ],
+  "author": "Mark Truluck <mark@frame-lang.org>",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^20.19.26",
+    "esbuild": "^0.27.1",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "test:typescript": "python3 framec_tests/runner/frame_test_runner.py --languages typescript --framec ./target/release/framec",
+    "test:python": "python3 framec_tests/runner/frame_test_runner.py --languages python --framec ./target/release/framec",
+    "test:all": "python3 framec_tests/runner/frame_test_runner.py --framec ./target/release/framec",
+    "build:framec": "cargo build --release",
+    "setup": "npm install && cargo build --release"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
