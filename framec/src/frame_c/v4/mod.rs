@@ -53,6 +53,8 @@ pub mod pipeline;
 pub mod codegen;
 // Phase 5: Modular validation infrastructure
 pub mod validation;
+// Phase 6: GraphViz DOT backend
+pub mod graphviz;
 
 // Re-export new architecture types for easier access
 pub use pipeline::{

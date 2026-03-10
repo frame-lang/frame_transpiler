@@ -98,6 +98,7 @@ fn validate_only(source: &[u8], config: &PipelineConfig) -> Result<CompileResult
         TargetLanguage::C => AstTarget::C,
         TargetLanguage::Cpp => AstTarget::Cpp,
         TargetLanguage::Java => AstTarget::Java,
+        TargetLanguage::Graphviz => AstTarget::Graphviz,
         _ => AstTarget::Python3,
     };
 
@@ -217,6 +218,48 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
         span: AstSpan::new(0, 0),
     });
     let arcanum = build_arcanum_from_frame_ast(&module_ast);
+
+    // GraphViz target: bypass CodegenNode pipeline, use graph IR → DOT emitter
+    if matches!(config.target, TargetLanguage::Graphviz) {
+        use crate::frame_c::v4::graphviz;
+
+        let mut dot_systems: Vec<(String, String)> = Vec::new();
+
+        for system_ast in &system_asts {
+            // Validate with shared arcanum
+            let frame_ast = FrameAst::System(system_ast.clone());
+            let mut validator = FrameValidator::new();
+            if let Err(errs) = validator.validate_with_arcanum(&frame_ast, &arcanum) {
+                let errors = errs.iter().map(|e| CompileError::new(&e.code, &e.message)).collect();
+                return Ok(CompileResult {
+                    code: String::new(),
+                    errors,
+                    warnings: vec![],
+                    source_map: None,
+                });
+            }
+
+            // Build graph IR and emit DOT
+            let graph = graphviz::build_system_graph(system_ast, &arcanum);
+            let dot = graphviz::emit_dot(&graph);
+            dot_systems.push((system_ast.name.clone(), dot));
+        }
+
+        // Assemble: concatenate DOT blocks with // System: Name headers
+        let code = graphviz::emit_multi_system(&dot_systems);
+
+        if config.debug {
+            eprintln!("[compile_ast_based] GraphViz: generated {} bytes of DOT for {} systems",
+                code.len(), dot_systems.len());
+        }
+
+        return Ok(CompileResult {
+            code,
+            errors: vec![],
+            warnings: vec![],
+            source_map: None,
+        });
+    }
 
     // Pass 2: Validate + codegen each system with the shared arcanum
     let backend = get_backend(config.target);

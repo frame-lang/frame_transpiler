@@ -20,9 +20,9 @@ impl Exe {
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 // Use v4 compiler for all Frame files
-                // Prefer @@target from file, fallback to CLI option, then Python3
-                let lang = detect_at_target(&content)
-                    .or(target_language)
+                // CLI -l flag takes precedence, fallback to @@target from file, then Python3
+                let lang = target_language
+                    .or_else(|| detect_at_target(&content))
                     .unwrap_or(TargetLanguage::Python3);
                 let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
                 let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
@@ -50,9 +50,9 @@ impl Exe {
         match fs::read_to_string(input_path) {
             Ok(content) => {
                 // Use v4 compiler for debug output
-                // Prefer @@target from file, fallback to CLI option, then Python3
-                let lang = detect_at_target(&content)
-                    .or(target_language)
+                // CLI -l flag takes precedence, fallback to @@target from file, then Python3
+                let lang = target_language
+                    .or_else(|| detect_at_target(&content))
                     .unwrap_or(TargetLanguage::Python3);
                 let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
                 let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
@@ -87,9 +87,9 @@ impl Exe {
         match stdin.read_to_string(&mut buffer) {
             Ok(_size) => {
                 // Use v4 compiler for stdin
-                // Prefer @@target from content, fallback to CLI option, then Python3
-                let lang = detect_at_target(&buffer)
-                    .or(target_language)
+                // CLI -l flag takes precedence, fallback to @@target from content, then Python3
+                let lang = target_language
+                    .or_else(|| detect_at_target(&buffer))
                     .unwrap_or(TargetLanguage::Python3);
                 let v4_lang = crate::frame_c::v4::TargetLanguage::from(lang);
                 let compiler = crate::frame_c::v4::FrameV4Compiler::new(v4_lang);
