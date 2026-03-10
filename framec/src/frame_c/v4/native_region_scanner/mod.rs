@@ -7,8 +7,7 @@ pub enum FrameSegmentKind {
     StackPop,
     StateVar,          // $.varName (read access)
     StateVarAssign,    // $.varName = expr (assignment)
-    SystemReturn,      // system.return = <expr> or return <expr> (sugar)
-    SystemReturnExpr,  // bare system.return (read current value)
+    ReturnSugar,       // return <expr> (sugar for @@:return = expr; return)
     // System context syntax (@@)
     ContextParamShorthand, // @@.param - shorthand for parameter access
     ContextReturn,         // @@:return - return value slot (assignment or read)

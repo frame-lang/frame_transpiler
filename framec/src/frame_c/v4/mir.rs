@@ -19,10 +19,7 @@ pub enum MirItem {
     TransitionForward { target: String, span: RegionSpan },
     StackPush { span: RegionSpan },
     StackPop { span: RegionSpan },
-    // System return: system.return = <expr> or ^ <expr>
+    // Return sugar: return <expr>
     // Sets the return value and returns from handler
-    SystemReturn { expr: String, span: RegionSpan },
-    // System return expression read: bare system.return
-    // Returns the current return value
-    SystemReturnExpr { span: RegionSpan },
+    ReturnSugar { expr: String, span: RegionSpan },
 }

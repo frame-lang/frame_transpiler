@@ -1,0 +1,77 @@
+@@target rust
+
+// Python syntax skipper — Frame-generated state machine.
+// Delegates to shared helpers for all scanning logic.
+//
+// Helpers used:
+//   skip_hash_comment, skip_triple_string, skip_simple_string,
+//   find_line_end_python, balanced_paren_end_c_like
+
+@@system PythonSyntaxSkipperFsm {
+    interface:
+        do_skip_comment()
+        do_skip_string()
+        do_find_line_end()
+        do_balanced_paren_end()
+
+    machine:
+        $Init {
+            do_skip_comment() { -> $SkipComment }
+            do_skip_string() { -> $SkipString }
+            do_find_line_end() { -> $FindLineEnd }
+            do_balanced_paren_end() { -> $BalancedParenEnd }
+        }
+
+        $SkipComment {
+            $>() {
+                if let Some(j) = skip_hash_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $SkipString {
+            $>() {
+                // Triple-quoted strings (must check before simple)
+                if let Some(j) = skip_triple_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                // Simple string
+                if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $FindLineEnd {
+            $>() {
+                self.result_pos = find_line_end_python(&self.bytes, self.pos, self.end);
+            }
+        }
+
+        $BalancedParenEnd {
+            $>() {
+                if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var result_pos: usize = 0
+        var success: usize = 1
+}

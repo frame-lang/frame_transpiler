@@ -65,8 +65,8 @@
 
 | Capability | Status | V3 Tests (examples) | Legacy Tests |
 |-----------|--------|---------------------|--------------|
-| `system.return` assignment from handlers/actions/operations backed by a per‑call return stack | ✅ | Python: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../positive/system_return_operations_v3.frm`. TS: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../positive/system_return_operations_v3.frm`. Rust: `language_specific/rust/v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../positive/system_return_header_defaults_v3.frm`. Runtime behavior (per‑call stack + header defaults) is exercised by these fixtures and by adapter protocol tests. | `common/tests/control_flow/test_system_return*.frm`, various system patterns in `framec_tests/common/tests/control_flow` |
-| `system.method()` calls from handlers/actions/operations (must be interface methods) | ✅ | Python: `language_specific/python/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm` (E406). TS: `language_specific/typescript/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm`. Rust: `language_specific/rust/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm` (E406); positive coverage is implied by the interface‑wrapper codegen exercised in the Rust V3 CLI/system fixtures. | many legacy async/with/decorator tests using `system.return` and system‑scoped helpers |
+| `@@:return` assignment from handlers/actions/operations backed by a per‑call return stack | ✅ | Python: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../positive/system_return_operations_v3.frm`. TS: `v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../positive/system_return_operations_v3.frm`. Rust: `language_specific/rust/v3_capabilities/system_return/positive/system_return_handlers_actions_v3.frm`, `.../positive/system_return_header_defaults_v3.frm`. Runtime behavior (per‑call stack + header defaults) is exercised by these fixtures and by adapter protocol tests. | `common/tests/control_flow/test_system_return*.frm`, various system patterns in `framec_tests/common/tests/control_flow` |
+| `system.method()` calls from handlers/actions/operations (must be interface methods) | ✅ | Python: `language_specific/python/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm` (E406). TS: `language_specific/typescript/v3_capabilities/system_calls/positive/system_interface_call_v3.frm`, `.../negative/system_calls_non_interface_v3.frm`. Rust: `language_specific/rust/v3_capabilities/system_calls/negative/system_calls_non_interface_v3.frm` (E406); positive coverage is implied by the interface‑wrapper codegen exercised in the Rust V3 CLI/system fixtures. | many legacy async/with/decorator tests using `@@:return` and system‑scoped helpers |
 
 ### Functions & Entry Points
 
@@ -306,7 +306,7 @@ They are no longer tracked one‑feature‑per‑row in this matrix. The legacy 
 | Event Handlers | test_event_handlers.frm | ❓ | eventName() syntax |
 | Enter/Exit Events | test_enter_exit.frm | ❓ | $>(), <$() |
 | Return Assignment | test_return_assign.frm | ❓ | return = value |
-| System Return | test_system_return.frm | ❓ | system.return |
+| System Return | test_system_return.frm | ❓ | @@:return |
 | Self Context | test_self_context.frm | ❓ | self expression |
 
 ## Test Validation Status

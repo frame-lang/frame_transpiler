@@ -62,9 +62,6 @@ pub enum Token {
     ContextData(String),     // "@@:data[key]"
     ContextParams(String),   // "@@:params[key]"
 
-    // ===== System Syntax =====
-    SystemReturn,        // "system.return"
-
     // ===== Delimiters =====
     LBrace,              // "{"
     RBrace,              // "}"
@@ -458,22 +455,6 @@ impl<'a> Lexer<'a> {
                         self.emit(Token::NativeCode(text), native_start, self.cursor);
                     }
                     self.lex_context_construct(end)?;
-                    return Ok(());
-                }
-
-                // system.return
-                b's' if self.cursor + 12 < end
-                    && &self.source[self.cursor..self.cursor + 13] == b"system.return" => {
-                    // Emit preceding native code
-                    if native_start < self.cursor {
-                        let text = String::from_utf8_lossy(
-                            &self.source[native_start..self.cursor]
-                        ).to_string();
-                        self.emit(Token::NativeCode(text), native_start, self.cursor);
-                    }
-                    let sr_start = self.cursor;
-                    self.cursor += 13;
-                    self.emit(Token::SystemReturn, sr_start, self.cursor);
                     return Ok(());
                 }
 
@@ -1534,19 +1515,6 @@ mod tests {
 
         let tok2 = lexer.next_token().unwrap();
         assert_eq!(tok2.token, Token::ContextData("mykey".to_string()));
-    }
-
-    #[test]
-    fn test_native_system_return() {
-        let src = b"x = system.return\n";
-        let mut lexer = make_lexer(src);
-        lexer.enter_native_mode(src.len());
-
-        let tok1 = lexer.next_token().unwrap();
-        assert_eq!(tok1.token, Token::NativeCode("x = ".to_string()));
-
-        let tok2 = lexer.next_token().unwrap();
-        assert_eq!(tok2.token, Token::SystemReturn);
     }
 
     #[test]

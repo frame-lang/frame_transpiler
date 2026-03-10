@@ -35,7 +35,7 @@ This document specifies the Python target body grammar used inside Frame event�
 ## Body Policy (Native‑Only vs Mixed)
 
 - Event handlers: may interleave native Python with Frame statements (MixedBody). The compiler expands Frame statements (transition/forward/stack ops, return) into Python glue.
-- Actions/operations and free `fn` function bodies: use native Python syntax exclusively; Frame statements are prohibited. The pseudo‑symbol `system.return` is allowed as an expression or assignment and is desugared to `self.return_stack[-1]`.
+- Actions/operations and free `fn` function bodies: use native Python syntax exclusively; Frame statements are prohibited. The pseudo‑symbol `@@:return` is allowed as an expression or assignment and is desugared to `self.return_stack[-1]`.
   - No `var` declarations in bodies; use native assignments (`x = expr`).
   - No brace‑style control flow (`if { ... } else { ... }`); use colon + indentation (`if ...:\n    ...`).
 - Frame structural declarations remain Frame‑style:

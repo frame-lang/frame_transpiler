@@ -44,7 +44,6 @@
 | Stack Pop | `pop$` | Pop from stack |
 | State Variable | `$.varName` | Per-state instance variable |
 | System Context | `@@.param`, `@@:return` | Interface call context access |
-| System Return | `system.return` | Interface method return value (alias for `@@:return`) |
 
 ### File Structure
 

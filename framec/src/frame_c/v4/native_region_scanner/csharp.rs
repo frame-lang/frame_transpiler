@@ -1,3 +1,21 @@
+// C# syntax skipper — Frame-generated state machine.
+//
+// Source: csharp_skipper.frs (Frame specification)
+// Generated: csharp_skipper.gen.rs (via framec compile -l rust)
+// This file: glue module wiring generated FSM to SyntaxSkipper trait
+//
+// To regenerate:
+//   ./target/release/framec compile -l rust -o /tmp framec/src/frame_c/v4/native_region_scanner/csharp_skipper.frs
+//   cp /tmp/csharp_skipper.rs framec/src/frame_c/v4/native_region_scanner/csharp_skipper.gen.rs
+
+#![allow(unreachable_patterns)]
+#![allow(unused_mut)]
+#![allow(dead_code)]
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
+
+include!("csharp_skipper.gen.rs");
+
 use super::*;
 use super::unified::*;
 use crate::frame_c::v4::body_closer::csharp::BodyCloserCs;
@@ -14,132 +32,44 @@ impl SyntaxSkipper for CSharpSkipper {
     }
 
     fn skip_comment(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-        // Preprocessor directive
-        if bytes[i] == b'#' {
-            let mut j = i + 1;
-            while j < end && bytes[j] != b'\n' {
-                j += 1;
-            }
-            return Some(j);
-        }
-        if let Some(j) = skip_line_comment(bytes, i, end) {
-            return Some(j);
-        }
-        skip_block_comment(bytes, i, end)
+        let mut fsm = CSharpSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = i;
+        fsm.end = end;
+        fsm.do_skip_comment();
+        if fsm.success != 0 { Some(fsm.result_pos) } else { None }
     }
 
     fn skip_string(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-        let b = bytes[i];
-
-        // Verbatim string @"..." (doubled quotes for escape)
-        if b == b'@' && i + 1 < end && bytes[i + 1] == b'"' {
-            return skip_verbatim_string(bytes, i, end);
-        }
-
-        // Interpolated string $"..." or $@"..." or raw $"""..."""
-        if b == b'$' {
-            return skip_csharp_interpolated(bytes, i, end);
-        }
-
-        // Simple strings
-        skip_simple_string(bytes, i, end)
+        let mut fsm = CSharpSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = i;
+        fsm.end = end;
+        fsm.do_skip_string();
+        if fsm.success != 0 { Some(fsm.result_pos) } else { None }
     }
 
     fn find_line_end(&self, bytes: &[u8], start: usize, end: usize) -> usize {
-        find_line_end_c_like(bytes, start, end)
+        let mut fsm = CSharpSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = start;
+        fsm.end = end;
+        fsm.do_find_line_end();
+        fsm.result_pos
     }
 
     fn balanced_paren_end(&self, bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-        balanced_paren_end_c_like(bytes, i, end)
+        let mut fsm = CSharpSyntaxSkipperFsm::new();
+        fsm.bytes = bytes[..end].to_vec();
+        fsm.pos = i;
+        fsm.end = end;
+        fsm.do_balanced_paren_end();
+        if fsm.success != 0 { Some(fsm.result_pos) } else { None }
     }
-}
-
-/// Skip C# verbatim string @"..." where "" is escaped quote
-fn skip_verbatim_string(bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-    if i + 1 >= end || bytes[i] != b'@' || bytes[i + 1] != b'"' {
-        return None;
-    }
-
-    let mut j = i + 2;
-    while j < end {
-        if bytes[j] == b'"' {
-            if j + 1 < end && bytes[j + 1] == b'"' {
-                j += 2; // Escaped quote
-                continue;
-            }
-            return Some(j + 1);
-        }
-        j += 1;
-    }
-    Some(end)
-}
-
-/// Skip C# interpolated strings: $"...", $@"...", or raw $"""..."""
-fn skip_csharp_interpolated(bytes: &[u8], i: usize, end: usize) -> Option<usize> {
-    if bytes[i] != b'$' {
-        return None;
-    }
-
-    let mut j = i + 1;
-
-    // Skip additional $ for raw strings
-    while j < end && bytes[j] == b'$' {
-        j += 1;
-    }
-
-    // Check for @
-    if j < end && bytes[j] == b'@' {
-        j += 1;
-    }
-
-    // Count opening quotes
-    let mut quotes = 0;
-    while j < end && bytes[j] == b'"' {
-        quotes += 1;
-        j += 1;
-    }
-
-    if quotes == 0 {
-        return None;
-    }
-
-    // Raw string (3+ quotes)
-    if quotes >= 3 {
-        while j < end {
-            if bytes[j] == b'"' {
-                let mut q = 0;
-                let mut p = j;
-                while p < end && bytes[p] == b'"' {
-                    q += 1;
-                    p += 1;
-                }
-                if q >= quotes {
-                    return Some(p);
-                }
-                j = p;
-                continue;
-            }
-            j += 1;
-        }
-        return Some(end);
-    }
-
-    // Normal interpolated string
-    while j < end {
-        if bytes[j] == b'\\' {
-            j += 2;
-            continue;
-        }
-        if bytes[j] == b'"' {
-            return Some(j + 1);
-        }
-        j += 1;
-    }
-    Some(end)
 }
 
 impl NativeRegionScanner for NativeRegionScannerCs {
     fn scan(&mut self, bytes: &[u8], open_brace_index: usize) -> Result<ScanResult, ScanError> {
-        scan_native_regions(&CSharpSkipper, bytes, open_brace_index)
+        super::unified::scan_native_regions(&CSharpSkipper, bytes, open_brace_index)
     }
 }

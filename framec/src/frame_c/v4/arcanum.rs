@@ -2,18 +2,15 @@ use std::collections::{HashMap, HashSet};
 
 use super::ast::{SystemDecl, MachineDecl, StateDecl, ModuleAst, Span};
 use super::frame_ast::{
-    FrameAst, SystemAst as FrameSystemAst, StateAst as FrameStateAst, MachineAst as FrameMachineAst,
+    FrameAst, SystemAst as FrameSystemAst, StateAst as FrameStateAst,
+    MachineAst as FrameMachineAst,
     HandlerAst as FrameHandlerAst, Span as FrameSpan, Type,
 };
 
-/// Convert a Type to its string representation (preserving native type names for V4)
+/// Convert a Type to its string representation — types pass through verbatim
 fn type_to_string(t: &Type) -> String {
     match t {
         Type::Custom(name) => name.clone(),
-        Type::Int => "int".to_string(),
-        Type::Float => "float".to_string(),
-        Type::String => "string".to_string(),
-        Type::Bool => "bool".to_string(),
         Type::Unknown => "Any".to_string(),
     }
 }
@@ -381,6 +378,7 @@ pub(crate) fn collect_domain_vars(bytes: &[u8], span: &Span) -> HashMap<String, 
         
         // Look for variable declarations (simple heuristic)
         // Could be: var name, name:, or just name
+
         // Check for 'var' keyword
         if p + 3 < end && &bytes[p..p+3] == b"var" &&
            (p + 3 >= end || bytes[p+3] == b' ' || bytes[p+3] == b'\t') {

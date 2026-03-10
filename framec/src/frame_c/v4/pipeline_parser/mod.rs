@@ -426,7 +426,7 @@ impl<'a> Parser<'a> {
         };
 
         let init = if self.check(&Token::Equals)? {
-            self.advance()?;
+            self.advance()?; // consume `=`
             Some(self.parse_simple_expression()?)
         } else {
             None
@@ -805,12 +805,6 @@ impl<'a> Parser<'a> {
                     ));
                 }
 
-                Token::SystemReturn => {
-                    statements.push(Statement::NativeCode(
-                        "system.return".to_string(),
-                    ));
-                }
-
                 _ => {
                     // Unknown token in native mode — skip
                 }
@@ -864,6 +858,10 @@ impl<'a> Parser<'a> {
         };
 
         let body = self.parse_body_block()?;
+
+        // E401: Validate no forbidden Frame syntax in action body
+        self.validate_no_forbidden_frame_syntax(&body.statements, "action", &name)?;
+
         let code = self.extract_span_content(&body.span);
 
         Ok(ActionAst {
@@ -955,6 +953,10 @@ impl<'a> Parser<'a> {
         };
 
         let body = self.parse_body_block()?;
+
+        // E401: Validate no forbidden Frame syntax in operation body
+        self.validate_no_forbidden_frame_syntax(&body.statements, "operation", &name)?;
+
         let code = self.extract_span_content(&body.span);
 
         Ok(OperationAst {
@@ -1083,7 +1085,7 @@ impl<'a> Parser<'a> {
         };
 
         let initializer = if self.check(&Token::Equals)? {
-            self.advance()?;
+            self.advance()?; // consume `=`
             Some(self.parse_simple_expression()?)
         } else {
             None
@@ -1161,13 +1163,8 @@ impl<'a> Parser<'a> {
             return Ok(Type::Unknown);
         }
 
-        match type_text.as_str() {
-            "int" | "i32" | "i64" => Ok(Type::Int),
-            "float" | "f32" | "f64" => Ok(Type::Float),
-            "str" | "string" | "String" | "&str" => Ok(Type::String),
-            "bool" => Ok(Type::Bool),
-            _ => Ok(Type::Custom(type_text)),
-        }
+        // Frame has no type system — pass all types through verbatim
+        Ok(Type::Custom(type_text))
     }
 
     // ========================================================================
@@ -1186,7 +1183,39 @@ impl<'a> Parser<'a> {
                     "None" | "null" | "nullptr" | "nil" => {
                         Ok(Expression::NativeExpr(name))
                     }
-                    _ => Ok(Expression::Var(name)),
+                    _ => {
+                        // Check for path expression like Vec::new() or String::new()
+                        // :: is lexed as two Colon tokens
+                        if self.check(&Token::Colon)? {
+                            self.advance()?; // consume first :
+                            if self.check(&Token::Colon)? {
+                                self.advance()?; // consume second :
+                                let mut path = name.clone();
+                                path.push_str("::");
+                                // Consume the method/type name
+                                if let Token::Ident(_) = self.peek()? {
+                                    let next = self.advance()?;
+                                    if let Token::Ident(method) = next.token {
+                                        path.push_str(&method);
+                                    }
+                                }
+                                // Consume () if present
+                                if self.check(&Token::LParen)? {
+                                    self.advance()?; // (
+                                    path.push('(');
+                                    if self.check(&Token::RParen)? {
+                                        self.advance()?; // )
+                                        path.push(')');
+                                    }
+                                }
+                                return Ok(Expression::NativeExpr(path));
+                            }
+                            // Single colon — this is a type annotation, not ::
+                            // We already consumed one colon. This shouldn't happen
+                            // for initializer expressions, but handle gracefully.
+                        }
+                        Ok(Expression::Var(name))
+                    }
                 }
             }
             Token::LBracket => {
@@ -1200,7 +1229,6 @@ impl<'a> Parser<'a> {
                         Token::RBracket => { depth -= 1; if depth > 0 { content.push(']'); } }
                         Token::Eof => break,
                         _ => {
-                            // Extract source text for this token
                             let src = self.lexer.source();
                             let s = next.span.start.min(src.len());
                             let e = next.span.end.min(src.len());
@@ -1304,6 +1332,94 @@ impl<'a> Parser<'a> {
         let text = std::str::from_utf8(&source[start..end]).unwrap_or("");
         text.trim_matches('\n').to_string()
     }
+
+    /// E401: Validate that action/operation bodies don't contain forbidden Frame syntax.
+    ///
+    /// Forbidden in actions/operations:
+    /// - `-> $State` (transitions)
+    /// - `-> => $State` (transition with forwarding)
+    /// - `-> pop$` (pop transition)
+    /// - `=> $^` (dispatch to parent)
+    /// - `push$` / `pop$` (state stack operations)
+    /// - `$.varName` (state variable access)
+    ///
+    /// Allowed:
+    /// - `@@.param`, `@@:return`, `@@:event`, `@@:data[key]`, `@@:params[key]` (context access)
+    /// - `return` (native return statement, not Frame sugar)
+    fn validate_no_forbidden_frame_syntax(
+        &self,
+        statements: &[Statement],
+        context_kind: &str,   // "action" or "operation"
+        context_name: &str,   // the action/operation name
+    ) -> Result<(), ParseError> {
+        for stmt in statements {
+            match stmt {
+                Statement::Transition(t) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: Transition '-> ${}' is not allowed in {} '{}'. \
+                             Transitions are only allowed in event handlers.",
+                            t.target, context_kind, context_name
+                        ),
+                        span: t.span.clone(),
+                    });
+                }
+                Statement::TransitionForward(t) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: Transition with forwarding '-> => ${}' is not allowed in {} '{}'. \
+                             Transitions are only allowed in event handlers.",
+                            t.target, context_kind, context_name
+                        ),
+                        span: t.span.clone(),
+                    });
+                }
+                Statement::Forward(f) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: Dispatch '=> {}' is not allowed in {} '{}'. \
+                             Dispatch is only allowed in event handlers.",
+                            f.event, context_kind, context_name
+                        ),
+                        span: f.span.clone(),
+                    });
+                }
+                Statement::StackPush(s) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: 'push$' is not allowed in {} '{}'. \
+                             State stack operations are only allowed in event handlers.",
+                            context_kind, context_name
+                        ),
+                        span: s.span.clone(),
+                    });
+                }
+                Statement::StackPop(s) => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: 'pop$' is not allowed in {} '{}'. \
+                             State stack operations are only allowed in event handlers.",
+                            context_kind, context_name
+                        ),
+                        span: s.span.clone(),
+                    });
+                }
+                Statement::NativeCode(code) if code.starts_with("$.") => {
+                    return Err(ParseError {
+                        message: format!(
+                            "E401: State variable access '{}' is not allowed in {} '{}'. \
+                             State variables are only accessible in event handlers.",
+                            code, context_kind, context_name
+                        ),
+                        span: Span::new(0, 0), // No precise span available for NativeCode
+                    });
+                }
+                // Allowed: Return (native in actions/operations), NativeCode, @@:* context access
+                _ => {}
+            }
+        }
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -1364,15 +1480,15 @@ mod tests {
         assert_eq!(m.name, "send");
         assert_eq!(m.params.len(), 2);
         assert_eq!(m.params[0].name, "msg");
-        assert_eq!(m.params[0].param_type, Type::String);
+        assert_eq!(m.params[0].param_type, Type::Custom("str".into()));
         assert_eq!(m.params[1].name, "count");
-        assert_eq!(m.params[1].param_type, Type::Int);
+        assert_eq!(m.params[1].param_type, Type::Custom("int".into()));
     }
 
     #[test]
     fn test_interface_with_return_type() {
         let sys = parse_py("interface:\n    getData(): int");
-        assert_eq!(sys.interface[0].return_type, Some(Type::Int));
+        assert_eq!(sys.interface[0].return_type, Some(Type::Custom("int".into())));
     }
 
     #[test]
@@ -1444,7 +1560,7 @@ mod tests {
     fn test_domain_with_types() {
         let sys = parse_py("domain:\n    var count: int = 0");
         assert_eq!(sys.domain[0].name, "count");
-        assert_eq!(sys.domain[0].var_type, Type::Int);
+        assert_eq!(sys.domain[0].var_type, Type::Custom("int".into()));
     }
 
     #[test]
@@ -1517,7 +1633,7 @@ mod tests {
         let sys = parse_py("operations:\n    getValue(): int {\n        return 42\n    }");
         assert_eq!(sys.operations.len(), 1);
         assert_eq!(sys.operations[0].name, "getValue");
-        assert_eq!(sys.operations[0].return_type, Type::Int);
+        assert_eq!(sys.operations[0].return_type, Type::Custom("int".into()));
     }
 
     #[test]

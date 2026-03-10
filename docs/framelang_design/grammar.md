@@ -781,12 +781,12 @@ system TypedProcessor {
         $Ready {
             process(data: str) : int {
                 var length: int = len(data)
-                system.return = length
+                @@:return = length
                 return
             }
             
             validate(input: Any) : bool {
-                system.return = input != None
+                @@:return = input != None
                 return
             }
         }
@@ -896,11 +896,11 @@ system DataProcessor {
             // Handler automatically async due to interface method
             async processData(data) {
                 var result = await process_item(data)
-                system.return = result
+                @@:return = result
             }
-            
+
             getStatus() {
-                system.return = "ready"
+                @@:return = "ready"
             }
         }
 }
@@ -918,7 +918,7 @@ system AsyncMachine {
             // Async event handler
             async handleRequest(id) {
                 var result = await fetch_item(id)
-                system.return = result
+                @@:return = result
             }
         }
 }
@@ -1544,7 +1544,7 @@ interface_block: 'interface:' interface_method*
 interface_method: IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)?
 ```
 
-**v0.31 Default Return Values**: Interface methods can specify default return values using the syntax `: type = value`. This value is returned unless overridden by event handlers or system.return assignments.
+**v0.31 Default Return Values**: Interface methods can specify default return values using the syntax `: type = value`. This value is returned unless overridden by event handlers or `@@:return` assignments.
 
 ## Machine Block
 
@@ -1598,7 +1598,7 @@ system Counter {
             }
             
             getValue(): int {
-                system.return = self.count  // self.variable in system.return assignment
+                @@:return = self.count  // self.variable in @@:return assignment
             }
         }
 }
@@ -1666,7 +1666,7 @@ operation: attribute* IDENTIFIER '(' parameter_list? ')' (type ('=' expr)?)? '{'
 attribute: '@' IDENTIFIER  // Python-style attributes (e.g., @staticmethod)
 ```
 
-**v0.31 System Return Restriction**: Operations cannot use `system.return` as they may be called from contexts without an interface (e.g., directly from outside or from functions). This is enforced at parse time.
+**v0.31 Operations Restriction**: Operations (non-static) can use `@@:return` but cannot use Frame state-machine syntax (transitions, forwards, stack ops). This is enforced at parse time (E401).
 
 **v0.30 Implementation Note**: Operations and actions are resolved at code generation time through symbol table lookup. Calls to operations generate with `self.` prefix for instance methods, while static operations use `ClassName.method()` syntax. Actions automatically receive the `_do` suffix in generated code.
 
@@ -1836,7 +1836,7 @@ parameter: IDENTIFIER type?
 type: ':' IDENTIFIER
 ```
 
-**v0.31 Default Values**: Actions can specify default return values for their return to the caller (not system.return). Actions can set system.return explicitly.
+**v0.31 Default Values**: Actions can specify default return values for their return to the caller (not `@@:return`). Actions can set `@@:return` explicitly.
 
 ### Design Decisions
 
@@ -2514,7 +2514,7 @@ finally_clause: 'finally' block
 raise_stmt: 'raise' expr? ('from' expr)?
 return_stmt: 'return' expr?  // v0.38: Fixed to parse lambda expressions
 return_assign_stmt: 'return' '=' expr
-system_return_stmt: 'system.return' '=' expr
+system_return_stmt: '@@:return' '=' expr
 parent_dispatch_stmt: '=>' '$^'
 transition_stmt: ('(' exit_args ')')? '->' ('(' enter_args ')')? label? '$' IDENTIFIER ('(' state_params ')')?
                | '->' '=>' ('(' enter_args ')')? label? '$' IDENTIFIER ('(' state_params ')')?
@@ -2806,16 +2806,16 @@ closeModal() {
 
 ### System Return Assignment (v0.31)
 
-Frame v0.31 introduces the `system.return` special variable for setting interface return values anywhere within event handlers or action methods.
+Frame v0.31 introduces the `@@:return` special variable for setting interface return values anywhere within event handlers or action methods.
 
-**IMPORTANT**: Frame supports two special uses of the `system` keyword:
-1. **`system.return`**: For setting interface return values within event handlers and actions
+**IMPORTANT**: Frame supports a special use of the `system` keyword:
+1. **`@@:return`**: For setting interface return values within event handlers, actions, and non-static operations
 2. **`system.interfaceMethod()`**: For calling interface methods within the system (v0.81.2+)
 
 The general `system.method()` syntax is only supported for interface methods. For other method types, use `self.method()`.
 
 ```frame
-// Setting interface return values with system.return
+// Setting interface return values with @@:return
 interface:
     validateInput(data: string): bool = false  // Default return value
 
@@ -2823,16 +2823,16 @@ machine:
     $ProcessingState {
         validateInput(data: string) {  // Can override with : bool = true
             if data == "" {
-                system.return = false  // Set interface return value
-                return                 // Exit event handler  
-            }
-            
-            if checkFormat(data) {
-                system.return = true   // Set interface return value
+                @@:return = false  // Set interface return value
                 return                 // Exit event handler
             }
-            
-            system.return = false      // Default case
+
+            if checkFormat(data) {
+                @@:return = true   // Set interface return value
+                return                 // Exit event handler
+            }
+
+            @@:return = false      // Default case
             return
         }
     }
@@ -2841,23 +2841,23 @@ machine:
 machine:
     $Start {
         getStatus(): int = 99 {  // Override interface default
-            // Implicit system.return = 99 on entry
+            // Implicit @@:return = 99 on entry
             if someCondition {
-                system.return = 200  // Further override
+                @@:return = 200  // Further override
             }
             return
         }
     }
 
-// Actions can also set system.return
+// Actions can also set @@:return
 actions:
     processData(input: string): string {
         if input == "error" {
-            system.return = "failed"   // Set interface return value
+            @@:return = "failed"   // Set interface return value
             return "internal"   // Return value to caller (action method)
         }
-        
-        system.return = "success"      // Set interface return value
+
+        @@:return = "success"      // Set interface return value
         return input            // Return value to caller (action method)
     }
 ```
@@ -2895,16 +2895,16 @@ system Calculator {
                 var result = system.add(5, 3)      // Call with arguments
                 var current = system.getValue()    // Call without arguments
                 system.reset()                     // Void call
-                system.return = result + current
+                @@:return = result + current
             }
-            
+
             add(a: int, b: int): int {
                 var sum = a + b
-                system.return = sum
+                @@:return = sum
             }
-            
+
             getValue(): int {
-                system.return = self.stored_value
+                @@:return = self.stored_value
             }
             
             reset() {
@@ -3521,13 +3521,13 @@ if elif else for while loop in break continue
 true false None
 ```
 
-**Note on `system` keyword**: 
+**Note on `system` keyword**:
 - Reserved keyword that cannot be used as a variable or identifier name
 - Used for system declarations: `system MySystem { ... }`
-- Used in compound token `system.return` for setting interface return values
 - Used for interface method calls: `system.interfaceMethod()` (v0.81.2+)
 - For non-interface methods, use `self.method()` instead
 - Using `system` as a variable name will cause a parse error
+- Interface return values are set with `@@:return = value` (not via the `system` keyword)
 
 ## Null Value (v0.31)
 
@@ -3571,7 +3571,7 @@ The following v0.11 syntax has been **completely removed** from the language as 
 
 6. **Return assignment**:
    - **REMOVED**: `^=` and `return = value`
-   - Use: `system.return = value`
+   - Use: `@@:return = value`
 
 7. **Ternary test operators**:
    - **REMOVED**: `?`, `?!`, `?~`, `?#`, `?:`

@@ -1,0 +1,117 @@
+@@target rust
+
+// C++ syntax skipper — Frame-generated state machine.
+// Delegates to shared helpers; adds C++ raw strings R"delim(...)delim"
+//
+// Helpers used:
+//   skip_line_comment, skip_block_comment, skip_simple_string,
+//   find_line_end_c_like, balanced_paren_end_c_like
+// Inline: R"delim(...)delim" raw strings (checked before skip_simple_string)
+
+@@system CppSyntaxSkipperFsm {
+    interface:
+        do_skip_comment()
+        do_skip_string()
+        do_find_line_end()
+        do_balanced_paren_end()
+
+    machine:
+        $Init {
+            do_skip_comment() { -> $SkipComment }
+            do_skip_string() { -> $SkipString }
+            do_find_line_end() { -> $FindLineEnd }
+            do_balanced_paren_end() { -> $BalancedParenEnd }
+        }
+
+        $SkipComment {
+            $>() {
+                if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                if let Some(j) = skip_block_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $SkipString {
+            $>() {
+                let i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+                // C++ raw string: R"delim(...)delim" (must check before simple string)
+                if i + 1 < end && bytes[i] == b'R' && bytes[i + 1] == b'"' {
+                    let mut j = i + 2;
+                    let mut delim: Vec<u8> = Vec::new();
+                    while j < end && bytes[j] != b'(' {
+                        delim.push(bytes[j]);
+                        j += 1;
+                        if delim.len() > 32 {
+                            self.success = 0;
+                            return
+                        }
+                    }
+                    if j >= end || bytes[j] != b'(' {
+                        self.success = 0;
+                        return
+                    }
+                    j += 1; // skip (
+                    while j < end {
+                        if bytes[j] == b')' {
+                            let mut k = j + 1;
+                            let mut m: usize = 0;
+                            while m < delim.len() && k < end && bytes[k] == delim[m] {
+                                k += 1;
+                                m += 1;
+                            }
+                            if m == delim.len() && k < end && bytes[k] == b'"' {
+                                self.result_pos = k + 1;
+                                self.success = 1;
+                                return
+                            }
+                        }
+                        j += 1;
+                    }
+                    self.result_pos = end;
+                    self.success = 1;
+                    return
+                }
+                // Simple string via shared helper
+                if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $FindLineEnd {
+            $>() {
+                self.result_pos = find_line_end_c_like(&self.bytes, self.pos, self.end);
+            }
+        }
+
+        $BalancedParenEnd {
+            $>() {
+                if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var result_pos: usize = 0
+        var success: usize = 1
+}

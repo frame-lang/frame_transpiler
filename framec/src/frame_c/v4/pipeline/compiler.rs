@@ -8,7 +8,7 @@ use crate::frame_c::utils::RunError;
 use super::config::{PipelineConfig, CompileMode};
 use crate::frame_c::v4::codegen::{generate_system, generate_rust_compartment_types, generate_c_compartment_types, generate_compartment_class, generate_frame_event_class, generate_frame_context_class, get_backend, EmitContext};
 use crate::frame_c::v4::arcanum::build_arcanum_from_frame_ast;
-use crate::frame_c::v4::frame_ast::{FrameAst, Span as AstSpan};
+use crate::frame_c::v4::frame_ast::{FrameAst, ModuleAst, Span as AstSpan};
 use crate::frame_c::v4::segmenter::{self, Segment};
 use crate::frame_c::v4::pipeline_parser;
 use crate::frame_c::v4::assembler;
@@ -168,17 +168,12 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
     // Check for @@persist pragma
     let has_persist = source_map.persist_pragma().is_some();
 
-    // Stages 1-6: For each system, parse → Arcanum → validate → codegen → emit
-    let backend = get_backend(config.target);
-    let mut ctx = EmitContext::new();
-    let mut generated_systems: Vec<(String, String)> = Vec::new();
-
+    // Pass 1: Parse all systems into ASTs
+    let mut system_asts: Vec<crate::frame_c::v4::frame_ast::SystemAst> = Vec::new();
     for segment in &source_map.segments {
         if let Segment::System { name, body_span, .. } = segment {
-            // Convert segmenter::Span → frame_ast::Span for the Lexer/Parser
             let ast_body_span = AstSpan::new(body_span.start, body_span.end);
 
-            // Stage 1-2: Lex + Parse system body
             let mut system_ast = match pipeline_parser::parse_system(
                 &source_map.source, name.clone(), ast_body_span, config.target,
             ) {
@@ -194,7 +189,6 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                 }
             };
 
-            // Apply @@persist attribute if present
             if has_persist {
                 system_ast.persist_attr = Some(crate::frame_c::v4::frame_ast::PersistAttr {
                     save_name: None,
@@ -211,70 +205,85 @@ pub fn compile_ast_based(source: &[u8], config: &PipelineConfig) -> Result<Compi
                     system_ast.interface.len());
             }
 
-            // Stage 3: Build Arcanum from AST
-            let frame_ast = FrameAst::System(system_ast.clone());
-            let arcanum = build_arcanum_from_frame_ast(&frame_ast);
+            system_asts.push(system_ast);
+        }
+    }
 
-            // Stage 4: Validate
-            let mut validator = FrameValidator::new();
-            if let Err(errs) = validator.validate_with_arcanum(&frame_ast, &arcanum) {
-                let errors = errs.iter().map(|e| CompileError::new(&e.code, &e.message)).collect();
-                return Ok(CompileResult {
-                    code: String::new(),
-                    errors,
-                    warnings: vec![],
-                    source_map: None,
-                });
-            }
+    // Build a shared arcanum containing ALL systems so they can reference each other
+    let module_ast = FrameAst::Module(ModuleAst {
+        name: String::new(),
+        systems: system_asts.clone(),
+        imports: Vec::new(),
+        span: AstSpan::new(0, 0),
+    });
+    let arcanum = build_arcanum_from_frame_ast(&module_ast);
 
-            // Build per-system generated code: runtime classes + system class
-            let mut system_code = String::new();
+    // Pass 2: Validate + codegen each system with the shared arcanum
+    let backend = get_backend(config.target);
+    let mut ctx = EmitContext::new();
+    let mut generated_systems: Vec<(String, String)> = Vec::new();
 
-            // Runtime imports (added once before the first system)
-            if generated_systems.is_empty() {
-                let imports = backend.runtime_imports();
-                if !imports.is_empty() {
-                    for import in &imports {
-                        system_code.push_str(import);
-                        system_code.push('\n');
-                    }
+    for system_ast in &system_asts {
+        // Validate with shared arcanum (all sibling systems visible)
+        let frame_ast = FrameAst::System(system_ast.clone());
+        let mut validator = FrameValidator::new();
+        if let Err(errs) = validator.validate_with_arcanum(&frame_ast, &arcanum) {
+            let errors = errs.iter().map(|e| CompileError::new(&e.code, &e.message)).collect();
+            return Ok(CompileResult {
+                code: String::new(),
+                errors,
+                warnings: vec![],
+                source_map: None,
+            });
+        }
+
+        // Build per-system generated code: runtime classes + system class
+        let mut system_code = String::new();
+
+        // Runtime imports (added once before the first system)
+        if generated_systems.is_empty() {
+            let imports = backend.runtime_imports();
+            if !imports.is_empty() {
+                for import in &imports {
+                    system_code.push_str(import);
                     system_code.push('\n');
                 }
+                system_code.push('\n');
             }
-
-            // Runtime classes (language-specific, per-system)
-            if matches!(config.target, TargetLanguage::Rust) {
-                let compartment_types = generate_rust_compartment_types(&system_ast);
-                if !compartment_types.is_empty() {
-                    system_code.push_str(&compartment_types);
-                }
-            } else if matches!(config.target, TargetLanguage::C) {
-                let c_runtime = generate_c_compartment_types(&system_ast);
-                if !c_runtime.is_empty() {
-                    system_code.push_str(&c_runtime);
-                }
-            } else {
-                if let Some(event_node) = generate_frame_event_class(&system_ast, config.target) {
-                    system_code.push_str(&backend.emit(&event_node, &mut ctx));
-                    system_code.push_str("\n\n");
-                }
-                if let Some(context_node) = generate_frame_context_class(&system_ast, config.target) {
-                    system_code.push_str(&backend.emit(&context_node, &mut ctx));
-                    system_code.push_str("\n\n");
-                }
-                if let Some(compartment_node) = generate_compartment_class(&system_ast, config.target) {
-                    system_code.push_str(&backend.emit(&compartment_node, &mut ctx));
-                    system_code.push_str("\n\n");
-                }
-            }
-
-            // Stage 5-6: Codegen + Emit
-            ctx = ctx.with_system(&system_ast.name);
-            let codegen_node = generate_system(&system_ast, &arcanum, config.target, source);
-            system_code.push_str(&backend.emit(&codegen_node, &mut ctx));
-
-            generated_systems.push((name.clone(), system_code));
         }
+
+        // Runtime classes (language-specific, per-system)
+        if matches!(config.target, TargetLanguage::Rust) {
+            let compartment_types = generate_rust_compartment_types(system_ast);
+            if !compartment_types.is_empty() {
+                system_code.push_str(&compartment_types);
+            }
+        } else if matches!(config.target, TargetLanguage::C) {
+            let c_runtime = generate_c_compartment_types(system_ast);
+            if !c_runtime.is_empty() {
+                system_code.push_str(&c_runtime);
+            }
+        } else {
+            if let Some(event_node) = generate_frame_event_class(system_ast, config.target) {
+                system_code.push_str(&backend.emit(&event_node, &mut ctx));
+                system_code.push_str("\n\n");
+            }
+            if let Some(context_node) = generate_frame_context_class(system_ast, config.target) {
+                system_code.push_str(&backend.emit(&context_node, &mut ctx));
+                system_code.push_str("\n\n");
+            }
+            if let Some(compartment_node) = generate_compartment_class(system_ast, config.target) {
+                system_code.push_str(&backend.emit(&compartment_node, &mut ctx));
+                system_code.push_str("\n\n");
+            }
+        }
+
+        // Codegen + Emit with shared arcanum
+        ctx = ctx.with_system(&system_ast.name);
+        let codegen_node = generate_system(system_ast, &arcanum, config.target, source);
+        system_code.push_str(&backend.emit(&codegen_node, &mut ctx));
+
+        generated_systems.push((system_ast.name.clone(), system_code));
     }
 
     // Stage 7: Assemble final output (native pass-through + system substitution + tagged instantiations)

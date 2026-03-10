@@ -18,7 +18,7 @@ pub struct InterfaceParser;
 pub struct InterfaceMethodMeta {
     /// Optional declared return type (target-language specific, e.g. TypeScript type expr).
     pub return_type: Option<String>,
-    /// Optional initializer expression for system.return (raw text in header scope).
+    /// Optional initializer expression for return value (raw text in header scope).
     pub return_init: Option<String>,
 }
 

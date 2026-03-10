@@ -1,0 +1,88 @@
+@@target rust
+
+// Java import scanner — Frame-generated state machine.
+// Scans for import/package statements terminated by semicolons.
+//
+// Helpers used: starts_kw (from mod.rs)
+
+@@system JavaImportScannerFsm {
+    interface:
+        do_scan()
+
+    machine:
+        $Init {
+            do_scan() { -> $Scanning }
+        }
+
+        $Scanning {
+            $>() {
+                let n = self.bytes.len();
+                let mut i = self.start;
+                let mut at_sol = true;
+                while i < n {
+                    if at_sol {
+                        if self.bytes[i] == b'\n' || self.bytes[i] == b'\r' { i += 1; continue; }
+                        let line_start = i;
+                        let mut j = i;
+                        while j < n && (self.bytes[j] == b' ' || self.bytes[j] == b'\t') { j += 1; }
+                        if j < n && (starts_kw(&self.bytes, j, b"package") || starts_kw(&self.bytes, j, b"import")) {
+                            let stmt_start = line_start;
+                            let mut k = j;
+                            let mut in_s = false;
+                            let mut esc = false;
+                            let mut block = false;
+                            let mut found_semicolon = false;
+                            while k < n {
+                                // Block comment
+                                if !in_s && !block && k + 1 < n && self.bytes[k] == b'/' && self.bytes[k + 1] == b'*' {
+                                    block = true; k += 2; continue;
+                                }
+                                if block {
+                                    if k + 1 < n && self.bytes[k] == b'*' && self.bytes[k + 1] == b'/' { block = false; k += 2; continue; }
+                                    k += 1; continue;
+                                }
+                                // Line comment
+                                if !in_s && k + 1 < n && self.bytes[k] == b'/' && self.bytes[k + 1] == b'/' {
+                                    k += 2; while k < n && self.bytes[k] != b'\n' { k += 1; } continue;
+                                }
+                                let b = self.bytes[k];
+                                if in_s {
+                                    if esc { esc = false; k += 1; continue; }
+                                    if b == b'\\' { esc = true; k += 1; continue; }
+                                    if b == b'"' { in_s = false; k += 1; continue; }
+                                    k += 1; continue;
+                                }
+                                match b {
+                                    b'"' => { in_s = true; k += 1; }
+                                    b';' => {
+                                        self.spans.push(RegionSpan { start: stmt_start, end: k });
+                                        found_semicolon = true;
+                                        k += 1; i = k; break;
+                                    }
+                                    b'\n' => { k += 1; }
+                                    _ => { k += 1; }
+                                }
+                            }
+                            if k >= n {
+                                if !found_semicolon || in_s || block {
+                                    self.issues.push(ValidationIssue { message: "E110: unterminated package/import statement".into() });
+                                }
+                                self.spans.push(RegionSpan { start: stmt_start, end: n });
+                                i = n;
+                            }
+                            continue;
+                        }
+                        break;
+                    } else {
+                        if self.bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
+                    }
+                }
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var start: usize = 0
+        var spans: Vec<RegionSpan> = Vec::new()
+        var issues: Vec<ValidationIssue> = Vec::new()
+}

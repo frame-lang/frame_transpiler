@@ -40,7 +40,7 @@ All four PRTC languages use the unified kernel/router/transition/context stack a
 - Tests 10-12 passing
 
 ### Phase 2: System Return ✅
-- `system.return = value` sets interface return
+- `@@:return = value` sets interface return
 - `return expr` sugar in handlers
 - `_return_value` field for return chain
 - Tests 13-16 passing

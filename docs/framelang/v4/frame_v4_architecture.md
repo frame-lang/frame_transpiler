@@ -117,7 +117,7 @@ Each stage is a pure function of its inputs. No stage mutates the output of a pr
 2. Record source spans (byte offsets) for every handler body, state variable declaration, and native code region
 3. Skip native code preamble/postamble — record their spans for later pass-through
 4. Parse state variable declarations (`$.varName (: type)? = expr`) at the top of each state block
-5. Parse Frame statements within handler bodies (transitions, forwards, push/pop, `$.` access, `system.return`)
+5. Parse Frame statements within handler bodies (transitions, forwards, push/pop, `$.` access, `@@:return`)
 6. Record but do not parse native code within handler bodies — preserve as byte spans
 
 ### 2.2 AST Definitions
@@ -201,8 +201,8 @@ pub enum FrameStatement {
     StackPop,                            // bare pop$
     StateVarAccess(StateVarAccessStmt),
     StateVarAssign(StateVarAssignStmt),
-    SystemReturnAssign(Span),            // system.return = <expr_span>
-    SystemReturnRead,                    // system.return as expression
+    ContextReturnAssign(Span),           // @@:return = <expr_span>
+    ContextReturnRead,                   // @@:return as expression
     ReturnValue(Span),                   // return <expr_span> (in handler = sugar)
 }
 
@@ -275,7 +275,7 @@ pub struct Span {
 ### 2.3 Parser Behavior Notes
 
 - **State variable region:** The parser recognizes `$.` at the beginning of a line within a state block as a state variable declaration. The region ends at the first event handler (`<ident>(`, `$>`, `$<`) or `=> $^`.
-- **Handler body parsing:** The parser records the full byte span of the handler body. Within that span, it identifies Frame statements by their leading tokens (`->`, `=>`, `push$`, `pop$`, `$.`, `system.return`, `return`). The parser does NOT attempt to fully parse native code between Frame statements.
+- **Handler body parsing:** The parser records the full byte span of the handler body. Within that span, it identifies Frame statements by their leading tokens (`->`, `=>`, `push$`, `pop$`, `$.`, `@@:return`, `return`). The parser does NOT attempt to fully parse native code between Frame statements.
 - **String/comment awareness:** The parser must skip Frame token recognition inside string literals and comments of the target language. This requires minimal target-language awareness (string delimiters, comment syntax).
 
 ---
@@ -361,7 +361,7 @@ fn compute_effective_config(ast: &SystemAst, user: &CodegenConfig) -> EffectiveC
                         if !exit_args.is_empty() || !enter_args.is_empty()
                         => need_frame_event = true,
                     StackPush(_) | StackPop => need_state_stack = true,
-                    SystemReturnAssign(_) | SystemReturnRead => need_frame_event = true,
+                    ContextReturnAssign(_) | ContextReturnRead => need_frame_event = true,
                     ReturnValue(_) => need_frame_event = true,  // sugar needs return stack
                     _ => {}
                 }
@@ -509,10 +509,10 @@ pub enum CodegenNode {
         compartment_expr: Box<CodegenNode>,
     },
     StateStackPop,
-    SystemReturnAssign {
+    ContextReturnAssign {
         value: Box<CodegenNode>,
     },
-    SystemReturnRead,
+    ContextReturnRead,
     ParentDispatch {
         parent_state: String,
         system_name: String,
@@ -592,7 +592,7 @@ The system codegen builds the class tree in this order:
    c. Splice Frame expansions into native code
    d. Append auto-return after transitions
 
-7. Generate actions (native code pass-through, with system.return rewriting)
+7. Generate actions (native code pass-through, with @@:return rewriting)
 
 8. Generate operations (entirely native code)
 
@@ -615,8 +615,8 @@ pub enum Region {
     StackPop(Span),
     StateVarRead(StateVarRegion),
     StateVarAssign(StateVarAssignRegion),
-    SystemReturnAssign(SystemReturnRegion),
-    SystemReturnRead(Span),
+    ContextReturnAssign(ContextReturnRegion),
+    ContextReturnRead(Span),
     ReturnValue(ReturnValueRegion),
 }
 ```
@@ -635,8 +635,8 @@ pub enum Region {
 | `pop$` (not preceded by `->`) | Stack pop |
 | `$.` `<ident>` `=` | State variable write |
 | `$.` `<ident>` (not followed by `=`) | State variable read |
-| `system.return` `=` | System return assign |
-| `system.return` (not followed by `=`) | System return read |
+| `@@:return` `=` | Context return assign |
+| `@@:return` (not followed by `=`) | Context return read |
 | `return` `<expr>` (in handler context) | Return value sugar |
 
 **Critical:** Skip recognition inside string literals and comments of the target language.
@@ -1021,7 +1021,7 @@ fn _s_Working_get_count(&mut self, __e: &FooFrameEvent) {
         .copied()
         .unwrap_or(0);
 
-    // system.return = count
+    // @@:return = count
     self._return_value = Some(Box::new(count));
 }
 ```

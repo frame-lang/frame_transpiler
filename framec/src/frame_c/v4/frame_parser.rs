@@ -247,17 +247,6 @@ impl FrameParser {
     // V4 only supports: @@target, @@system, @@persist
     // =========================================================================
 
-    /// Try to parse a system
-    fn try_parse_system(&mut self) -> Result<Option<SystemAst>, ParseError> {
-        self.skip_whitespace();
-        
-        if self.peek_keyword("@@system") {
-            Ok(Some(self.parse_system()?))
-        } else {
-            Ok(None)
-        }
-    }
-    
     /// Parse a system definition
     pub fn parse_system(&mut self) -> Result<SystemAst, ParseError> {
         let start = self.cursor;
@@ -958,21 +947,6 @@ impl FrameParser {
         Ok(())
     }
     
-    /// Skip to next section marker
-    fn skip_to_next_section(&mut self) {
-        while self.cursor < self.source.len() {
-            if self.peek_keyword("interface:") ||
-               self.peek_keyword("machine:") ||
-               self.peek_keyword("actions:") ||
-               self.peek_keyword("operations:") ||
-               self.peek_keyword("domain:") ||
-               self.peek_char('}') {
-                break;
-            }
-            self.cursor += 1;
-        }
-    }
-    
     // Stub methods - to be implemented
     
     fn parse_enter_handler(&mut self) -> Result<EnterHandler, ParseError> {
@@ -1100,140 +1074,6 @@ impl FrameParser {
         Ok(params)
     }
 
-    /// Try to parse a Frame statement
-    fn try_parse_frame_statement(&mut self) -> Result<Option<Statement>, ParseError> {
-        self.skip_whitespace();
-        
-        // Check for Frame statement markers
-        if self.peek_string("->") {
-            // Transition
-            Ok(Some(self.parse_transition()?))
-        } else if self.peek_string("=>") {
-            // Forward
-            Ok(Some(self.parse_forward()?))
-        } else if self.peek_string("push$") {
-            // Stack push
-            self.cursor += 5;
-            Ok(Some(Statement::StackPush(StackPushAst {
-                span: Span::new(self.cursor - 5, self.cursor),
-                indent: 0,
-            })))
-        } else if self.peek_string("pop$") {
-            // Stack pop (standalone - discard)
-            self.cursor += 4;
-            Ok(Some(Statement::StackPop(StackPopAst {
-                span: Span::new(self.cursor - 4, self.cursor),
-                indent: 0,
-            })))
-        } else {
-            Ok(None)
-        }
-    }
-    
-    /// Check if current position starts a Frame statement
-    fn is_frame_statement_start(&self) -> bool {
-        self.peek_string("->") ||
-        self.peek_string("=>") ||
-        self.peek_string("push$") ||
-        self.peek_string("pop$")
-    }
-    
-    /// Parse transition statement
-    fn parse_transition(&mut self) -> Result<Statement, ParseError> {
-        let start = self.cursor;
-
-        // Skip ->
-        self.cursor += 2;
-        self.skip_whitespace();
-
-        // Check for pop-transition: -> pop$
-        if self.peek_string("pop$") {
-            self.cursor += 4;
-            return Ok(Statement::Transition(TransitionAst {
-                target: "pop$".to_string(),  // Special marker for pop-transition
-                args: vec![],
-                label: None,
-                span: Span::new(start, self.cursor),
-                indent: 0,
-            }));
-        }
-
-        // Parse optional label: -> "label" $State
-        let label = if self.peek_char('"') {
-            Some(self.parse_string_literal()?)
-        } else {
-            None
-        };
-
-        // Parse target state
-        self.expect_char('$')?;
-        let target = self.parse_identifier()?;
-
-        // Parse optional arguments
-        let args = if self.peek_char('(') {
-            self.parse_call_args()?
-        } else {
-            vec![]
-        };
-
-        Ok(Statement::Transition(TransitionAst {
-            target,
-            args,
-            label,
-            span: Span::new(start, self.cursor),
-            indent: 0,
-        }))
-    }
-
-    /// Parse forward statement
-    fn parse_forward(&mut self) -> Result<Statement, ParseError> {
-        let start = self.cursor;
-
-        // Skip =>
-        self.cursor += 2;
-        self.skip_whitespace();
-
-        // Parse event name
-        let event = self.parse_identifier()?;
-
-        // Parse optional arguments
-        let args = if self.peek_char('(') {
-            self.parse_call_args()?
-        } else {
-            vec![]
-        };
-
-        Ok(Statement::Forward(ForwardAst {
-            event,
-            args,
-            span: Span::new(start, self.cursor),
-            indent: 0,
-        }))
-    }
-    
-    /// Parse call arguments
-    fn parse_call_args(&mut self) -> Result<Vec<Expression>, ParseError> {
-        self.expect_char('(')?;
-        let mut args = vec![];
-        
-        while !self.peek_char(')') {
-            self.skip_whitespace();
-            
-            if self.peek_char(')') {
-                break;
-            }
-            
-            args.push(self.parse_expression()?);
-            
-            if self.peek_char(',') {
-                self.cursor += 1;
-            }
-        }
-        
-        self.expect_char(')')?;
-        Ok(args)
-    }
-    
     /// Parse expression
     /// Recognizes simple literals and identifiers, falls back to NativeExpr
     /// for any expression the parser doesn't understand (language-agnostic).
@@ -1751,44 +1591,6 @@ impl FrameParser {
     }
 
     // ========================================================================
-    // Error Recovery Methods
-    // ========================================================================
-
-    /// Recover to next section marker, skipping malformed content
-    fn recover_to_next_section(&mut self) {
-        while self.cursor < self.source.len() {
-            if self.is_section_keyword() || self.peek_char('}') {
-                break;
-            }
-            // Skip to end of line
-            self.skip_to_next_line();
-        }
-    }
-
-    /// Recover to next state marker ($), skipping malformed content
-    fn recover_to_next_state(&mut self) {
-        while self.cursor < self.source.len() {
-            self.skip_whitespace();
-            if self.peek_state_start() || self.is_section_keyword() || self.peek_char('}') {
-                break;
-            }
-            self.skip_to_next_line();
-        }
-    }
-
-    /// Recover to next handler, skipping malformed content
-    fn recover_to_next_handler(&mut self) {
-        while self.cursor < self.source.len() {
-            self.skip_whitespace();
-            // Look for handler start: identifier(, $>, $<, or closing }
-            if self.peek_identifier() || self.peek_string("$>") || self.peek_string("<$") || self.peek_char('}') {
-                break;
-            }
-            self.skip_to_next_line();
-        }
-    }
-
-    // ========================================================================
     // Body Content Extraction
     // ========================================================================
 
@@ -1850,12 +1652,11 @@ impl FrameParser {
                     // Skip native text - it's preserved by the splicer, not stored in AST
                 }
                 Region::FrameSegment { span, kind, indent } => {
-                    // StateVar, StateVarAssign, SystemReturn, SystemReturnExpr, and Context segments
+                    // StateVar, StateVarAssign, ReturnSugar, and Context segments
                     // are inline expressions handled by the splicer during code generation
                     if *kind == FrameSegmentKind::StateVar
                         || *kind == FrameSegmentKind::StateVarAssign
-                        || *kind == FrameSegmentKind::SystemReturn
-                        || *kind == FrameSegmentKind::SystemReturnExpr
+                        || *kind == FrameSegmentKind::ReturnSugar
                         || *kind == FrameSegmentKind::ContextParamShorthand
                         || *kind == FrameSegmentKind::ContextReturn
                         || *kind == FrameSegmentKind::ContextEvent
@@ -1939,15 +1740,10 @@ impl FrameParser {
                 // No separate statement needed - return an error that will be handled
                 Err(ParseError::Expected("StateVar handled by splicer".to_string()))
             }
-            FrameSegmentKind::SystemReturn => {
-                // system.return = <expr> or ^ <expr>
+            FrameSegmentKind::ReturnSugar => {
+                // return <expr> sugar
                 // Handled by splicer expansion, similar to StateVar
-                Err(ParseError::Expected("SystemReturn handled by splicer".to_string()))
-            }
-            FrameSegmentKind::SystemReturnExpr => {
-                // bare system.return (read expression)
-                // Handled by splicer expansion
-                Err(ParseError::Expected("SystemReturnExpr handled by splicer".to_string()))
+                Err(ParseError::Expected("ReturnSugar handled by splicer".to_string()))
             }
             // Context syntax and tagged instantiation - handled by splicer expansion
             FrameSegmentKind::ContextParamShorthand |

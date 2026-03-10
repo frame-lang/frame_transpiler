@@ -219,7 +219,7 @@ mod tests {
         system.operations.push(OperationAst {
             name: "getValue".to_string(),
             params: vec![],
-            return_type: Type::Int,
+            return_type: Type::Custom("int".into()),
             body: OperationBody {
                 span: FrameSpan::new(0, 10),
                 code: None,
@@ -240,7 +240,7 @@ mod tests {
         // Add domain var
         system.domain.push(DomainVar {
             name: "counter".to_string(),
-            var_type: Type::Int,
+            var_type: Type::Custom("int".into()),
             initializer: None,
             is_frame: true,
             raw_code: None,
@@ -296,7 +296,7 @@ mod tests {
             params: vec![
                 EventParam {
                     name: "delta".to_string(),
-                    param_type: Type::Int,
+                    param_type: Type::Custom("int".into()),
                     span: FrameSpan::new(60, 70),
                 },
             ],
@@ -361,7 +361,7 @@ mod tests {
         // Add domain variable
         system.domain.push(DomainVar {
             name: "counter".to_string(),
-            var_type: Type::Int,
+            var_type: Type::Custom("int".into()),
             initializer: None,
             is_frame: true,
             raw_code: None,
@@ -372,7 +372,7 @@ mod tests {
         let mut state = StateAst::new("Running".to_string(), FrameSpan::new(50, 200));
         state.params.push(StateParam {
             name: "timeout".to_string(),
-            param_type: Type::Int,
+            param_type: Type::Custom("int".into()),
             span: FrameSpan::new(55, 65),
         });
 
@@ -382,7 +382,7 @@ mod tests {
             params: vec![
                 EventParam {
                     name: "data".to_string(),
-                    param_type: Type::String,
+                    param_type: Type::Custom("string".into()),
                     span: FrameSpan::new(80, 90),
                 },
             ],
@@ -437,7 +437,7 @@ mod tests {
         // State param named "x" with type Int
         state.params.push(StateParam {
             name: "x".to_string(),
-            param_type: Type::Int,
+            param_type: Type::Custom("int".into()),
             span: FrameSpan::new(55, 60),
         });
 
@@ -447,7 +447,7 @@ mod tests {
             params: vec![
                 EventParam {
                     name: "x".to_string(),
-                    param_type: Type::String,
+                    param_type: Type::Custom("string".into()),
                     span: FrameSpan::new(80, 85),
                 },
             ],
@@ -536,7 +536,7 @@ mod tests {
             params: vec![
                 EventParam {
                     name: "config".to_string(),
-                    param_type: Type::String,
+                    param_type: Type::Custom("string".into()),
                     span: FrameSpan::new(60, 70),
                 },
             ],

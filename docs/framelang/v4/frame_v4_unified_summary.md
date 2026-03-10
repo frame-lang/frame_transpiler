@@ -68,7 +68,6 @@ if __name__ == '__main__':
 | **Stack Pop** | `pop$` / `-> pop$` | Pop from stack (discard or transition) |
 | **State Variable** | `$.varName` | Per-state instance variable |
 | **System Context** | `@@.param`, `@@:return` | Interface call context access |
-| **System Return** | `system.return` | Interface return value (alias for `@@:return`) |
 
 ### 1.3 Transition Forms
 

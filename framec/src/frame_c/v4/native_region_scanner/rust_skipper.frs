@@ -1,0 +1,170 @@
+@@target rust
+
+// Rust syntax skipper — Frame-generated state machine.
+// Delegates to shared helpers where possible; inlines Rust-specific logic.
+//
+// Helpers used:
+//   skip_line_comment, skip_rust_raw_string, skip_simple_string,
+//   balanced_paren_end_c_like
+// Inline: nested /* */ block comments, find_line_end with raw string awareness
+
+@@system RustSyntaxSkipperFsm {
+    interface:
+        do_skip_comment()
+        do_skip_string()
+        do_find_line_end()
+        do_balanced_paren_end()
+
+    machine:
+        $Init {
+            do_skip_comment() { -> $SkipComment }
+            do_skip_string() { -> $SkipString }
+            do_find_line_end() { -> $FindLineEnd }
+            do_balanced_paren_end() { -> $BalancedParenEnd }
+        }
+
+        $SkipComment {
+            $>() {
+                // Line comment via shared helper
+                if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                // Rust nested block comment (different from skip_block_comment — supports nesting)
+                let i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+                if i + 1 < end && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                    let mut j = i + 2;
+                    let mut depth: i32 = 1;
+                    while j + 1 < end && depth > 0 {
+                        if bytes[j] == b'/' && bytes[j + 1] == b'*' {
+                            depth += 1;
+                            j += 2;
+                            continue;
+                        }
+                        if bytes[j] == b'*' && bytes[j + 1] == b'/' {
+                            depth -= 1;
+                            j += 2;
+                            continue;
+                        }
+                        j += 1;
+                    }
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $SkipString {
+            $>() {
+                // Raw string via shared helper (must check before simple string)
+                if let Some(j) = skip_rust_raw_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                // Simple string via shared helper
+                if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $FindLineEnd {
+            $>() {
+                // Rust-specific: handle raw strings r#"..."# during line scanning
+                // Cannot use find_line_end_c_like because it doesn't know about raw strings
+                let end = self.end;
+                let bytes = &self.bytes;
+                let mut j = self.pos;
+                let mut in_string: u8 = 0;
+                let mut raw_hashes: usize = 0;
+
+                while j < end {
+                    let b = bytes[j];
+                    if b == b'\n' { break; }
+
+                    // Inside raw string
+                    if raw_hashes > 0 {
+                        if b == b'"' {
+                            let mut k = j + 1;
+                            let mut matched: usize = 0;
+                            while k < end && matched < raw_hashes && bytes[k] == b'#' {
+                                matched += 1;
+                                k += 1;
+                            }
+                            if matched == raw_hashes {
+                                j = k;
+                                raw_hashes = 0;
+                                continue;
+                            }
+                        }
+                        j += 1;
+                        continue;
+                    }
+
+                    // Inside regular string
+                    if in_string != 0 {
+                        if b == b'\\' { j += 2; continue; }
+                        if b == in_string { in_string = 0; }
+                        j += 1;
+                        continue;
+                    }
+
+                    // Terminators
+                    if b == b';' { break; }
+                    if b == b'/' && j + 1 < end && (bytes[j + 1] == b'/' || bytes[j + 1] == b'*') { break; }
+
+                    // String starts
+                    if b == b'\'' || b == b'"' {
+                        in_string = b;
+                        j += 1;
+                        continue;
+                    }
+
+                    // Raw string start
+                    if b == b'r' {
+                        let mut k = j + 1;
+                        let mut hashes: usize = 0;
+                        while k < end && bytes[k] == b'#' {
+                            hashes += 1;
+                            k += 1;
+                        }
+                        if k < end && bytes[k] == b'"' {
+                            raw_hashes = hashes;
+                            j = k + 1;
+                            continue;
+                        }
+                    }
+
+                    j += 1;
+                }
+                self.result_pos = j;
+            }
+        }
+
+        $BalancedParenEnd {
+            $>() {
+                if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var result_pos: usize = 0
+        var success: usize = 1
+}

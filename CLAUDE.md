@@ -78,9 +78,11 @@ system SystemName {
 - **Version**: v0.96.10 (branch `v4_pure`)
 - **Active Development**: V4 pipeline - pure preprocessor for `@@system` blocks
 - **V4 Test Status**: Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
-- **Unit Tests**: 208 pass, 0 fail, 2 ignored — zero warnings
+- **Unit Tests**: 207 pass, 0 fail, 2 ignored — zero warnings
+- **Type System**: Frame has no type system — types are opaque strings passed through verbatim as `Type::Custom(String)`
 - **Shared Environment**: Active via `FRAMEPILER_TEST_ENV` for isolated transpiler/debugger development
 - **Test Infrastructure**: Complete separation - transpiler only provides framec, tests in shared environment
+- **Dogfooding**: All 7 body closers + all 7 syntax skippers + all 7 import scanners + NativeRegionScanner sub-machines (ExprScanner PDA, ContextParser FSM, StateVarParser FSM) replaced with Frame systems (`.frs` → `.gen.rs`)
 
 ## Test Infrastructure (CRITICAL - USE TEST REPO ONLY)
 

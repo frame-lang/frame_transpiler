@@ -23,7 +23,7 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, Rust, etc.).
 
 ### Current Status
-- **Version**: v0.96.0
+- **Version**: v0.96.2
 - **Branch**: `v4_pure` (V4 pipeline development)
 - **Active Work**: V4 pure preprocessor architecture
 - **Active Languages**: Python 3, TypeScript, Rust, C
@@ -621,7 +621,7 @@ Scope and expectations
 ## Code Patterns
 
 ### Going Native (Bodies + Frame Statements)
-- Actions/operations: native‑only; use `system.return` for return assignment.
+- Actions/operations: native‑only; use `@@:return` for return value assignment. Frame state-machine syntax (transitions, dispatch, push/pop, state vars) is forbidden (E401).
 - Event handlers: native bodies with SOL‑anchored Frame statements interleaved (MixedBody); MIR glue emits deterministic returns and transitions.
 - No inline `#[target: …]` annotations in source (scanner errors); per-target segmentation handles native islands.
 

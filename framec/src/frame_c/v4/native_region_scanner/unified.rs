@@ -2,6 +2,35 @@
 //
 // This module provides a single scanning implementation for all target languages.
 // The only language-specific logic is how to skip comments and strings.
+//
+// Sub-machines (hierarchical state manager pattern):
+//   ExprScannerFsm   — PDA for scanning assignment RHS expressions
+//   ContextParserFsm — FSM for parsing @@ context constructs
+//   StateVarParserFsm — FSM for parsing $.varName access/assignment
+
+#[allow(unreachable_patterns)]
+#[allow(unused_mut)]
+#[allow(dead_code)]
+#[allow(non_snake_case)]
+#[allow(unused_variables)]
+mod _expr_scanner { include!("expr_scanner.gen.rs"); }
+
+#[allow(unreachable_patterns)]
+#[allow(unused_mut)]
+#[allow(dead_code)]
+#[allow(non_snake_case)]
+#[allow(unused_variables)]
+mod _context_parser { include!("context_parser.gen.rs"); }
+
+#[allow(unreachable_patterns)]
+#[allow(unused_mut)]
+#[allow(dead_code)]
+#[allow(non_snake_case)]
+#[allow(unused_variables)]
+mod _state_var_parser { include!("state_var_parser.gen.rs"); }
+
+use _context_parser::ContextParserFsm;
+use _state_var_parser::StateVarParserFsm;
 
 use super::*;
 use crate::frame_c::v4::body_closer::BodyCloser;
@@ -114,6 +143,7 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
             // ===== MID-LINE FRAME CONSTRUCTS =====
 
             // State variable reference: $.varName or assignment: $.varName = expr
+            // Delegates to StateVarParserFsm (hierarchical state manager pattern)
             b'$' if i + 1 < end && bytes[i + 1] == b'.' => {
                 if seg_start < i {
                     regions.push(Region::NativeText {
@@ -121,60 +151,29 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                     });
                 }
                 let var_start = i;
-                i += 2; // Skip "$."
-                while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                    i += 1;
-                }
-                // Check for assignment: skip whitespace, look for = (but not ==)
-                let mut j = i;
-                while j < end && (bytes[j] == b' ' || bytes[j] == b'\t') {
-                    j += 1;
-                }
-                if j < end && bytes[j] == b'=' && (j + 1 >= end || bytes[j + 1] != b'=') {
-                    // This is an assignment: $.varName = expr
-                    // Capture up to semicolon or newline
-                    j += 1; // Skip '='
-                    while j < end && bytes[j] != b';' && bytes[j] != b'\n' {
-                        // Handle nested parentheses/braces
-                        if bytes[j] == b'(' {
-                            let mut depth = 1;
-                            j += 1;
-                            while j < end && depth > 0 {
-                                if bytes[j] == b'(' { depth += 1; }
-                                if bytes[j] == b')' { depth -= 1; }
-                                j += 1;
-                            }
-                        } else {
-                            j += 1;
-                        }
-                    }
-                    // Include the semicolon if present
-                    if j < end && bytes[j] == b';' {
-                        j += 1;
-                    }
-                    regions.push(Region::FrameSegment {
-                        span: RegionSpan { start: var_start, end: j },
-                        kind: FrameSegmentKind::StateVarAssign,
-                        indent: 0,
-                    });
-                    i = j;
+                let mut parser = StateVarParserFsm::new();
+                parser.bytes = bytes[..end].to_vec();
+                parser.pos = i;
+                parser.end = end;
+                parser.do_parse();
+
+                let kind = if parser.is_assignment {
+                    FrameSegmentKind::StateVarAssign
                 } else {
-                    // Just a read access
-                    regions.push(Region::FrameSegment {
-                        span: RegionSpan { start: var_start, end: i },
-                        kind: FrameSegmentKind::StateVar,
-                        indent: 0,
-                    });
-                }
+                    FrameSegmentKind::StateVar
+                };
+                regions.push(Region::FrameSegment {
+                    span: RegionSpan { start: var_start, end: parser.result_end },
+                    kind,
+                    indent: 0,
+                });
+                i = parser.result_end;
                 seg_start = i;
+                // parser is destroyed here (state manager pattern)
             }
 
             // System context syntax: @@ variants
-            // @@.param - shorthand parameter access
-            // @@:return - return value slot
-            // @@:event - interface event name
-            // @@:data[key] - call-scoped data
-            // @@:params[key] - explicit parameter access
+            // Delegates to ContextParserFsm (hierarchical state manager pattern)
             b'@' if i + 1 < end && bytes[i + 1] == b'@' => {
                 if seg_start < i {
                     regions.push(Region::NativeText {
@@ -182,245 +181,55 @@ pub fn scan_native_regions<S: SyntaxSkipper>(
                     });
                 }
                 let ctx_start = i;
-                i += 2; // Skip "@@"
 
-                if i < end && bytes[i] == b'.' {
-                    // @@.param - shorthand parameter access
-                    i += 1; // Skip "."
-                    while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                        i += 1;
+                // For @@SystemName(), pre-compute balanced_paren_end via the
+                // language-specific SyntaxSkipper (the FSM can't call traits).
+                let after_at = i + 2;
+                let mut precomputed_paren_end: usize = 0;
+                if after_at < end && bytes[after_at].is_ascii_uppercase() {
+                    let mut name_end = after_at;
+                    while name_end < end && (bytes[name_end].is_ascii_alphanumeric() || bytes[name_end] == b'_') {
+                        name_end += 1;
                     }
+                    if name_end < end && bytes[name_end] == b'(' {
+                        if let Some(pe) = skipper.balanced_paren_end(bytes, name_end, end) {
+                            precomputed_paren_end = pe;
+                        }
+                    }
+                }
+
+                let mut parser = ContextParserFsm::new();
+                parser.bytes = bytes[..end].to_vec();
+                parser.pos = after_at; // position after @@
+                parser.end = end;
+                parser.paren_end = precomputed_paren_end;
+                parser.do_parse();
+
+                if parser.has_result {
+                    let kind = match parser.result_kind {
+                        1 => FrameSegmentKind::ContextParamShorthand,
+                        2 => FrameSegmentKind::ContextReturn,
+                        3 => FrameSegmentKind::ContextEvent,
+                        4 => FrameSegmentKind::ContextData,
+                        5 => FrameSegmentKind::ContextDataAssign,
+                        6 => FrameSegmentKind::ContextParams,
+                        7 => FrameSegmentKind::TaggedInstantiation,
+                        _ => FrameSegmentKind::ContextReturn, // shouldn't happen
+                    };
                     regions.push(Region::FrameSegment {
-                        span: RegionSpan { start: ctx_start, end: i },
-                        kind: FrameSegmentKind::ContextParamShorthand,
-                        indent: 0,
-                    });
-                } else if i < end && bytes[i] == b':' {
-                    i += 1; // Skip ":"
-                    // Check which context field
-                    if i + 5 < end && &bytes[i..i + 6] == b"return" {
-                        // @@:return - may be assignment or read
-                        i += 6;
-                        // Check for assignment
-                        while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') {
-                            i += 1;
-                        }
-                        if i < end && bytes[i] == b'=' && (i + 1 >= end || bytes[i + 1] != b'=') {
-                            // @@:return = <expr>
-                            i += 1; // Skip '='
-                            // Scan to ';' or newline at depth 0, handling nested parens/brackets
-                            let mut depth: i32 = 0;
-                            let mut in_string: Option<u8> = None;
-                            while i < end {
-                                let b = bytes[i];
-                                // Handle strings
-                                if let Some(q) = in_string {
-                                    if b == b'\\' && i + 1 < end {
-                                        i += 2;
-                                        continue;
-                                    }
-                                    if b == q {
-                                        in_string = None;
-                                    }
-                                    i += 1;
-                                    continue;
-                                }
-                                if b == b'"' || b == b'\'' {
-                                    in_string = Some(b);
-                                    i += 1;
-                                    continue;
-                                }
-                                match b {
-                                    b'(' | b'[' | b'{' => depth += 1,
-                                    b')' | b']' | b'}' => depth = (depth - 1).max(0),
-                                    b';' if depth == 0 => {
-                                        i += 1; // Include the semicolon
-                                        break;
-                                    }
-                                    b'\n' if depth == 0 => break,
-                                    _ => {}
-                                }
-                                i += 1;
-                            }
-                        }
-                        regions.push(Region::FrameSegment {
-                            span: RegionSpan { start: ctx_start, end: i },
-                            kind: FrameSegmentKind::ContextReturn,
-                            indent: 0,
-                        });
-                    } else if i + 4 < end && &bytes[i..i + 5] == b"event" {
-                        // @@:event
-                        i += 5;
-                        regions.push(Region::FrameSegment {
-                            span: RegionSpan { start: ctx_start, end: i },
-                            kind: FrameSegmentKind::ContextEvent,
-                            indent: 0,
-                        });
-                    } else if i + 3 < end && &bytes[i..i + 4] == b"data" {
-                        // @@:data[key] or @@:data[key] = expr
-                        i += 4;
-                        // Must have [key]
-                        if i < end && bytes[i] == b'[' {
-                            while i < end && bytes[i] != b']' {
-                                i += 1;
-                            }
-                            if i < end {
-                                i += 1; // Skip ']'
-                            }
-                        }
-                        // Check if this is an assignment: @@:data[key] = expr
-                        let mut j = i;
-                        // Skip whitespace
-                        while j < end && (bytes[j] == b' ' || bytes[j] == b'\t') {
-                            j += 1;
-                        }
-                        // Check for = but not ==
-                        if j < end && bytes[j] == b'=' && (j + 1 >= end || bytes[j + 1] != b'=') {
-                            // This is an assignment - scan to end of statement (;)
-                            j += 1; // Skip '='
-                            // Scan to ';' or newline at depth 0, handling nested parens/brackets and strings
-                            let mut depth: i32 = 0;
-                            let mut in_string: Option<u8> = None;
-                            while j < end {
-                                let b = bytes[j];
-                                // Handle strings
-                                if let Some(q) = in_string {
-                                    if b == b'\\' && j + 1 < end {
-                                        j += 2;
-                                        continue;
-                                    }
-                                    if b == q {
-                                        in_string = None;
-                                    }
-                                    j += 1;
-                                    continue;
-                                }
-                                if b == b'"' || b == b'\'' {
-                                    in_string = Some(b);
-                                    j += 1;
-                                    continue;
-                                }
-                                match b {
-                                    b'(' | b'[' | b'{' => depth += 1,
-                                    b')' | b']' | b'}' => depth = (depth - 1).max(0),
-                                    b';' if depth == 0 => {
-                                        j += 1; // Include the semicolon
-                                        break;
-                                    }
-                                    b'\n' if depth == 0 => break,
-                                    _ => {}
-                                }
-                                j += 1;
-                            }
-                            regions.push(Region::FrameSegment {
-                                span: RegionSpan { start: ctx_start, end: j },
-                                kind: FrameSegmentKind::ContextDataAssign,
-                                indent: 0,
-                            });
-                            i = j;
-                        } else {
-                            // Read-only access
-                            regions.push(Region::FrameSegment {
-                                span: RegionSpan { start: ctx_start, end: i },
-                                kind: FrameSegmentKind::ContextData,
-                                indent: 0,
-                            });
-                        }
-                    } else if i + 5 < end && &bytes[i..i + 6] == b"params" {
-                        // @@:params[key]
-                        i += 6;
-                        // Must have [key]
-                        if i < end && bytes[i] == b'[' {
-                            while i < end && bytes[i] != b']' {
-                                i += 1;
-                            }
-                            if i < end {
-                                i += 1; // Skip ']'
-                            }
-                        }
-                        regions.push(Region::FrameSegment {
-                            span: RegionSpan { start: ctx_start, end: i },
-                            kind: FrameSegmentKind::ContextParams,
-                            indent: 0,
-                        });
-                    } else {
-                        // Unknown @@: variant, treat as native
-                        regions.push(Region::NativeText {
-                            span: RegionSpan { start: ctx_start, end: i }
-                        });
-                    }
-                } else if i < end && bytes[i].is_ascii_uppercase() {
-                    // @@SystemName() - tagged system instantiation
-                    // Must start with uppercase letter (convention for system names)
-                    let _name_start = i;
-                    while i < end && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
-                        i += 1;
-                    }
-                    // Must be followed by ( for constructor call
-                    if i < end && bytes[i] == b'(' {
-                        // Find the matching close paren
-                        if let Some(paren_end) = skipper.balanced_paren_end(bytes, i, end) {
-                            i = paren_end;
-                            regions.push(Region::FrameSegment {
-                                span: RegionSpan { start: ctx_start, end: i },
-                                kind: FrameSegmentKind::TaggedInstantiation,
-                                indent: 0,
-                            });
-                        } else {
-                            // Unbalanced parens, treat as native
-                            regions.push(Region::NativeText {
-                                span: RegionSpan { start: ctx_start, end: i }
-                            });
-                        }
-                    } else {
-                        // No parens after name, this is just @@SomeName without ()
-                        // This could be a typo or intentional - treat as native for now
-                        regions.push(Region::NativeText {
-                            span: RegionSpan { start: ctx_start, end: i }
-                        });
-                    }
-                } else {
-                    // Just @@ without . or : or uppercase, treat as native
-                    regions.push(Region::NativeText {
-                        span: RegionSpan { start: ctx_start, end: i }
-                    });
-                }
-                seg_start = i;
-            }
-
-            // System return: system.return = <expr> or system.return
-            b's' if i + 12 < end && &bytes[i..i + 13] == b"system.return" => {
-                if seg_start < i {
-                    regions.push(Region::NativeText {
-                        span: RegionSpan { start: seg_start, end: i }
-                    });
-                }
-                let start = i;
-                i += 13; // Skip "system.return"
-
-                // Skip whitespace
-                while i < end && (bytes[i] == b' ' || bytes[i] == b'\t') {
-                    i += 1;
-                }
-
-                if i < end && bytes[i] == b'=' && (i + 1 >= end || bytes[i + 1] != b'=') {
-                    // system.return = <expr>
-                    i += 1; // Skip '='
-                    i = skipper.find_line_end(bytes, i, end);
-                    regions.push(Region::FrameSegment {
-                        span: RegionSpan { start, end: i },
-                        kind: FrameSegmentKind::SystemReturn,
+                        span: RegionSpan { start: ctx_start, end: parser.result_end },
+                        kind,
                         indent: 0,
                     });
                 } else {
-                    // bare system.return
-                    regions.push(Region::FrameSegment {
-                        span: RegionSpan { start, end: i },
-                        kind: FrameSegmentKind::SystemReturnExpr,
-                        indent: 0,
+                    // No match — treat as native text
+                    regions.push(Region::NativeText {
+                        span: RegionSpan { start: ctx_start, end: parser.result_end }
                     });
                 }
+                i = parser.result_end;
                 seg_start = i;
+                // parser is destroyed here (state manager pattern)
             }
 
             _ => {
@@ -566,7 +375,7 @@ fn match_frame_statement_at_sol<S: SyntaxSkipper>(
     if b == b'r' && pos + 6 <= end && &bytes[pos..pos + 6] == b"return" {
         let after_return = pos + 6;
         if after_return < end && (bytes[after_return] == b' ' || bytes[after_return] == b'\t') {
-            return Some((after_return, FrameSegmentKind::SystemReturn));
+            return Some((after_return, FrameSegmentKind::ReturnSugar));
         }
     }
 

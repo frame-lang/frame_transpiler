@@ -1,0 +1,120 @@
+@@target rust
+
+// Python import scanner — Frame-generated state machine.
+// Scans for import/from statements with paren/backslash continuation.
+// Handles triple-quoted strings and hash comments.
+//
+// Helpers used: starts_kw, is_frame_section_start (from mod.rs)
+
+@@system PythonImportScannerFsm {
+    interface:
+        do_scan()
+
+    machine:
+        $Init {
+            do_scan() { -> $Scanning }
+        }
+
+        $Scanning {
+            $>() {
+                let n = self.bytes.len();
+                let mut i = self.start;
+                let mut at_sol = true;
+                while i < n {
+                    if at_sol {
+                        let line_start = i;
+                        let mut j = i;
+                        while j < n && (self.bytes[j] == b' ' || self.bytes[j] == b'\t') { j += 1; }
+                        // Stop at Frame section keywords
+                        if j < n && is_frame_section_start(&self.bytes, j) {
+                            break;
+                        }
+                        if j < n && (starts_kw(&self.bytes, j, b"import") || starts_kw(&self.bytes, j, b"from")) {
+                            let stmt_start = line_start;
+                            let mut k = j;
+                            let mut paren: i32 = 0;
+                            let mut in_s: u8 = 0; // 0 none, 1 ', 2 "
+                            let mut in_triple: u8 = 0; // 1 ''', 2 """
+                            while k < n {
+                                let b = self.bytes[k];
+                                // Inside triple-quoted string
+                                if in_triple == 1 {
+                                    if k + 2 < n && self.bytes[k] == b'\'' && self.bytes[k + 1] == b'\'' && self.bytes[k + 2] == b'\'' {
+                                        k += 3; in_triple = 0; continue;
+                                    }
+                                    k += 1; continue;
+                                } else if in_triple == 2 {
+                                    if k + 2 < n && self.bytes[k] == b'"' && self.bytes[k + 1] == b'"' && self.bytes[k + 2] == b'"' {
+                                        k += 3; in_triple = 0; continue;
+                                    }
+                                    k += 1; continue;
+                                }
+                                match b {
+                                    b'\'' if in_s == 0 => {
+                                        if k + 2 < n && self.bytes[k + 1] == b'\'' && self.bytes[k + 2] == b'\'' {
+                                            in_triple = 1; k += 3; continue;
+                                        }
+                                        in_s = 1; k += 1; continue;
+                                    }
+                                    b'"' if in_s == 0 => {
+                                        if k + 2 < n && self.bytes[k + 1] == b'"' && self.bytes[k + 2] == b'"' {
+                                            in_triple = 2; k += 3; continue;
+                                        }
+                                        in_s = 2; k += 1; continue;
+                                    }
+                                    b'\'' if in_s == 1 => { in_s = 0; k += 1; continue; }
+                                    b'"' if in_s == 2 => { in_s = 0; k += 1; continue; }
+                                    b'(' => { if in_s == 0 { paren += 1; } k += 1; continue; }
+                                    b')' => { if in_s == 0 { paren -= 1; } k += 1; continue; }
+                                    b'#' => {
+                                        // Comment to end of physical line
+                                        while k < n && self.bytes[k] != b'\n' { k += 1; }
+                                        // Fallthrough to newline handling
+                                    }
+                                    b'\n' => {
+                                        // Check continuation: paren > 0 or trailing backslash
+                                        let mut p = k;
+                                        if p > 0 { p -= 1; }
+                                        while p > stmt_start && (self.bytes[p] == b' ' || self.bytes[p] == b'\t' || self.bytes[p] == b'\r') {
+                                            if p == 0 { break; }
+                                            p -= 1;
+                                        }
+                                        let backslash_cont = self.bytes.get(p).copied() == Some(b'\\');
+                                        if paren > 0 || backslash_cont {
+                                            k += 1; continue; // Continue logical line
+                                        } else {
+                                            let stmt_end = k;
+                                            self.spans.push(RegionSpan { start: stmt_start, end: stmt_end });
+                                            k += 1; i = k; at_sol = true; break;
+                                        }
+                                    }
+                                    _ => { k += 1; continue; }
+                                }
+                            }
+                            if k >= n {
+                                if paren > 0 || in_s != 0 || in_triple != 0 {
+                                    self.issues.push(ValidationIssue { message: "E110: unterminated import statement".into() });
+                                }
+                                self.spans.push(RegionSpan { start: stmt_start, end: n });
+                                break;
+                            }
+                            continue;
+                        }
+                        // Not an import line; advance to end of line
+                        while i < n && self.bytes[i] != b'\n' { i += 1; }
+                        if i < n { i += 1; }
+                        at_sol = true;
+                        continue;
+                    } else {
+                        if self.bytes[i] == b'\n' { at_sol = true; i += 1; } else { i += 1; }
+                    }
+                }
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var start: usize = 0
+        var spans: Vec<RegionSpan> = Vec::new()
+        var issues: Vec<ValidationIssue> = Vec::new()
+}

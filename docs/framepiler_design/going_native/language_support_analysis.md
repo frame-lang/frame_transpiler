@@ -58,7 +58,7 @@ Last updated: 2025‑11‑05
 - MixedBody authoritative: all actions/operations/handlers are MixedBody; no legacy “Frame statements” parsing inside handlers
 - MIR expansion (B2): Visitors expand FrameStmt into target‑native AST or minimal text recipes with mapping
 - Source maps: compose native parser spans + MIR expansions to precise frame/target mappings
-- Pseudo‑symbol desugar (early): e.g., `system.return` → target‑native expression per runtime
+- Pseudo‑symbol desugar (early): e.g., `@@:return` → target‑native expression per runtime
 
 ## Cross‑Cutting Concerns
 - SOL anchoring: Only recognize FrameStmt at first non‑whitespace column; ignore in strings/comments/heredocs/templates

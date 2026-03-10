@@ -261,9 +261,11 @@ impl SemanticPass {
         if let Some(idx) = terminal_index {
             let last_idx = statements.len() - 1;
             if idx != last_idx {
-                // Check if remaining statements are non-trivial
+                // Check if remaining statements are non-trivial Frame statements.
+                // NativeCode is always trivial — Frame is a preprocessor and cannot
+                // reason about native control flow (if/else, loops, switch, etc.).
                 let has_non_trivial_after = statements[idx + 1..].iter().any(|s| {
-                    !matches!(s, Statement::Return(_))
+                    matches!(s, Statement::Transition(_) | Statement::Forward(_) | Statement::StackPush(_) | Statement::StackPop(_) | Statement::TransitionForward(_))
                 });
                 if has_non_trivial_after {
                     let span = match &statements[idx] {

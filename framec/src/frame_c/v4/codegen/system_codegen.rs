@@ -8,8 +8,8 @@
 
 use crate::frame_c::visitors::TargetLanguage;
 use crate::frame_c::v4::frame_ast::{
-    SystemAst, MachineAst,
-    ActionAst, OperationAst, Type,
+    SystemAst, StateAst, HandlerAst, HandlerBody, MachineAst,
+    ActionAst, OperationAst, Type, EventParam,
     Expression, Literal, BinaryOp, UnaryOp, StateVarAst,
     InterfaceMethod, MethodParam, Span,
 };
@@ -32,6 +32,7 @@ use super::backend::get_backend;
 #[derive(Clone, Default)]
 struct HandlerContext {
     pub system_name: String,
+    pub state_name: String,
     pub event_name: String,
     pub parent_state: Option<String>,
     /// Set of defined system names in the module (for @@System() validation)
@@ -107,10 +108,9 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
     let compartment_type = format!("{}Compartment", system.name);
 
     // State stack - for push/pop state operations
-    // For Rust: Vec<(String, {System}StateContext)> - typed context enum for stack
-    // For others: list/array of compartments
+    // All languages: stack of compartments (state vars live on compartment.state_context)
     let stack_type = if matches!(syntax.language, TargetLanguage::Rust) {
-        format!("Vec<(String, {}StateContext)>", system.name)
+        format!("Vec<{}Compartment>", system.name)
     } else {
         "List".to_string()
     };
@@ -162,14 +162,14 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
             // V4: Pass through native code verbatim for Python/TypeScript/Rust
             // But also include type annotation for C backend which needs it
             let field = Field::new(&domain_var.name)
-                .with_visibility(Visibility::Private)
+                .with_visibility(Visibility::Public)
                 .with_type(&type_str)
                 .with_raw_code(raw_code);
             fields.push(field);
         } else {
-            // Legacy: Construct from parsed components
+            // Domain vars are public so generated FSMs can be driven externally
             let mut field = Field::new(&domain_var.name)
-                .with_visibility(Visibility::Private)
+                .with_visibility(Visibility::Public)
                 .with_type(&type_str);
 
             if let Some(ref init) = &domain_var.initializer {
@@ -180,20 +180,8 @@ fn generate_fields(system: &SystemAst, syntax: &super::backend::ClassSyntax) -> 
         }
     }
 
-    // For Rust: Generate _sv_ fields for state variables (for direct access in handlers)
-    // These are initialized in _enter() and saved/restored via compartment on push/pop
-    if matches!(syntax.language, TargetLanguage::Rust) {
-        if let Some(ref machine) = system.machine {
-            for state in &machine.states {
-                for var in &state.state_vars {
-                    let type_str = type_to_string(&var.var_type);
-                    fields.push(Field::new(&format!("_sv_{}", var.name))
-                        .with_visibility(Visibility::Private)
-                        .with_type(&type_str));
-                }
-            }
-        }
-    }
+    // Rust state vars now live on compartment.state_context (StateContext enum)
+    // No _sv_* struct fields needed
 
     fields
 }
@@ -643,10 +631,73 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     code.push_str("    }\n");
     code.push_str("}\n\n");
 
+    // Generate state context types (must come before Compartment which references them)
+    // Context structs for states with state variables
+    if let Some(ref machine) = system.machine {
+        let states_with_vars: Vec<_> = machine.states.iter()
+            .filter(|s| !s.state_vars.is_empty())
+            .collect();
+
+        for state in &states_with_vars {
+            code.push_str(&format!("#[derive(Clone)]\nstruct {}Context {{\n", state.name));
+            for var in &state.state_vars {
+                let type_str = type_to_string(&var.var_type);
+                code.push_str(&format!("    {}: {},\n", var.name, type_str));
+            }
+            code.push_str("}\n\n");
+
+            // Manual Default impl with declared initializers
+            code.push_str(&format!("impl Default for {}Context {{\n", state.name));
+            code.push_str("    fn default() -> Self {\n");
+            code.push_str("        Self {\n");
+            for var in &state.state_vars {
+                let init_val = if let Some(ref init) = var.init {
+                    expression_to_string(init, TargetLanguage::Rust)
+                } else {
+                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
+                };
+                code.push_str(&format!("            {}: {},\n", var.name, init_val));
+            }
+            code.push_str("        }\n");
+            code.push_str("    }\n");
+            code.push_str("}\n\n");
+        }
+    }
+
+    // StateContext enum — typed state variable storage on the compartment
+    code.push_str(&format!("#[derive(Clone)]\nenum {}StateContext {{\n", system_name));
+    if let Some(ref machine) = system.machine {
+        for state in &machine.states {
+            if state.state_vars.is_empty() {
+                code.push_str(&format!("    {},\n", state.name));
+            } else {
+                code.push_str(&format!("    {}({}Context),\n", state.name, state.name));
+            }
+        }
+    }
+    code.push_str("    Empty,\n");
+    code.push_str("}\n\n");
+
+    // Default impl for StateContext
+    if let Some(ref machine) = system.machine {
+        if let Some(first_state) = machine.states.first() {
+            code.push_str(&format!("impl Default for {}StateContext {{\n", system_name));
+            code.push_str("    fn default() -> Self {\n");
+            if first_state.state_vars.is_empty() {
+                code.push_str(&format!("        {}StateContext::{}\n", system_name, first_state.name));
+            } else {
+                code.push_str(&format!("        {}StateContext::{}({}Context::default())\n",
+                    system_name, first_state.name, first_state.name));
+            }
+            code.push_str("    }\n");
+            code.push_str("}\n\n");
+        }
+    }
+
     // Generate Compartment struct
     code.push_str(&format!("#[derive(Clone)]\nstruct {}Compartment {{\n", system_name));
     code.push_str("    state: String,\n");
-    code.push_str("    state_vars: std::collections::HashMap<String, i32>,\n");
+    code.push_str(&format!("    state_context: {}StateContext,\n", system_name));
     code.push_str("    enter_args: std::collections::HashMap<String, String>,\n");
     code.push_str("    exit_args: std::collections::HashMap<String, String>,\n");
     code.push_str(&format!("    forward_event: Option<{}FrameEvent>,\n", system_name));
@@ -654,11 +705,26 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     code.push_str("}\n\n");
 
     // Generate Compartment impl with new()
+    // new() automatically sets state_context to the correct variant with defaults
     code.push_str(&format!("impl {}Compartment {{\n", system_name));
     code.push_str("    fn new(state: &str) -> Self {\n");
+    code.push_str(&format!("        let state_context = match state {{\n"));
+    if let Some(ref machine) = system.machine {
+        for state in &machine.states {
+            if state.state_vars.is_empty() {
+                code.push_str(&format!("            \"{}\" => {}StateContext::{},\n",
+                    state.name, system_name, state.name));
+            } else {
+                code.push_str(&format!("            \"{}\" => {}StateContext::{}({}Context::default()),\n",
+                    state.name, system_name, state.name, state.name));
+            }
+        }
+    }
+    code.push_str(&format!("            _ => {}StateContext::Empty,\n", system_name));
+    code.push_str("        };\n");
     code.push_str("        Self {\n");
     code.push_str("            state: state.to_string(),\n");
-    code.push_str("            state_vars: std::collections::HashMap::new(),\n");
+    code.push_str("            state_context,\n");
     code.push_str("            enter_args: std::collections::HashMap::new(),\n");
     code.push_str("            exit_args: std::collections::HashMap::new(),\n");
     code.push_str("            forward_event: None,\n");
@@ -666,58 +732,6 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     code.push_str("        }\n");
     code.push_str("    }\n");
     code.push_str("}\n\n");
-
-    // Generate state context types for stack push/pop operations
-    // Always generate for Rust systems with a machine (needed for stack operations)
-    if system.machine.is_some() {
-        // Collect states with state variables
-        let states_with_vars: Vec<_> = system.machine.as_ref()
-            .map(|m| m.states.iter()
-                .filter(|s| !s.state_vars.is_empty())
-                .collect())
-            .unwrap_or_default();
-
-        // Generate context structs for each state with vars
-        for state in &states_with_vars {
-            code.push_str(&format!("#[derive(Clone, Default)]\nstruct {}Context {{\n", state.name));
-            for var in &state.state_vars {
-                let type_str = type_to_string(&var.var_type);
-                code.push_str(&format!("    {}: {},\n", var.name, type_str));
-            }
-            code.push_str("}\n\n");
-        }
-
-        // Generate compartment enum for typed state variable storage
-        code.push_str(&format!("#[derive(Clone)]\nenum {}StateContext {{\n", system_name));
-
-        if let Some(ref machine) = system.machine {
-            for state in &machine.states {
-                if state.state_vars.is_empty() {
-                    code.push_str(&format!("    {},\n", state.name));
-                } else {
-                    code.push_str(&format!("    {}({}Context),\n", state.name, state.name));
-                }
-            }
-        }
-        code.push_str("    Empty,\n");
-        code.push_str("}\n\n");
-
-        // Generate Default impl for the enum
-        if let Some(ref machine) = system.machine {
-            if let Some(first_state) = machine.states.first() {
-                code.push_str(&format!("impl Default for {}StateContext {{\n", system_name));
-                code.push_str("    fn default() -> Self {\n");
-                if first_state.state_vars.is_empty() {
-                    code.push_str(&format!("        {}StateContext::{}\n", system_name, first_state.name));
-                } else {
-                    code.push_str(&format!("        {}StateContext::{}({}Context::default())\n",
-                        system_name, first_state.name, first_state.name));
-                }
-                code.push_str("    }\n");
-                code.push_str("}\n\n");
-            }
-        }
-    }
 
     code
 }
@@ -1102,45 +1116,18 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
                 CodegenNode::field(CodegenNode::self_ref(), &domain_var.name),
                 convert_expression(init),
             ));
+        } else if matches!(syntax.language, TargetLanguage::Rust) {
+            // Rust requires all struct fields to be initialized.
+            // Domain vars with no initializer get Default::default().
+            body.push(CodegenNode::assign(
+                CodegenNode::field(CodegenNode::self_ref(), &domain_var.name),
+                CodegenNode::Ident("Default::default()".to_string()),
+            ));
         }
     }
 
-    // For Rust: Initialize _sv_ fields with declared values or type-based defaults
-    // HSM FIX: Use the declared initializer (var.init) instead of just type defaults,
-    // because HSM parent states' $> handlers never run, so their state vars must be
-    // pre-initialized with the declared values.
-    if matches!(syntax.language, TargetLanguage::Rust) {
-        if let Some(ref machine) = system.machine {
-            for state in &machine.states {
-                for var in &state.state_vars {
-                    // Use declared initializer if available, otherwise fall back to type-based default
-                    let init_value = if let Some(ref init) = var.init {
-                        CodegenNode::Ident(expression_to_string(init, TargetLanguage::Rust))
-                    } else {
-                        match &var.var_type {
-                            Type::Int => CodegenNode::int(0),
-                            Type::Float => CodegenNode::float(0.0),
-                            Type::Bool => CodegenNode::bool(false),
-                            Type::String => CodegenNode::string(""),
-                            Type::Custom(name) => {
-                                match name.to_lowercase().as_str() {
-                                    "i32" | "i64" | "u32" | "u64" | "isize" | "usize" => CodegenNode::int(0),
-                                    "f32" | "f64" => CodegenNode::float(0.0),
-                                    "bool" => CodegenNode::bool(false),
-                                    _ => CodegenNode::int(0), // Default for unknown types
-                                }
-                            }
-                            Type::Unknown => CodegenNode::int(0),
-                        }
-                    };
-                    body.push(CodegenNode::assign(
-                        CodegenNode::field(CodegenNode::self_ref(), &format!("_sv_{}", var.name)),
-                        init_value,
-                    ));
-                }
-            }
-        }
-    }
+    // Rust state vars now live on compartment.state_context — no _sv_ field init needed.
+    // State vars are initialized when compartments are created (in transition codegen).
 
     // Set initial state (first state in machine)
     // All languages now use the kernel/router/compartment pattern
@@ -1191,21 +1178,11 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
                                 "{}.parent_compartment = {};\n",
                                 comp_var, prev_comp_var
                             ));
-                            // Initialize state vars for this ancestor
-                            for var in &ancestor.state_vars {
-                                let init_val = if let Some(ref init) = var.init {
-                                    expression_to_string(init, TargetLanguage::Rust)
-                                } else {
-                                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
-                                };
-                                block_expr.push_str(&format!(
-                                    "{}.state_vars.insert(\"{}\".to_string(), {});\n",
-                                    comp_var, var.name, init_val
-                                ));
-                            }
+                            // state_context is auto-set by Compartment::new()
                             prev_comp_var = format!("Some(Box::new({}))", comp_var);
                         }
                         // Create the start state compartment with parent link
+                        // state_context is auto-set by Compartment::new()
                         block_expr.push_str(&format!(
                             "let mut __child = {}Compartment::new(\"{}\");\n",
                             system.name, first_state.name
@@ -1226,6 +1203,7 @@ fn generate_constructor(system: &SystemAst, syntax: &super::backend::ClassSyntax
                         ));
                     } else {
                         // No HSM parent - simple compartment creation
+                        // state_context is auto-set by Compartment::new()
                         body.push(CodegenNode::assign(
                             CodegenNode::field(CodegenNode::self_ref(), "__compartment"),
                             CodegenNode::Ident(format!("{}Compartment::new(\"{}\")", system.name, first_state.name)),
@@ -1851,117 +1829,50 @@ free(self);"#,
     // NOTE: Rust now uses kernel pattern like Python/TypeScript
     // $>/$< events are handled via _state_X dispatch methods, not _enter/_exit dispatchers
 
-    // For Rust: Generate _state_stack_push() and _state_stack_pop() methods
-    // These handle typed compartment save/restore for state variable preservation
-    // Only generate when there are states with state variables
-    let _has_state_vars = system.machine.as_ref()
-        .map(|m| m.states.iter().any(|s| !s.state_vars.is_empty()))
-        .unwrap_or(false);
-    // Generate stack push/pop methods for Rust when there's a machine
-    // These are needed for any system that uses stack operations (push$/pop$)
+    // Generate __push_transition method for Rust when there's a machine
+    // Uses mem::replace to move the current compartment to the stack (no clone)
     if matches!(lang, TargetLanguage::Rust) && system.machine.is_some() {
-        methods.push(generate_rust_state_stack_push(system));
-        methods.push(generate_rust_state_stack_pop(system));
+        methods.push(generate_rust_push_transition(system));
     }
 
     methods
 }
 
-/// Generate Rust _state_stack_push method
-/// Builds a state context from current _sv_ fields and pushes to stack
-fn generate_rust_state_stack_push(system: &SystemAst) -> CodegenNode {
-    let system_name = &system.name;
-    let mut code = String::new();
-
-    // Build state context from current _sv_ fields based on current state
-    code.push_str("let state_context = match self.__compartment.state.as_str() {\n");
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            if state.state_vars.is_empty() {
-                // State without vars - unit variant
-                code.push_str(&format!(
-                    "    \"{}\" => {}StateContext::{},\n",
-                    state.name, system_name, state.name
-                ));
-            } else {
-                // State with vars - build context struct from _sv_ fields
-                let field_inits: Vec<String> = state.state_vars.iter()
-                    .map(|v| format!("{}: self._sv_{}", v.name, v.name))
-                    .collect();
-                code.push_str(&format!(
-                    "    \"{}\" => {}StateContext::{}({}Context {{ {} }}),\n",
-                    state.name, system_name, state.name, state.name, field_inits.join(", ")
-                ));
-            }
-        }
-    }
-
-    code.push_str(&format!("    _ => {}StateContext::Empty,\n", system_name));
-    code.push_str("};\n");
-    code.push_str("self._state_stack.push((self.__compartment.state.clone(), state_context));");
-
-    CodegenNode::Method {
-        name: "_state_stack_push".to_string(),
-        params: vec![],
-        return_type: None,
-        body: vec![CodegenNode::NativeBlock { code, span: None }],
-        is_async: false,
-        is_static: false,
-        visibility: Visibility::Private,
-        decorators: vec![],
-    }
-}
-
-/// Generate Rust _state_stack_pop method
-/// Pops from stack, sends exit event, restores _sv_ fields from context
-fn generate_rust_state_stack_pop(system: &SystemAst) -> CodegenNode {
+/// Generate Rust __push_transition method
+/// Uses mem::replace to move the current compartment to the stack (no clone),
+/// then processes exit/enter events matching the kernel's transition logic.
+fn generate_rust_push_transition(system: &SystemAst) -> CodegenNode {
     let system_name = &system.name;
     let event_class = format!("{}FrameEvent", system_name);
-    let mut code = String::new();
+    let compartment_class = format!("{}Compartment", system_name);
 
-    // Pop the saved state and context
-    code.push_str("let (saved_state, state_context) = self._state_stack.pop().unwrap();\n");
-    // Send exit event to current state via kernel pattern
-    code.push_str(&format!("let exit_event = {}::new(\"$<\");\n", event_class));
-    code.push_str("self.__router(&exit_event);\n");
-    // Update compartment state
-    code.push_str("self.__compartment.state = saved_state;\n");
-
-    // Restore _sv_ fields from state context
-    code.push_str("match state_context {\n");
-
-    if let Some(ref machine) = system.machine {
-        for state in &machine.states {
-            if state.state_vars.is_empty() {
-                // State without vars - nothing to restore
-                code.push_str(&format!(
-                    "    {}StateContext::{} => {{}}\n",
-                    system_name, state.name
-                ));
-            } else {
-                // State with vars - restore from context
-                code.push_str(&format!(
-                    "    {}StateContext::{}(ctx) => {{\n",
-                    system_name, state.name
-                ));
-                for var in &state.state_vars {
-                    code.push_str(&format!(
-                        "        self._sv_{} = ctx.{};\n",
-                        var.name, var.name
-                    ));
-                }
-                code.push_str("    }\n");
-            }
-        }
-    }
-
-    code.push_str(&format!("    {}StateContext::Empty => {{}}\n", system_name));
-    code.push_str("}");
+    let code = format!(
+        r#"// Exit current state (old compartment still in place for routing)
+let exit_event = {event_class}::new_with_params("<$", &self.__compartment.exit_args);
+self.__router(&exit_event);
+// Swap: old compartment moves to stack, new takes its place
+let old = std::mem::replace(&mut self.__compartment, new_compartment);
+self._state_stack.push(old);
+// Enter new state (or forward event) — matches kernel logic
+if self.__compartment.forward_event.is_none() {{
+    let enter_event = {event_class}::new_with_params("$>", &self.__compartment.enter_args);
+    self.__router(&enter_event);
+}} else {{
+    let forward_event = self.__compartment.forward_event.take().unwrap();
+    if forward_event.message == "$>" {{
+        self.__router(&forward_event);
+    }} else {{
+        let enter_event = {event_class}::new_with_params("$>", &self.__compartment.enter_args);
+        self.__router(&enter_event);
+        self.__router(&forward_event);
+    }}
+}}"#,
+        event_class = event_class
+    );
 
     CodegenNode::Method {
-        name: "_state_stack_pop".to_string(),
-        params: vec![],
+        name: "__push_transition".to_string(),
+        params: vec![Param::new("new_compartment").with_type(&compartment_class)],
         return_type: None,
         body: vec![CodegenNode::NativeBlock { code, span: None }],
         is_async: false,
@@ -1975,15 +1886,7 @@ fn generate_rust_state_stack_pop(system: &SystemAst) -> CodegenNode {
 /// Get default initialization value for a type
 fn state_var_init_value(var_type: &Type, lang: TargetLanguage) -> String {
     match var_type {
-        Type::Int => "0".to_string(),
-        Type::Float => "0.0".to_string(),
-        Type::Bool => match lang {
-            TargetLanguage::Python3 => "False".to_string(),
-            _ => "false".to_string(),
-        },
-        Type::String => "\"\"".to_string(),
         Type::Custom(name) => {
-            // Try to infer from common type names
             match name.to_lowercase().as_str() {
                 "int" | "i32" | "i64" | "u32" | "u64" | "number" => "0".to_string(),
                 "float" | "f32" | "f64" => "0.0".to_string(),
@@ -2089,6 +1992,7 @@ fn generate_c_router_dispatch(system: &SystemAst) -> String {
 
     code
 }
+
 
 /// Generate interface wrapper methods
 ///
@@ -2481,142 +2385,6 @@ this._context_stack.pop();"#,
     }).collect()
 }
 
-/// Generate Rust match-based dispatch for interface methods with return values
-/// Used when kernel pattern can't easily return values
-/// Creates a FrameEvent and passes it to handlers (which now require __e)
-#[allow(dead_code)]
-fn generate_rust_interface_dispatch(system: &SystemAst, event: &str, args: &[CodegenNode], has_return: bool) -> CodegenNode {
-    let event_class = format!("{}FrameEvent", system.name);
-
-    // Build match arms for each state that handles this event
-    let mut match_code = String::new();
-
-    // Convert args to comma-separated parameter names
-    let _args_str = if args.is_empty() {
-        String::new()
-    } else {
-        let arg_names: Vec<String> = args.iter().map(|arg| {
-            match arg {
-                CodegenNode::Ident(name) => name.clone(),
-                _ => "".to_string(),
-            }
-        }).collect();
-        format!(", {}", arg_names.join(", "))
-    };
-
-    // Create FrameEvent first
-    match_code.push_str(&format!("let __e = {}::new(\"{}\");\n", event_class, event));
-    match_code.push_str("match self.__compartment.state.as_str() {\n");
-
-    if let Some(ref machine) = system.machine {
-        // First pass: collect states that handle the event directly
-        let mut states_with_handler: std::collections::HashSet<&str> = std::collections::HashSet::new();
-        for state in &machine.states {
-            if state.handlers.iter().any(|h| h.event == event) {
-                states_with_handler.insert(&state.name);
-            }
-        }
-
-        for state in &machine.states {
-            // Check if this state handles the event directly
-            let handles_event = states_with_handler.contains(state.name.as_str());
-
-            if handles_event {
-                // Find the handler for this event in this state to check its parameters
-                let handler = state.handlers.iter().find(|h| h.event == event);
-                let handler_name = format!("_s_{}_{}", state.name, event);
-
-                // Build args string based on what this handler expects (not all interface params)
-                let handler_args_str = if let Some(h) = handler {
-                    if h.params.is_empty() {
-                        String::new()
-                    } else {
-                        // Pass the handler's expected parameters
-                        let param_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
-                        format!(", {}", param_names.join(", "))
-                    }
-                } else {
-                    String::new()
-                };
-
-                if has_return {
-                    match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, handler_name, handler_args_str));
-                } else {
-                    match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, handler_name, handler_args_str));
-                }
-            } else if state.default_forward {
-                // State has default_forward but no handler for this event - forward to parent
-                if let Some(ref parent) = state.parent {
-                    // Check if parent handles this event
-                    if states_with_handler.contains(parent.as_str()) {
-                        // Find the parent handler to check its parameters
-                        let parent_state = machine.states.iter().find(|s| s.name == *parent);
-                        let parent_handler = parent_state.and_then(|ps| ps.handlers.iter().find(|h| h.event == event));
-                        let parent_handler_name = format!("_s_{}_{}", parent, event);
-
-                        // Build args string based on what the parent handler expects
-                        let parent_args_str = if let Some(h) = parent_handler {
-                            if h.params.is_empty() {
-                                String::new()
-                            } else {
-                                let param_names: Vec<String> = h.params.iter().map(|p| p.name.clone()).collect();
-                                format!(", {}", param_names.join(", "))
-                            }
-                        } else {
-                            String::new()
-                        };
-
-                        if has_return {
-                            match_code.push_str(&format!("            \"{}\" => self.{}(&__e{}),\n", state.name, parent_handler_name, parent_args_str));
-                        } else {
-                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, parent_handler_name, parent_args_str));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Default arm
-    if has_return {
-        match_code.push_str("            _ => Default::default(),\n");
-    } else {
-        match_code.push_str("            _ => {}\n");
-    }
-    match_code.push_str("        }");
-
-    // For methods without return values, process any pending transitions
-    // (since we bypassed the kernel which normally handles this)
-    if !has_return {
-        match_code.push_str(&format!(r#"
-// Process any pending transitions (bypassed kernel)
-while self.__next_compartment.is_some() {{
-    let next_compartment = self.__next_compartment.take().unwrap();
-    let exit_event = {}::new_with_params("<$", &self.__compartment.exit_args);
-    self.__router(&exit_event);
-    self.__compartment = next_compartment;
-    if self.__compartment.forward_event.is_none() {{
-        let enter_event = {}::new_with_params("$>", &self.__compartment.enter_args);
-        self.__router(&enter_event);
-    }} else {{
-        let forward_event = self.__compartment.forward_event.take().unwrap();
-        if forward_event.message == "$>" {{
-            self.__router(&forward_event);
-        }} else {{
-            let enter_event = {}::new_with_params("$>", &self.__compartment.enter_args);
-            self.__router(&enter_event);
-            self.__router(&forward_event);
-        }}
-    }}
-}}"#, event_class, event_class, event_class));
-    }
-
-    CodegenNode::NativeBlock {
-        code: match_code,
-        span: None,
-    }
-}
-
 /// Generate state handler methods using the enhanced Arcanum
 ///
 /// For all languages: Generates `_state_{StateName}(__e)` methods that dispatch internally
@@ -2698,6 +2466,7 @@ fn generate_state_method(
     // use_sv_comp is true when this state has state vars - we'll navigate to correct compartment
     let ctx = HandlerContext {
         system_name: _system_name.to_string(),
+        state_name: state_name.to_string(),
         event_name: String::new(), // Will be set per-handler
         parent_state: parent_state.map(|s| s.to_string()),
         defined_systems: defined_systems.clone(),
@@ -3189,8 +2958,9 @@ fn generate_rust_state_dispatch(
     sorted_handlers.sort_by_key(|(event, _)| *event);
 
     // Track if we need to initialize state vars in $>
-    let has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
-    let needs_state_var_init = !state_vars.is_empty();
+    // (State vars now live on compartment.state_context — no enter-handler init needed)
+    let _has_enter_handler = handlers.contains_key("$>") || handlers.contains_key("enter");
+    let _needs_state_var_init = !state_vars.is_empty();
 
     for (event, handler) in sorted_handlers {
         // Map Frame events to their message names
@@ -3213,17 +2983,7 @@ fn generate_rust_state_dispatch(
             // Extract parameters from event and call handler
             code.push_str(&format!("    \"{}\" => {{\n", message));
 
-            // For $> handler with state vars, initialize them first
-            if (event == "$>" || event == "enter") && needs_state_var_init {
-                for var in state_vars {
-                    let init_val = if let Some(ref init) = var.init {
-                        expression_to_string(init, TargetLanguage::Rust)
-                    } else {
-                        state_var_init_value(&var.var_type, TargetLanguage::Rust)
-                    };
-                    code.push_str(&format!("        self._sv_{} = {};\n", var.name, init_val));
-                }
-            }
+            // State vars live on compartment.state_context — no init needed in enter handler
 
             // Extract parameters and call handler
             for (i, param) in handler.params.iter().enumerate() {
@@ -3240,38 +3000,12 @@ fn generate_rust_state_dispatch(
             continue;
         }
 
-        // For $> handler with state vars, initialize them first
-        if (event == "$>" || event == "enter") && needs_state_var_init {
-            code.push_str(&format!("    \"{}\" => {{\n", message));
-            for var in state_vars {
-                let init_val = if let Some(ref init) = var.init {
-                    expression_to_string(init, TargetLanguage::Rust)
-                } else {
-                    state_var_init_value(&var.var_type, TargetLanguage::Rust)
-                };
-                code.push_str(&format!("        self._sv_{} = {};\n", var.name, init_val));
-            }
-            code.push_str(&format!("        self.{}(__e);\n", handler_method));
-            code.push_str("    }\n");
-        } else {
-            // Use block syntax to ignore handler return value (dispatch doesn't return)
-            code.push_str(&format!("    \"{}\" => {{ self.{}(__e); }}\n", message, handler_method));
-        }
+        // State vars live on compartment.state_context — no init needed in enter handler
+        // Use block syntax to ignore handler return value (dispatch doesn't return)
+        code.push_str(&format!("    \"{}\" => {{ self.{}(__e); }}\n", message, handler_method));
     }
 
-    // If no $> handler but state has state vars, generate a match arm for state var init
-    if needs_state_var_init && !has_enter_handler {
-        code.push_str("    \"$>\" => {\n");
-        for var in state_vars {
-            let init_val = if let Some(ref init) = var.init {
-                expression_to_string(init, TargetLanguage::Rust)
-            } else {
-                state_var_init_value(&var.var_type, TargetLanguage::Rust)
-            };
-            code.push_str(&format!("        self._sv_{} = {};\n", var.name, init_val));
-        }
-        code.push_str("    }\n");
-    }
+    // State vars live on compartment.state_context — no auto-generated $> init needed
 
     // Default case - forward to parent if default_forward, else do nothing
     if default_forward {
@@ -3336,6 +3070,7 @@ fn generate_handler_from_arcanum(
     // Build context for HSM forwarding
     let ctx = HandlerContext {
         system_name: system_name.to_string(),
+        state_name: state_name.to_string(),
         event_name: handler.event.clone(),
         parent_state: parent_state.map(|s| s.to_string()),
         defined_systems: defined_systems.clone(),
@@ -3447,6 +3182,153 @@ fn normalize_indentation(text: &str) -> String {
 }
 
 
+/// Generate state handler methods (legacy - kept for reference)
+///
+/// Uses the splicer to preserve native code and splice in generated Frame code
+#[allow(dead_code)]
+fn generate_state_handlers(machine: &MachineAst, syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> Vec<CodegenNode> {
+    let mut methods = Vec::new();
+
+    for state in &machine.states {
+        // Main state handler
+        for handler in &state.handlers {
+            methods.push(generate_handler(state, handler, syntax, source, lang));
+        }
+
+        // Enter handler
+        if let Some(ref enter) = state.enter {
+            methods.push(generate_enter_exit_handler(
+                &format!("_s_{}_enter", state.name),
+                &enter.params,
+                &enter.body,
+                source,
+                lang,
+            ));
+        }
+
+        // Exit handler
+        if let Some(ref exit) = state.exit {
+            methods.push(generate_enter_exit_handler(
+                &format!("_s_{}_exit", state.name),
+                &exit.params,
+                &exit.body,
+                source,
+                lang,
+            ));
+        }
+    }
+
+    methods
+}
+
+/// Generate a single handler method using the splicer
+///
+/// Scans the handler body to find Frame segments, generates code for them,
+/// then splices the generated code back into the original native code.
+fn generate_handler(state: &StateAst, handler: &HandlerAst, _syntax: &super::backend::ClassSyntax, source: &[u8], lang: TargetLanguage) -> CodegenNode {
+    let params: Vec<Param> = handler.params.iter().map(|p| {
+        let type_str = type_to_string(&p.param_type);
+        Param::new(&p.name).with_type(&type_str)
+    }).collect();
+
+    // Use splicer to combine native code + generated Frame code
+    let body_code = splice_handler_body(&handler.body, source, lang);
+
+    CodegenNode::Method {
+        name: format!("_s_{}_{}", state.name, handler.event),
+        params,
+        return_type: None,
+        body: vec![CodegenNode::NativeBlock {
+            code: body_code,
+            span: Some(handler.body.span.clone()),
+        }],
+        is_async: false,
+        is_static: false,
+        visibility: Visibility::Private,
+        decorators: vec![],
+    }
+}
+
+/// Generate enter/exit handler method using the splicer
+fn generate_enter_exit_handler(name: &str, params: &[EventParam], body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> CodegenNode {
+    let body_code = splice_handler_body(body, source, lang);
+
+    // Convert EventParams to Params
+    let method_params: Vec<Param> = params.iter().map(|p| {
+        let type_str = type_to_string(&p.param_type);
+        Param::new(&p.name).with_type(&type_str)
+    }).collect();
+
+    CodegenNode::Method {
+        name: name.to_string(),
+        params: method_params,
+        return_type: None,
+        body: vec![CodegenNode::NativeBlock {
+            code: body_code,
+            span: Some(body.span.clone()),
+        }],
+        is_async: false,
+        is_static: false,
+        visibility: Visibility::Private,
+        decorators: vec![],
+    }
+}
+
+/// Splice handler body: preserve native code, replace Frame segments with generated code
+#[allow(dead_code)]
+fn splice_handler_body(body: &HandlerBody, source: &[u8], lang: TargetLanguage) -> String {
+    // Get the body bytes from source
+    let body_bytes = &source[body.span.start..body.span.end];
+
+    // Find the opening brace
+    let open_brace = body_bytes.iter().position(|&b| b == b'{');
+    if open_brace.is_none() {
+        return String::new();
+    }
+    let _inner_start = open_brace.unwrap() + 1;
+
+    // Scan for Frame segments within the body
+    let mut scanner = get_native_scanner(lang);
+    let scan_result = match scanner.scan(body_bytes, open_brace.unwrap()) {
+        Ok(r) => r,
+        Err(_) => return String::new(),
+    };
+
+    // Legacy path: use empty context (no HSM forward support)
+    let ctx = HandlerContext::default();
+
+    // Generate expansions for each Frame segment
+    let mut expansions = Vec::new();
+    for region in &scan_result.regions {
+        if let Region::FrameSegment { span, kind, indent } = region {
+            let expansion = generate_frame_expansion(body_bytes, span, *kind, *indent, lang, &ctx);
+            expansions.push(expansion);
+        }
+    }
+
+    // Use splicer to combine native + generated Frame code
+    let splicer = Splicer;
+    let spliced = splicer.splice(body_bytes, &scan_result.regions, &expansions);
+
+    // Strip only the outer braces, preserve internal whitespace structure
+    let text = &spliced.text;
+
+    // Find opening brace
+    let open = text.find('{');
+    // Find closing brace (last one)
+    let close = text.rfind('}');
+
+    match (open, close) {
+        (Some(o), Some(c)) if o < c => {
+            // Get content between braces
+            let inner = &text[o + 1..c];
+            // Trim only the first newline after { and trailing whitespace before }
+            inner.trim_start_matches('\n').trim_end().to_string()
+        }
+        _ => text.to_string()
+    }
+}
+
 /// Generate code expansion for a Frame segment
 ///
 /// NOTE: The scanner leaves a gap between NativeText and FrameSegment where leading
@@ -3477,8 +3359,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         indent_str, indent_str
                     ),
                     TargetLanguage::Rust => format!(
-                        "{}self._state_stack_pop()",
-                        indent_str
+                        "{}let __popped = self._state_stack.pop().unwrap();\n{}self.__transition(__popped);\n{}return;",
+                        indent_str, indent_str, indent_str
                     ),
                     TargetLanguage::C => format!(
                         "{}{}_Compartment* __saved = ({}_Compartment*){}_FrameVec_pop(self->_state_stack);\n{}{}_transition(self, __saved);",
@@ -3499,8 +3381,7 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 let enter_str = enter_args.map(|a| expand_state_vars_in_expr(&a, lang, ctx));
                 let state_str = state_args.map(|a| expand_state_vars_in_expr(&a, lang, ctx));
 
-                // Get compartment class name from ctx.state_name (extract system name)
-                // For now, use a generic name - it will be replaced when we have system context
+                // Get compartment class name from system name
                 let _compartment_class = format!("{}Compartment", ctx.system_name);
 
                 match lang {
@@ -3545,8 +3426,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             code.push_str(&format!("{}__compartment.enter_args = {{str(i): v for i, v in enumerate(({},))}}\n", indent_str, enter));
                         }
 
-                        // Call __transition
-                        code.push_str(&format!("{}self.__transition(__compartment)", indent_str));
+                        // Call __transition and return to exit the handler
+                        code.push_str(&format!("{}self.__transition(__compartment)\n{}return", indent_str, indent_str));
                         code
                     }
                     TargetLanguage::TypeScript => {
@@ -3587,8 +3468,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             code.push_str(&format!("{}__compartment.enter_args = Object.fromEntries([{}].map((v, i) => [String(i), v]));\n", indent_str, enter));
                         }
 
-                        // Call __transition
-                        code.push_str(&format!("{}this.__transition(__compartment);", indent_str));
+                        // Call __transition and return to exit the handler
+                        code.push_str(&format!("{}this.__transition(__compartment);\n{}return;", indent_str, indent_str));
                         code
                     }
                     TargetLanguage::Rust => {
@@ -3615,8 +3496,8 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             }
                         }
 
-                        // Call __transition
-                        code.push_str(&format!("{}self.__transition(__compartment)", indent_str));
+                        // Call __transition and return to exit the handler
+                        code.push_str(&format!("{}self.__transition(__compartment);\n{}return;", indent_str, indent_str));
                         code
                     }
                     TargetLanguage::C => {
@@ -3651,15 +3532,15 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                             }
                         }
 
-                        // Call transition
-                        code.push_str(&format!("{}{}_transition(self, __compartment);", indent_str, ctx.system_name));
+                        // Call transition and return to exit the handler
+                        code.push_str(&format!("{}{}_transition(self, __compartment);\n{}return;", indent_str, ctx.system_name, indent_str));
                         code
                     }
                     _ => {
                         // Default: same as TypeScript
                         let mut code = String::new();
                         code.push_str(&format!("{}const __compartment = new {}Compartment(\"{}\", this.__compartment.copy());\n", indent_str, ctx.system_name, target));
-                        code.push_str(&format!("{}this.__transition(__compartment);", indent_str));
+                        code.push_str(&format!("{}this.__transition(__compartment);\n{}return;", indent_str, indent_str));
                         code
                     }
                 }
@@ -3744,42 +3625,64 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
         FrameSegmentKind::StackPush => {
             // Check if this is a push-then-transition: push$ -> $State
             let has_transition = segment_text.contains("->");
-            let transition_code = if has_transition {
-                // Extract target state and generate transition
-                let target = extract_transition_target(&segment_text);
-                if !target.is_empty() {
-                    match lang {
-                        TargetLanguage::Python3 => format!("\n{}self._transition(\"{}\", None, None)", indent_str, target),
-                        TargetLanguage::TypeScript => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
-                        TargetLanguage::Rust => format!("\n{}self.__transition({}Compartment::new(\"{}\"))", indent_str, ctx.system_name, target),
-                        TargetLanguage::C => format!("\n{}{}_transition(self, {}_Compartment_new(\"{}\"));", indent_str, ctx.system_name, ctx.system_name, target),
-                        _ => format!("\n{}this._transition(\"{}\", null, null);", indent_str, target),
-                    }
-                } else {
-                    String::new()
-                }
+            let target = if has_transition {
+                extract_transition_target(&segment_text)
             } else {
                 String::new()
             };
 
-            // Save compartment (with state vars) to stack using compartment.copy()
-            let push_code = match lang {
-                TargetLanguage::Python3 => format!("{}self._state_stack.append(self.__compartment.copy())", indent_str),
-                TargetLanguage::TypeScript => format!("{}this._state_stack.push(this.__compartment.copy());", indent_str),
-                // Rust: Use compartment-based method for state stack push
+            match lang {
+                // Python/TypeScript/C: push copy, then separate transition
+                TargetLanguage::Python3 => {
+                    let push_code = format!("{}self._state_stack.append(self.__compartment.copy())", indent_str);
+                    if !target.is_empty() {
+                        format!("{}\n{}self._transition(\"{}\", None, None)", push_code, indent_str, target)
+                    } else {
+                        push_code
+                    }
+                }
+                TargetLanguage::TypeScript => {
+                    let push_code = format!("{}this._state_stack.push(this.__compartment.copy());", indent_str);
+                    if !target.is_empty() {
+                        format!("{}\n{}this._transition(\"{}\", null, null);", push_code, indent_str, target)
+                    } else {
+                        push_code
+                    }
+                }
+                // Rust: __push_transition atomically moves compartment to stack and transitions
                 TargetLanguage::Rust => {
-                    format!("{}self._state_stack_push();", indent_str)
+                    if !target.is_empty() {
+                        format!("{}self.__push_transition({}Compartment::new(\"{}\"));\n{}return;",
+                            indent_str, ctx.system_name, target, indent_str)
+                    } else {
+                        // Push without transition (bare push$) — clone state name first to avoid borrow conflict
+                        format!("{}{{\n{0}    let __state = self.__compartment.state.clone();\n{0}    self._state_stack.push(std::mem::replace(&mut self.__compartment, {}Compartment::new(&__state)));\n{0}}}",
+                            indent_str, ctx.system_name)
+                    }
                 }
                 TargetLanguage::C => {
-                    format!("{}{}_FrameVec_push(self->_state_stack, {}_Compartment_copy(self->__compartment));", indent_str, ctx.system_name, ctx.system_name)
+                    let push_code = format!("{}{}_FrameVec_push(self->_state_stack, {}_Compartment_copy(self->__compartment));",
+                        indent_str, ctx.system_name, ctx.system_name);
+                    if !target.is_empty() {
+                        format!("{}\n{}{}_transition(self, {}_Compartment_new(\"{}\"));",
+                            push_code, indent_str, ctx.system_name, ctx.system_name, target)
+                    } else {
+                        push_code
+                    }
                 }
-                _ => format!("{}this._state_stack.push(this.__compartment.copy());", indent_str),
-            };
-
-            format!("{}{}", push_code, transition_code)
+                _ => {
+                    let push_code = format!("{}this._state_stack.push(this.__compartment.copy());", indent_str);
+                    if !target.is_empty() {
+                        format!("{}\n{}this._transition(\"{}\", null, null);", push_code, indent_str, target)
+                    } else {
+                        push_code
+                    }
+                }
+            }
         }
         FrameSegmentKind::StackPop => {
-            // Restore compartment from stack - use transition to call enter handler
+            // Restore compartment from stack - use __transition to go through kernel
+            // (exit current, swap to popped compartment, enter restored state)
             match lang {
                 TargetLanguage::Python3 => format!(
                     "{}self.__transition(self._state_stack.pop())\n{}return",
@@ -3789,12 +3692,12 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     "{}this.__transition(this._state_stack.pop()!);\n{}return;",
                     indent_str, indent_str
                 ),
-                // Rust: Use compartment-based state stack pop
+                // Rust: pop compartment to local first, then transition (avoids borrow conflict)
                 TargetLanguage::Rust => {
-                    format!("{}self._state_stack_pop();\n{}return;", indent_str, indent_str)
+                    format!("{}let __popped = self._state_stack.pop().unwrap();\n{}self.__transition(__popped);\n{}return;",
+                        indent_str, indent_str, indent_str)
                 }
                 TargetLanguage::C => {
-                    // Use transition to the popped compartment - this will call enter handler
                     format!("{}{}_transition(self, ({}_Compartment*){}_FrameVec_pop(self->_state_stack));\n{}return;",
                         indent_str, ctx.system_name, ctx.system_name, ctx.system_name, indent_str)
                 }
@@ -3825,8 +3728,10 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                     }
                 }
                 TargetLanguage::Rust => {
-                    // For Rust, access via _sv_ fields on struct
-                    format!("self._sv_{}", var_name)
+                    // Access state var via compartment chain navigation + state_context matching
+                    // Navigation handles HSM: walks parent_compartment chain to find correct state
+                    format!("{{ let mut __sv_comp = &self.__compartment; while __sv_comp.state != \"{}\" {{ __sv_comp = __sv_comp.parent_compartment.as_ref().unwrap(); }} match &__sv_comp.state_context {{ {}StateContext::{}(ctx) => ctx.{}, _ => unreachable!() }} }}",
+                        ctx.state_name, ctx.system_name, ctx.state_name, var_name)
                 },
                 TargetLanguage::C => {
                     // For C, access via FrameDict_get with cast
@@ -3875,7 +3780,21 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                         format!("{}this.__compartment.state_vars[\"{}\"] = {};", indent_str, var_name, expanded_expr)
                     }
                 }
-                TargetLanguage::Rust => format!("{}self._sv_{} = {};", indent_str, var_name, expanded_expr),
+                TargetLanguage::Rust => {
+                    // Evaluate RHS first (immutable borrow) to avoid borrow conflict with mutable write.
+                    // Navigation handles HSM: walks parent_compartment chain to find correct state.
+                    format!(concat!(
+                        "{}{{\n",
+                        "{0}    let __rhs = {};\n",
+                        "{0}    let mut __sv_comp: *mut {}Compartment = &mut self.__compartment;\n",
+                        "{0}    unsafe {{ while (*__sv_comp).state != \"{}\" {{ __sv_comp = (*__sv_comp).parent_compartment.as_mut().unwrap().as_mut(); }} }}\n",
+                        "{0}    unsafe {{ if let {}StateContext::{}(ref mut ctx) = (*__sv_comp).state_context {{ ctx.{} = __rhs; }} }}\n",
+                        "{0}}}"
+                    ),
+                        indent_str, expanded_expr,
+                        ctx.system_name, ctx.state_name,
+                        ctx.system_name, ctx.state_name, var_name)
+                },
                 TargetLanguage::C => {
                     if ctx.use_sv_comp {
                         format!("{}{}_FrameDict_set(__sv_comp->state_vars, \"{}\", (void*)(intptr_t)({}));",
@@ -3888,103 +3807,52 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
                 _ => format!("{}this.__compartment.state_vars[\"{}\"] = {};", indent_str, var_name, expanded_expr),
             }
         }
-        FrameSegmentKind::SystemReturn => {
-            // system.return = <expr> or return <expr>
-            // return <expr> is sugar for system.return = <expr>; return (early exit)
-            // system.return = just sets value without returning (for chain semantics)
+        FrameSegmentKind::ReturnSugar => {
+            // return <expr> — sugar for: set @@:return = expr, then return (early exit)
+            // return (bare) — just a native return from the handler
             //
             // Return value is stored on context stack: _context_stack[-1]._return
             // This enables reentrancy - nested calls have their own context
-            let trimmed = segment_text.trim_start();
-            let is_return_sugar = trimmed.starts_with("return ");
-            let expr = extract_system_return_expr(&segment_text);
+            let expr = extract_return_sugar_expr(&segment_text);
             // Expand any state variable references in the expression
             let expanded_expr = expand_state_vars_in_expr(&expr, lang, ctx);
 
             match lang {
                 TargetLanguage::Python3 => {
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return", indent_str)
-                        } else {
-                            // system.return with no expr - just a read, shouldn't happen here
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        // ^ expr: set context return, then return (early exit)
-                        format!("{}self._context_stack[-1]._return = {}\n{}return", indent_str, expanded_expr, indent_str)
+                        format!("{}return", indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}self._context_stack[-1]._return = {}", indent_str, expanded_expr)
+                        format!("{}self._context_stack[-1]._return = {}\n{}return", indent_str, expanded_expr, indent_str)
                     }
                 }
                 TargetLanguage::TypeScript => {
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return;", indent_str)
-                        } else {
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        // Set context return, then return
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}return;", indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     }
                 }
                 TargetLanguage::C => {
-                    // C: Use CTX macro or direct context stack access
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return;", indent_str)
-                        } else {
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        // Set context return via macro, then return
-                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});\n{}return;", indent_str, ctx.system_name, expanded_expr, indent_str)
+                        format!("{}return;", indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});", indent_str, ctx.system_name, expanded_expr)
+                        format!("{}{}_CTX(self)->_return = (void*)(intptr_t)({});\n{}return;", indent_str, ctx.system_name, expanded_expr, indent_str)
                     }
                 }
                 TargetLanguage::Rust => {
-                    // Rust: use context stack pattern (handlers are void, set context._return)
-                    // Evaluate expression first to avoid borrow conflicts
                     if expanded_expr.is_empty() {
                         format!("{}return;", indent_str)
-                    } else if is_return_sugar {
-                        // return expr: set context return, then return
-                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}\n{}return;", indent_str, expanded_expr, indent_str, indent_str)
                     } else {
-                        // system.return = expr: just set context return (chain semantics)
-                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}", indent_str, expanded_expr, indent_str)
+                        format!("{}let __return_val = Box::new({}) as Box<dyn std::any::Any>;\n{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._return = Some(__return_val); }}\n{}return;", indent_str, expanded_expr, indent_str, indent_str)
                     }
                 }
                 _ => {
                     if expanded_expr.is_empty() {
-                        if is_return_sugar {
-                            format!("{}return;", indent_str)
-                        } else {
-                            "".to_string()
-                        }
-                    } else if is_return_sugar {
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
+                        format!("{}return;", indent_str)
                     } else {
-                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};", indent_str, expanded_expr)
+                        format!("{}this._context_stack[this._context_stack.length - 1]._return = {};\n{}return;", indent_str, expanded_expr, indent_str)
                     }
                 }
-            }
-        }
-        FrameSegmentKind::SystemReturnExpr => {
-            // bare system.return - read current return value from context stack
-            match lang {
-                TargetLanguage::Python3 => "self._context_stack[-1]._return".to_string(),
-                TargetLanguage::TypeScript => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
-                TargetLanguage::C => format!("{}_CTX(self)->_return", ctx.system_name),
-                TargetLanguage::Rust => "self._context_stack.last().and_then(|ctx| ctx._return.as_ref()).cloned()".to_string(),
-                _ => "this._context_stack[this._context_stack.length - 1]._return".to_string(),
             }
         }
         FrameSegmentKind::ContextParamShorthand => {
@@ -4055,50 +3923,53 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
         }
         FrameSegmentKind::ContextData => {
             // @@:data[key] - call-scoped data (read)
-            // Extract key from "@@:data[key]"
+            // Extract key from "@@:data[key]" — key includes user quotes (e.g. 'key' or "key")
             let key = extract_bracket_key(&segment_text, "@@:data");
+            let bare_key = key.trim_matches('"').trim_matches('\'');
             match lang {
-                TargetLanguage::Python3 => format!("self._context_stack[-1]._data[\"{}\"]", key),
-                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
-                TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, key),
+                TargetLanguage::Python3 => format!("self._context_stack[-1]._data[{}]", key),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1]._data[{}]", key),
+                TargetLanguage::C => format!("{}_DATA(self, \"{}\")", ctx.system_name, bare_key),
                 TargetLanguage::Rust => {
                     // For Rust read, we need to handle the dynamic type
                     // The _data HashMap stores Box<dyn Any>, so we need downcast
-                    format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).and_then(|v| v.downcast_ref::<String>()).cloned().unwrap_or_default()", key)
+                    format!("self._context_stack.last().and_then(|ctx| ctx._data.get(\"{}\")).and_then(|v| v.downcast_ref::<String>()).cloned().unwrap_or_default()", bare_key)
                 }
-                _ => format!("this._context_stack[this._context_stack.length - 1]._data[\"{}\"]", key),
+                _ => format!("this._context_stack[this._context_stack.length - 1]._data[{}]", key),
             }
         }
         FrameSegmentKind::ContextDataAssign => {
             // @@:data[key] = expr - call-scoped data (assignment)
             // Extract key and value from "@@:data[key] = expr;"
             let key = extract_bracket_key(&segment_text, "@@:data");
+            let bare_key = key.trim_matches('"').trim_matches('\'');
             // Find the = and extract the expression
             let trimmed = segment_text.trim();
             let eq_pos = trimmed.find('=').unwrap_or(trimmed.len());
             let expr = trimmed[eq_pos + 1..].trim().trim_end_matches(';').trim();
             let expanded_expr = expand_state_vars_in_expr(expr, lang, ctx);
             match lang {
-                TargetLanguage::Python3 => format!("{}self._context_stack[-1]._data[\"{}\"] = {}", indent_str, key, expanded_expr),
-                TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._data[\"{}\"] = {};", indent_str, key, expanded_expr),
-                TargetLanguage::C => format!("{}{}_DATA_SET(self, \"{}\", {});", indent_str, ctx.system_name, key, expanded_expr),
+                TargetLanguage::Python3 => format!("{}self._context_stack[-1]._data[{}] = {}", indent_str, key, expanded_expr),
+                TargetLanguage::TypeScript => format!("{}this._context_stack[this._context_stack.length - 1]._data[{}] = {};", indent_str, key, expanded_expr),
+                TargetLanguage::C => format!("{}{}_DATA_SET(self, \"{}\", {});", indent_str, ctx.system_name, bare_key, expanded_expr),
                 TargetLanguage::Rust => {
                     // For Rust, insert into the HashMap with Box<dyn Any>
-                    format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._data.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>); }}", indent_str, key, expanded_expr)
+                    format!("{}if let Some(ctx) = self._context_stack.last_mut() {{ ctx._data.insert(\"{}\".to_string(), Box::new({}) as Box<dyn std::any::Any>); }}", indent_str, bare_key, expanded_expr)
                 }
-                _ => format!("{}this._context_stack[this._context_stack.length - 1]._data[\"{}\"] = {};", indent_str, key, expanded_expr),
+                _ => format!("{}this._context_stack[this._context_stack.length - 1]._data[{}] = {};", indent_str, key, expanded_expr),
             }
         }
         FrameSegmentKind::ContextParams => {
             // @@:params[key] - explicit parameter access
-            // Extract key from "@@:params[key]"
+            // Extract key from "@@:params[key]" — key includes user quotes
             let key = extract_bracket_key(&segment_text, "@@:params");
+            let bare_key = key.trim_matches('"').trim_matches('\'');
             match lang {
-                TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[\"{}\"]", key),
-                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
-                TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, key),
-                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx.event.parameters.get(\"{}\")).cloned()", key),
-                _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[\"{}\"]", key),
+                TargetLanguage::Python3 => format!("self._context_stack[-1].event._parameters[{}]", key),
+                TargetLanguage::TypeScript => format!("this._context_stack[this._context_stack.length - 1].event._parameters[{}]", key),
+                TargetLanguage::C => format!("{}_PARAM(self, \"{}\")", ctx.system_name, bare_key),
+                TargetLanguage::Rust => format!("self._context_stack.last().and_then(|ctx| ctx.event.parameters.get(\"{}\")).cloned()", bare_key),
+                _ => format!("this._context_stack[this._context_stack.length - 1].event._parameters[{}]", key),
             }
         }
         FrameSegmentKind::TaggedInstantiation => {
@@ -4161,11 +4032,13 @@ fn generate_frame_expansion(body_bytes: &[u8], span: &crate::frame_c::v4::native
 }
 
 /// Extract bracketed key from syntax like "@@:data[key]" or "@@:params[key]"
+/// Returns the raw content between [ and ] — including any user-supplied quotes.
+/// For languages that need a bare key (C, Rust), call .trim_matches on the result.
 fn extract_bracket_key(text: &str, prefix: &str) -> String {
     if let Some(rest) = text.strip_prefix(prefix) {
         if let Some(start) = rest.find('[') {
             if let Some(end) = rest.find(']') {
-                return rest[start + 1..end].trim().trim_matches('"').trim_matches('\'').to_string();
+                return rest[start + 1..end].trim().to_string();
             }
         }
     }
@@ -4307,21 +4180,12 @@ fn extract_state_var_name(text: &str) -> String {
     }
 }
 
-/// Extract expression from system.return = <expr> or return <expr>
-fn extract_system_return_expr(text: &str) -> String {
+/// Extract expression from return <expr> sugar
+fn extract_return_sugar_expr(text: &str) -> String {
     let text = text.trim();
-    // Handle return sugar: return <expr>
     if text.starts_with("return ") {
         let after_return = text[7..].trim();
         return after_return.to_string();
-    }
-    // Handle system.return = <expr>
-    if text.starts_with("system.return") {
-        let after = &text[13..];
-        let trimmed = after.trim();
-        if trimmed.starts_with('=') {
-            return trimmed[1..].trim().to_string();
-        }
     }
     String::new()
 }
@@ -4358,7 +4222,9 @@ fn expand_state_vars_in_expr(expr: &str, lang: TargetLanguage, ctx: &HandlerCont
                         result.push_str(&format!("this.__compartment.state_vars[\"{}\"]", var_name))
                     }
                 }
-                TargetLanguage::Rust => result.push_str(&format!("self._sv_{}", var_name)),
+                TargetLanguage::Rust => result.push_str(&format!(
+                    "{{ let mut __sv_comp = &self.__compartment; while __sv_comp.state != \"{}\" {{ __sv_comp = __sv_comp.parent_compartment.as_ref().unwrap(); }} match &__sv_comp.state_context {{ {}StateContext::{}(ctx) => ctx.{}, _ => unreachable!() }} }}",
+                    ctx.state_name, ctx.system_name, ctx.state_name, var_name)),
                 TargetLanguage::C => {
                     if ctx.use_sv_comp {
                         result.push_str(&format!("(int)(intptr_t){}_FrameDict_get(__sv_comp->state_vars, \"{}\")", ctx.system_name, var_name))
@@ -4700,48 +4566,57 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
         TargetLanguage::Rust => {
             // Rust uses serde_json (requires serde_json in Cargo.toml)
             // HSM persistence: serialize entire compartment chain including parent_compartment
+            // State vars live on compartment.state_context (StateContext enum)
 
             {
                 // Generate save_state that recursively serializes compartment chain
                 let mut save_body = String::new();
+
+                // Helper: serialize state_context enum to JSON
+                save_body.push_str(&format!("fn serialize_state_context(ctx: &{}StateContext) -> serde_json::Value {{\n", system.name));
+                save_body.push_str("    match ctx {\n");
+                if let Some(ref machine) = system.machine {
+                    for state in &machine.states {
+                        if state.state_vars.is_empty() {
+                            save_body.push_str(&format!(
+                                "        {}StateContext::{} => serde_json::json!({{}}),\n",
+                                system.name, state.name
+                            ));
+                        } else {
+                            save_body.push_str(&format!(
+                                "        {}StateContext::{}(ctx) => serde_json::json!({{\n",
+                                system.name, state.name
+                            ));
+                            for var in &state.state_vars {
+                                save_body.push_str(&format!(
+                                    "            \"{}\": ctx.{},\n",
+                                    var.name, var.name
+                                ));
+                            }
+                            save_body.push_str("        }),\n");
+                        }
+                    }
+                }
+                save_body.push_str(&format!("        {}StateContext::Empty => serde_json::json!({{}}),\n", system.name));
+                save_body.push_str("    }\n");
+                save_body.push_str("}\n");
+
                 // Helper function to serialize a compartment and its parent chain
                 save_body.push_str(&format!("fn serialize_comp(comp: &{}Compartment) -> serde_json::Value {{\n", system.name));
                 save_body.push_str("    let parent = match &comp.parent_compartment {\n");
                 save_body.push_str("        Some(p) => serialize_comp(p),\n");
                 save_body.push_str("        None => serde_json::Value::Null,\n");
                 save_body.push_str("    };\n");
-                save_body.push_str("    let state_vars: std::collections::HashMap<String, i32> = comp.state_vars.clone();\n");
                 save_body.push_str("    serde_json::json!({\n");
                 save_body.push_str("        \"state\": comp.state,\n");
-                save_body.push_str("        \"state_vars\": state_vars,\n");
+                save_body.push_str("        \"state_context\": serialize_state_context(&comp.state_context),\n");
                 save_body.push_str("        \"parent_compartment\": parent,\n");
                 save_body.push_str("    })\n");
                 save_body.push_str("}\n");
 
-                // Before serializing, copy _sv_ fields into compartment state_vars
-                save_body.push_str("// Sync _sv_ fields into compartment chain for persistence\n");
-                save_body.push_str(&format!("let mut comp_ptr: *mut {}Compartment = &mut self.__compartment as *mut _;\n", system.name));
-                save_body.push_str("unsafe {\n");
-                save_body.push_str("    loop {\n");
-                if let Some(ref machine) = system.machine {
-                    for state in &machine.states {
-                        for var in &state.state_vars {
-                            save_body.push_str(&format!("        if (*comp_ptr).state == \"{}\" {{\n", state.name));
-                            save_body.push_str(&format!("            (*comp_ptr).state_vars.insert(\"{}\".to_string(), self._sv_{});\n", var.name, var.name));
-                            save_body.push_str("        }\n");
-                        }
-                    }
-                }
-                save_body.push_str("        match &mut (*comp_ptr).parent_compartment {\n");
-                save_body.push_str(&format!("            Some(p) => comp_ptr = p.as_mut() as *mut {}Compartment,\n", system.name));
-                save_body.push_str("            None => break,\n");
-                save_body.push_str("        }\n");
-                save_body.push_str("    }\n");
-                save_body.push_str("}\n");
-
                 save_body.push_str("let compartment_data = serialize_comp(&self.__compartment);\n");
                 save_body.push_str("let stack_data: Vec<serde_json::Value> = self._state_stack.iter()\n");
-                save_body.push_str("    .map(|(s, _)| serde_json::json!({\"state\": s}))\n");
+                save_body.push_str("    .map(|comp| serialize_comp(comp))\n");
                 save_body.push_str("    .collect();\n");
                 save_body.push_str("serde_json::json!({\n");
                 save_body.push_str("    \"_compartment\": compartment_data,\n");
@@ -4771,13 +4646,53 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 // Generate restore_state that recursively deserializes compartment chain
                 let mut restore_body = String::new();
                 restore_body.push_str("let data: serde_json::Value = serde_json::from_str(json).unwrap();\n");
+
+                // Helper: deserialize state_context from JSON based on state name
+                restore_body.push_str(&format!("fn deserialize_state_context(state: &str, data: &serde_json::Value) -> {}StateContext {{\n", system.name));
+                restore_body.push_str("    match state {\n");
+                if let Some(ref machine) = system.machine {
+                    for state in &machine.states {
+                        if state.state_vars.is_empty() {
+                            restore_body.push_str(&format!(
+                                "        \"{}\" => {}StateContext::{},\n",
+                                state.name, system.name, state.name
+                            ));
+                        } else {
+                            restore_body.push_str(&format!(
+                                "        \"{}\" => {}StateContext::{}({}Context {{\n",
+                                state.name, system.name, state.name, state.name
+                            ));
+                            for var in &state.state_vars {
+                                let json_extract = match &var.var_type {
+                                    Type::Custom(name) => {
+                                        match name.to_lowercase().as_str() {
+                                            "int" | "i32" => format!("data[\"{}\"].as_i64().unwrap_or(0) as i32", var.name),
+                                            "i64" => format!("data[\"{}\"].as_i64().unwrap_or(0)", var.name),
+                                            "float" | "f32" | "f64" => format!("data[\"{}\"].as_f64().unwrap_or(0.0)", var.name),
+                                            "bool" => format!("data[\"{}\"].as_bool().unwrap_or(false)", var.name),
+                                            "str" | "string" => format!("data[\"{}\"].as_str().unwrap_or(\"\").to_string()", var.name),
+                                            _ => format!("serde_json::from_value(data[\"{}\"].clone()).unwrap_or_default()", var.name),
+                                        }
+                                    }
+                                    _ => format!("serde_json::from_value(data[\"{}\"].clone()).unwrap_or_default()", var.name),
+                                };
+                                restore_body.push_str(&format!("            {}: {},\n", var.name, json_extract));
+                            }
+                            restore_body.push_str("        }),\n");
+                        }
+                    }
+                }
+                restore_body.push_str(&format!("        _ => {}StateContext::Empty,\n", system.name));
+                restore_body.push_str("    }\n");
+                restore_body.push_str("}\n");
+
                 // Helper function to deserialize a compartment and its parent chain
                 restore_body.push_str(&format!("fn deserialize_comp(data: &serde_json::Value) -> {}Compartment {{\n", system.name));
-                restore_body.push_str(&format!("    let mut comp = {}Compartment::new(data[\"state\"].as_str().unwrap());\n", system.name));
-                restore_body.push_str("    if let Some(vars) = data[\"state_vars\"].as_object() {\n");
-                restore_body.push_str("        for (k, v) in vars {\n");
-                restore_body.push_str("            comp.state_vars.insert(k.clone(), v.as_i64().unwrap_or(0) as i32);\n");
-                restore_body.push_str("        }\n");
+                restore_body.push_str(&format!("    let state = data[\"state\"].as_str().unwrap();\n"));
+                restore_body.push_str(&format!("    let mut comp = {}Compartment::new(state);\n", system.name));
+                restore_body.push_str("    let ctx_data = &data[\"state_context\"];\n");
+                restore_body.push_str("    if !ctx_data.is_null() {\n");
+                restore_body.push_str(&format!("        comp.state_context = deserialize_state_context(state, ctx_data);\n"));
                 restore_body.push_str("    }\n");
                 restore_body.push_str("    if !data[\"parent_compartment\"].is_null() {\n");
                 restore_body.push_str("        comp.parent_compartment = Some(Box::new(deserialize_comp(&data[\"parent_compartment\"])));\n");
@@ -4785,83 +4700,42 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
                 restore_body.push_str("    comp\n");
                 restore_body.push_str("}\n");
 
-                // Restore stack as Vec<(String, StateContext)>
-                restore_body.push_str(&format!("let stack: Vec<(String, {}StateContext)> = data[\"_state_stack\"].as_array()\n", system.name));
+                // Restore stack as Vec<Compartment>
+                restore_body.push_str(&format!("let stack: Vec<{}Compartment> = data[\"_state_stack\"].as_array()\n", system.name));
                 restore_body.push_str("    .map(|arr| arr.iter()\n");
-                restore_body.push_str(&format!("        .filter_map(|v| v[\"state\"].as_str().map(|s| (s.to_string(), {}StateContext::Empty)))\n", system.name));
+                restore_body.push_str("        .map(|v| deserialize_comp(v))\n");
                 restore_body.push_str("        .collect())\n");
                 restore_body.push_str("    .unwrap_or_default();\n");
 
-                // First deserialize compartment so we can access it for state vars
+                // Deserialize compartment
                 restore_body.push_str("let compartment = deserialize_comp(&data[\"_compartment\"]);\n");
 
-                restore_body.push_str(&format!("let mut instance = {} {{\n", system.name));
+                restore_body.push_str(&format!("let instance = {} {{\n", system.name));
                 restore_body.push_str("    _state_stack: stack,\n");
                 restore_body.push_str("    _context_stack: vec![],\n");
                 restore_body.push_str("    __compartment: compartment,\n");
                 restore_body.push_str("    __next_compartment: None,\n");
 
-                // Restore _sv_ fields from compartment chain
-                // Walk chain to find values for each state's vars
-                if let Some(ref machine) = system.machine {
-                    for state in &machine.states {
-                        for var in &state.state_vars {
-                            let default_val = var.init.as_ref()
-                                .map(|e| expression_to_string(e, TargetLanguage::Rust))
-                                .unwrap_or_else(|| {
-                                    match &var.var_type {
-                                        Type::Int => "0".to_string(),
-                                        Type::Float => "0.0".to_string(),
-                                        Type::Bool => "false".to_string(),
-                                        Type::String => "String::new()".to_string(),
-                                        _ => "Default::default()".to_string(),
-                                    }
-                                });
-                            restore_body.push_str(&format!("    _sv_{}: {},\n", var.name, default_val));
-                        }
-                    }
-                }
-
                 // Restore domain variables
                 for var in &system.domain {
                     let _type_str = type_to_string(&var.var_type);
                     let json_extract = match &var.var_type {
-                        Type::Int => format!("data[\"{}\"].as_i64().unwrap() as i32", var.name),
-                        Type::Float => format!("data[\"{}\"].as_f64().unwrap()", var.name),
-                        Type::Bool => format!("data[\"{}\"].as_bool().unwrap()", var.name),
-                        Type::String => format!("data[\"{}\"].as_str().unwrap().to_string()", var.name),
-                        Type::Custom(name) if name == "i64" => format!("data[\"{}\"].as_i64().unwrap()", var.name),
-                        Type::Custom(name) if name == "f64" => format!("data[\"{}\"].as_f64().unwrap()", var.name),
-                        Type::Custom(name) if name == "String" => format!("data[\"{}\"].as_str().unwrap().to_string()", var.name),
+                        Type::Custom(name) => {
+                            match name.to_lowercase().as_str() {
+                                "int" | "i32" => format!("data[\"{}\"].as_i64().unwrap() as i32", var.name),
+                                "i64" => format!("data[\"{}\"].as_i64().unwrap()", var.name),
+                                "float" | "f32" | "f64" => format!("data[\"{}\"].as_f64().unwrap()", var.name),
+                                "bool" => format!("data[\"{}\"].as_bool().unwrap()", var.name),
+                                "str" | "string" => format!("data[\"{}\"].as_str().unwrap().to_string()", var.name),
+                                _ => format!("serde_json::from_value(data[\"{}\"].clone()).unwrap()", var.name),
+                            }
+                        }
                         _ => format!("serde_json::from_value(data[\"{}\"].clone()).unwrap()", var.name),
                     };
                     restore_body.push_str(&format!("    {}: {},\n", var.name, json_extract));
                 }
 
                 restore_body.push_str("};\n");
-
-                // After instance creation, restore _sv_ fields from compartment state_vars
-                // Walk compartment chain to find values
-                restore_body.push_str("// Restore _sv_ fields from compartment chain\n");
-                restore_body.push_str("let mut comp_ptr = &instance.__compartment;\n");
-                restore_body.push_str("loop {\n");
-                if let Some(ref machine) = system.machine {
-                    for state in &machine.states {
-                        for var in &state.state_vars {
-                            restore_body.push_str(&format!("    if comp_ptr.state == \"{}\" {{\n", state.name));
-                            restore_body.push_str(&format!("        if let Some(&v) = comp_ptr.state_vars.get(\"{}\") {{\n", var.name));
-                            restore_body.push_str(&format!("            instance._sv_{} = v;\n", var.name));
-                            restore_body.push_str("        }\n");
-                            restore_body.push_str("    }\n");
-                        }
-                    }
-                }
-                restore_body.push_str("    match &comp_ptr.parent_compartment {\n");
-                restore_body.push_str("        Some(p) => comp_ptr = p,\n");
-                restore_body.push_str("        None => break,\n");
-                restore_body.push_str("    }\n");
-                restore_body.push_str("}\n");
-
                 restore_body.push_str("instance");
 
                 methods.push(CodegenNode::Method {
@@ -5063,10 +4937,6 @@ fn generate_persistence_methods(system: &SystemAst, syntax: &super::backend::Cla
 /// Convert Type enum to string representation
 fn type_to_string(t: &Type) -> String {
     match t {
-        Type::Int => "int".to_string(),
-        Type::Float => "float".to_string(),
-        Type::String => "str".to_string(),
-        Type::Bool => "bool".to_string(),
         Type::Custom(name) => name.clone(),
         Type::Unknown => "Any".to_string(),
     }
@@ -5235,7 +5105,7 @@ mod tests {
         let mut system = create_test_system();
         system.domain.push(DomainVar {
             name: "counter".to_string(),
-            var_type: Type::Int,
+            var_type: Type::Custom("int".into()),
             initializer: Some(Expression::Literal(Literal::Int(0))),
             is_frame: false,
             raw_code: None,

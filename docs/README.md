@@ -45,8 +45,8 @@ V4 is a **pure preprocessor** for `@@system` blocks. Native code passes through 
 ## Framepiler Design
 
 ### Going Native — Key Policies
-- Native bodies by default; Frame statements (`->`, `=>`, `push$`/`pop$`, `system.return`) are SOL-anchored and recognized only in handlers.
-- Actions/operations are native-only; use `system.return` for returns as needed.
+- Native bodies by default; Frame statements (`->`, `=>`, `push$`/`pop$`, `@@:return`) are SOL-anchored and recognized only in handlers.
+- Actions/operations are native-only; use `@@:return` for return value assignment. Frame state-machine syntax is forbidden (E401).
 - Per-language boundary detection via DPDAs (TS template/backtick-aware; Py triple-quote/f-string-aware).
 - Transitions are terminal: a terminal statement must be last in a handler body.
 

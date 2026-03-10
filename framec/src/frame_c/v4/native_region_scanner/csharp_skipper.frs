@@ -1,0 +1,166 @@
+@@target rust
+
+// C# syntax skipper — Frame-generated state machine.
+// Delegates to shared helpers where possible; inlines C#-specific string forms.
+//
+// Helpers used:
+//   skip_hash_comment (preprocessor), skip_line_comment, skip_block_comment,
+//   skip_simple_string, find_line_end_c_like, balanced_paren_end_c_like
+// Inline: @"..." verbatim strings, $"..." interpolated strings, $"""...""" raw strings
+
+@@system CSharpSyntaxSkipperFsm {
+    interface:
+        do_skip_comment()
+        do_skip_string()
+        do_find_line_end()
+        do_balanced_paren_end()
+
+    machine:
+        $Init {
+            do_skip_comment() { -> $SkipComment }
+            do_skip_string() { -> $SkipString }
+            do_find_line_end() { -> $FindLineEnd }
+            do_balanced_paren_end() { -> $BalancedParenEnd }
+        }
+
+        $SkipComment {
+            $>() {
+                // Preprocessor directive (uses skip_hash_comment)
+                if let Some(j) = skip_hash_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                // Line comment
+                if let Some(j) = skip_line_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                // Block comment
+                if let Some(j) = skip_block_comment(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $SkipString {
+            $>() {
+                let i = self.pos;
+                let end = self.end;
+                let bytes = &self.bytes;
+                let b0 = bytes[i];
+
+                // Verbatim string @"..." (doubled quotes for escape)
+                if b0 == b'@' && i + 1 < end && bytes[i + 1] == b'"' {
+                    let mut j = i + 2;
+                    while j < end {
+                        if bytes[j] == b'"' {
+                            if j + 1 < end && bytes[j + 1] == b'"' {
+                                j += 2; // escaped quote
+                                continue;
+                            }
+                            self.result_pos = j + 1;
+                            self.success = 1;
+                            return
+                        }
+                        j += 1;
+                    }
+                    self.result_pos = end;
+                    self.success = 1;
+                    return
+                }
+
+                // Interpolated string $"..." or $@"..." or raw $"""..."""
+                if b0 == b'$' {
+                    let mut j = i + 1;
+                    // Skip additional $
+                    while j < end && bytes[j] == b'$' { j += 1; }
+                    // Check for @
+                    if j < end && bytes[j] == b'@' { j += 1; }
+                    // Count opening quotes
+                    let mut quotes: usize = 0;
+                    while j < end && bytes[j] == b'"' {
+                        quotes += 1;
+                        j += 1;
+                    }
+                    if quotes == 0 {
+                        self.success = 0;
+                        return
+                    }
+                    // Raw string (3+ quotes)
+                    if quotes >= 3 {
+                        while j < end {
+                            if bytes[j] == b'"' {
+                                let mut q: usize = 0;
+                                let mut p = j;
+                                while p < end && bytes[p] == b'"' {
+                                    q += 1;
+                                    p += 1;
+                                }
+                                if q >= quotes {
+                                    self.result_pos = p;
+                                    self.success = 1;
+                                    return
+                                }
+                                j = p;
+                                continue;
+                            }
+                            j += 1;
+                        }
+                        self.result_pos = end;
+                        self.success = 1;
+                        return
+                    }
+                    // Normal interpolated string
+                    while j < end {
+                        if bytes[j] == b'\\' { j += 2; continue; }
+                        if bytes[j] == b'"' {
+                            self.result_pos = j + 1;
+                            self.success = 1;
+                            return
+                        }
+                        j += 1;
+                    }
+                    self.result_pos = end;
+                    self.success = 1;
+                    return
+                }
+
+                // Simple string via shared helper
+                if let Some(j) = skip_simple_string(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+        $FindLineEnd {
+            $>() {
+                self.result_pos = find_line_end_c_like(&self.bytes, self.pos, self.end);
+            }
+        }
+
+        $BalancedParenEnd {
+            $>() {
+                if let Some(j) = balanced_paren_end_c_like(&self.bytes, self.pos, self.end) {
+                    self.result_pos = j;
+                    self.success = 1;
+                    return
+                }
+                self.success = 0;
+            }
+        }
+
+    domain:
+        var bytes: Vec<u8> = Vec::new()
+        var pos: usize = 0
+        var end: usize = 0
+        var result_pos: usize = 0
+        var success: usize = 1
+}
