@@ -52,6 +52,8 @@ pub mod assembler;
 pub mod pipeline;
 // Phase 4: Code generation infrastructure
 pub mod codegen;
+// Phase 4b: GraphViz DOT backend (bypasses CodegenNode)
+pub mod graphviz;
 // Phase 5: Modular validation infrastructure
 pub mod validation;
 

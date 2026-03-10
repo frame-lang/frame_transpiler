@@ -314,8 +314,7 @@ pub fn get_backend(lang: TargetLanguage) -> Box<dyn LanguageBackend> {
         TargetLanguage::C => Box::new(c::CBackend),
         TargetLanguage::Cpp => Box::new(cpp::CppBackend),
         TargetLanguage::Java => Box::new(java::JavaBackend),
-        // Default to Python for unsupported languages
-        _ => Box::new(python::PythonBackend),
+        _ => panic!("No CodegenNode backend for {:?} — use target-specific pipeline instead", lang),
     }
 }
 

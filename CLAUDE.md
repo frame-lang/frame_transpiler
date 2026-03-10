@@ -7,10 +7,14 @@
 
 1. **READ** [`docs/README.md`](docs/README.md) - Documentation index and entry point
 2. **READ** [`docs/HOW_TO.md`](docs/HOW_TO.md) - Complete development guide (V4 current, V3 legacy)
-3. **READ** [`framepiler_test_env/GETTING_STARTED.md`](framepiler_test_env/GETTING_STARTED.md) - Test infrastructure guide
+3. **READ** [`framepiler_test_env/README.md`](framepiler_test_env/README.md) - Test infrastructure guide
 4. **FOR V4 WORK**: **READ** [`CLAUDE_V4.md`](CLAUDE_V4.md) - V4 implementation approach
 
 📖 **ALWAYS CHECK CLI HELP**: Run `./target/release/framec --help` to see all available command-line options and parameters.
+
+🔄 **AFTER CONTEXT COMPACTION**: Re-read `docs/HOW_TO.md` before continuing work.
+
+⚠️ **TEST ENV NOTE**: `framepiler_test_env/` is a **separate git repo** — it does NOT exist in worktrees. Always run tests from the main repo path: `/Users/marktruluck/projects/frame_transpiler/framepiler_test_env/tests/run_tests.sh`
 
 ⚠️ **CRITICAL RULES**
 1. **NEVER create workarounds** - Fix the actual problem in the codebase

@@ -23,11 +23,12 @@ This document captures every process, tool, and workflow used in the Frame Trans
 Frame is a state machine language that transpiles to multiple target languages (Python, TypeScript, Rust, etc.).
 
 ### Current Status
-- **Version**: v0.96.2
-- **Branch**: `v4_pure` (V4 pipeline development)
+- **Version**: v0.96.10
+- **Branch**: `main` (unified — v4_pure merged into main)
 - **Active Work**: V4 pure preprocessor architecture
-- **Active Languages**: Python 3, TypeScript, Rust, C
-- **V4 Test Status**: Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
+- **Active Languages**: Python 3, TypeScript, Rust, C, C#, C++, Java, GraphViz
+- **V4 Test Status**: Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
+- **Unit Tests**: 216 pass, 0 fail, 2 ignored — zero warnings
 - **Shared Test Environment**: Active - using `framepiler_test_env`
 - **LLVM**: on indefinite hold
 

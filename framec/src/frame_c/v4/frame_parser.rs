@@ -1623,6 +1623,7 @@ impl FrameParser {
             TargetLanguage::C => Box::new(NativeRegionScannerC),
             TargetLanguage::Cpp => Box::new(NativeRegionScannerCpp),
             TargetLanguage::Java => Box::new(NativeRegionScannerJava),
+            TargetLanguage::Graphviz => Box::new(NativeRegionScannerPy),
         }
     }
 

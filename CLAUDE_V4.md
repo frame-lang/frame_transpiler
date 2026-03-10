@@ -40,7 +40,7 @@ See `docs/framelang/v4/frame_v4_lang_reference.md` Section 9 for the full specif
 
 ## Test Infrastructure
 
-**V4 Test Status:** Python 144/144 (100%), TypeScript 126/126 (100%), Rust 130/130 (100%), C 139/139 (100%) — 539/539 total (100%)
+**V4 Test Status:** Python 146/146 (100%), TypeScript 128/128 (100%), Rust 132/132 (100%), C 141/141 (100%) — 547/547 total (100%)
 
 **Test sources:** `framepiler_test_env/tests/` (dynamically discovered)
 - `.fpy` — Python sources

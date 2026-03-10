@@ -499,6 +499,7 @@ pub enum TargetLanguage {
     C,
     Cpp,
     Java,
+    Graphviz,
 }
 
 // Helper methods for AST nodes
