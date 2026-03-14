@@ -2094,83 +2094,8 @@ fn generate_interface_wrappers(system: &SystemAst, syntax: &super::backend::Clas
                 match_code.push_str(&format!("let __ctx = {}::new(__e.clone(), None);\n", context_class));
                 match_code.push_str("self._context_stack.push(__ctx);\n");
 
-                // Direct dispatch to handler based on current state (bypasses kernel)
-                // This is necessary because handlers with parameters can't be called through state dispatch
-                match_code.push_str("match self.__compartment.state.as_str() {\n");
-
-                if let Some(ref machine) = system.machine {
-                    // Collect states that handle this event
-                    let mut states_with_handler: std::collections::HashSet<&str> = std::collections::HashSet::new();
-                    for state in &machine.states {
-                        if state.handlers.iter().any(|h| h.event == method.name) {
-                            states_with_handler.insert(&state.name);
-                        }
-                    }
-
-                    for state in &machine.states {
-                        if let Some(handler) = state.handlers.iter().find(|h| h.event == method.name) {
-                            // This state handles the event directly
-                            let handler_name = format!("_s_{}_{}", state.name, method.name);
-                            let handler_args = if handler.params.is_empty() {
-                                String::new()
-                            } else {
-                                let param_names: Vec<String> = handler.params.iter()
-                                    .map(|p| p.name.clone())
-                                    .collect();
-                                format!(", {}", param_names.join(", "))
-                            };
-                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, handler_name, handler_args));
-                        } else if state.default_forward {
-                            // State has default_forward - call parent's handler if it has one
-                            if let Some(ref parent) = state.parent {
-                                if states_with_handler.contains(parent.as_str()) {
-                                    // Find parent's handler to get its parameter list
-                                    let parent_state = machine.states.iter().find(|s| s.name == *parent);
-                                    if let Some(ps) = parent_state {
-                                        if let Some(parent_handler) = ps.handlers.iter().find(|h| h.event == method.name) {
-                                            let parent_handler_name = format!("_s_{}_{}", parent, method.name);
-                                            let parent_args = if parent_handler.params.is_empty() {
-                                                String::new()
-                                            } else {
-                                                let param_names: Vec<String> = parent_handler.params.iter()
-                                                    .map(|p| p.name.clone())
-                                                    .collect();
-                                                format!(", {}", param_names.join(", "))
-                                            };
-                                            match_code.push_str(&format!("            \"{}\" => {{ self.{}(&__e{}); }}\n", state.name, parent_handler_name, parent_args));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                match_code.push_str("            _ => {}\n        }\n");
-
-                // Process any pending transitions (bypassed kernel, so we handle transitions here)
-                match_code.push_str(r#"while self.__next_compartment.is_some() {
-    let next_compartment = self.__next_compartment.take().unwrap();
-    let exit_event = "#);
-                match_code.push_str(&format!("{}::new_with_params(\"<$\", &self.__compartment.exit_args);\n", event_class));
-                match_code.push_str(r#"    self.__router(&exit_event);
-    self.__compartment = next_compartment;
-    if self.__compartment.forward_event.is_none() {
-        let enter_event = "#);
-                match_code.push_str(&format!("{}::new_with_params(\"$>\", &self.__compartment.enter_args);\n", event_class));
-                match_code.push_str(r#"        self.__router(&enter_event);
-    } else {
-        let forward_event = self.__compartment.forward_event.take().unwrap();
-        if forward_event.message == "$>" {
-            self.__router(&forward_event);
-        } else {
-            let enter_event = "#);
-                match_code.push_str(&format!("{}::new_with_params(\"$>\", &self.__compartment.enter_args);\n", event_class));
-                match_code.push_str(r#"            self.__router(&enter_event);
-            self.__router(&forward_event);
-        }
-    }
-}
-"#);
+                // Call kernel to route event and process transitions
+                match_code.push_str("self.__kernel(__e);\n");
 
                 // Pop context and return
                 if method.return_type.is_some() {
@@ -2997,8 +2922,21 @@ fn generate_rust_state_dispatch(
             continue;
         }
 
-        // Skip non-lifecycle handlers with parameters - they can only be called from interface methods directly
+        // Handle non-lifecycle handlers with parameters - extract from event
         if !handler.params.is_empty() {
+            code.push_str(&format!("    \"{}\" => {{\n", message));
+            for param in &handler.params {
+                // Extract parameter from event, downcast to the appropriate type
+                // For now, use String and let the handler deal with typing
+                let param_type = param.symbol_type.as_deref().unwrap_or("String");
+                code.push_str(&format!(
+                    "        let {}: {} = __e.parameters.get(\"{}\").and_then(|v| v.downcast_ref::<{}>()).cloned().unwrap_or_default();\n",
+                    param.name, param_type, param.name, param_type
+                ));
+            }
+            let param_names: Vec<_> = handler.params.iter().map(|p| p.name.clone()).collect();
+            code.push_str(&format!("        self.{}(__e, {});\n", handler_method, param_names.join(", ")));
+            code.push_str("    }\n");
             continue;
         }
 
