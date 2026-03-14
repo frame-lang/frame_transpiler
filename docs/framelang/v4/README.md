@@ -2,8 +2,8 @@
 
 **Status:** Normative — All four target languages implemented
 **Version:** 1.4
-**Date:** 2026-02-27
-**Test Status:** 539/539 passing (100%) — Python 144/144, TypeScript 126/126, Rust 130/130, C 139/139
+**Date:** 2026-03-14
+**Test Status:** 547/547 passing (100%) — Python 146/146, TypeScript 128/128, Rust 132/132, C 141/141
 
 ---
 
@@ -28,7 +28,7 @@
 | Python 3 | ✅ Complete | `.fpy` |
 | TypeScript | ✅ Complete | `.fts` |
 | Rust | ✅ Complete | `.frs` |
-| C | 🚧 In Development | `.fc` |
+| C | ✅ Complete | `.fc` |
 
 ---
 

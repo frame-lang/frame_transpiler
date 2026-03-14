@@ -581,6 +581,7 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
 
     // Generate FrameEvent struct (lean routing object - message + parameters only)
     // Parameters use Box<dyn Any> for typed storage with downcasting
+    code.push_str("#[allow(dead_code)]\n");
     code.push_str(&format!("struct {}FrameEvent {{\n", system_name));
     code.push_str("    message: String,\n");
     code.push_str("    parameters: std::collections::HashMap<String, Box<dyn std::any::Any>>,\n");
@@ -614,6 +615,7 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     code.push_str("}\n\n");
 
     // Generate FrameContext struct (call context for reentrancy)
+    code.push_str("#[allow(dead_code)]\n");
     code.push_str(&format!("struct {}FrameContext {{\n", system_name));
     code.push_str(&format!("    event: {}FrameEvent,\n", system_name));
     code.push_str("    _return: Option<Box<dyn std::any::Any>>,\n");
@@ -695,7 +697,7 @@ fn generate_rust_runtime_types(system: &SystemAst) -> String {
     }
 
     // Generate Compartment struct
-    code.push_str(&format!("#[derive(Clone)]\nstruct {}Compartment {{\n", system_name));
+    code.push_str(&format!("#[allow(dead_code)]\n#[derive(Clone)]\nstruct {}Compartment {{\n", system_name));
     code.push_str("    state: String,\n");
     code.push_str(&format!("    state_context: {}StateContext,\n", system_name));
     code.push_str("    enter_args: std::collections::HashMap<String, String>,\n");

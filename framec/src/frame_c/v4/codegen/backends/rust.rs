@@ -39,6 +39,9 @@ impl LanguageBackend for RustBackend {
             CodegenNode::Class { name, fields, methods, base_classes: _, is_abstract: _, derives } => {
                 let mut result = String::new();
 
+                // Suppress warnings for generated Frame infrastructure
+                result.push_str(&format!("{}#[allow(dead_code)]\n", ctx.get_indent()));
+
                 // Derive attributes (for serde, etc.)
                 if !derives.is_empty() {
                     result.push_str(&format!("{}#[derive({})]\n", ctx.get_indent(), derives.join(", ")));
@@ -63,7 +66,8 @@ impl LanguageBackend for RustBackend {
                 ctx.pop_indent();
                 result.push_str(&format!("{}}}\n\n", ctx.get_indent()));
 
-                // Impl block
+                // Impl block - suppress non_snake_case for Frame-generated method names
+                result.push_str(&format!("{}#[allow(non_snake_case)]\n", ctx.get_indent()));
                 result.push_str(&format!("{}impl {} {{\n", ctx.get_indent(), name));
                 ctx.push_indent();
                 for (i, method) in methods.iter().enumerate() {
@@ -79,7 +83,8 @@ impl LanguageBackend for RustBackend {
             }
 
             CodegenNode::Enum { name, variants } => {
-                let mut result = format!("{}pub enum {} {{\n", ctx.get_indent(), name);
+                let mut result = format!("{}#[allow(dead_code)]\n", ctx.get_indent());
+                result.push_str(&format!("{}pub enum {} {{\n", ctx.get_indent(), name));
                 ctx.push_indent();
                 for variant in variants {
                     result.push_str(&format!("{}{},\n", ctx.get_indent(), variant.name));
@@ -418,7 +423,14 @@ impl LanguageBackend for RustBackend {
                 }
             }
 
-            CodegenNode::NativeBlock { code, span: _ } => code.clone(),
+            CodegenNode::NativeBlock { code, span: _ } => {
+                // Indent each line of the native block to match current context
+                let indent = ctx.get_indent();
+                code.lines()
+                    .map(|line| format!("{}{}", indent, line))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
             CodegenNode::SplicePoint { id } => format!("// SPLICE_POINT: {}", id),
         }
     }
